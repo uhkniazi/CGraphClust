@@ -4,10 +4,17 @@
 
 # Example code in package build process
 *-Ex.R
+temp.R
 
 # RStudio files
 .Rproj.user/
+*.Rproj
 
 # produced vignettes
 vignettes/*.html
 vignettes/*.pdf
+.Rproj.user
+
+# directories to ignore
+Temp/
+Data_external
