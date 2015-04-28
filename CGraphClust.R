@@ -324,49 +324,6 @@ setMethod('getCommunity', signature = 'CGraphClust', definition = function(obj){
   return(obj@com)
 })
 
-# remove small communities below a certain size
-setGeneric('oCGdeleteSmallCommunities', function(obj, size=3)standardGeneric('oCGdeleteSmallCommunities'))
-setMethod('oCGdeleteSmallCommunities', signature ='CGraphClust', definition = function(obj, size=3){
-  # get the community object and cut out small communities
-  com = getCommunity(obj)
-  ig.1 = getFinalGraph(obj)
-  i = which(sizes(com) <= size)
-  m = membership(com)
-  # get community member vertex names
-  n = names(m[m %in% i])
-  # delete these vertices from the graph and recalculate the communities
-  ig.1 = delete.vertices(ig.1, n)  
-  # find communities again and reassign labels
-  if (ecount(ig.1) > 3000) {
-    stop('Too many edges in graph to safely find communities')
-  }
-  com = edge.betweenness.community(ig.1)
-  # get the hclust object 
-  hc = as.hclust(com)
-  memb = membership(com)
-  # variable to hold the type 2 vertex common between 
-  # members of a community
-  rv.g = rep(NA, length=vcount(ig.1))
-  rn = V(ig.1)$name
-  for (i in 1:length(unique(memb))){
-    # get the type 2 names names
-    nei = graph.neighborhood(getBipartiteGraph(obj), order = 1, nodes = rn[memb == i])
-    # this neighbourhood graph is a list of graphs with each 
-    # graph consisting of type 2 vertices that are connected to the 
-    # corresponding type 1 vertex in condition rn[memb == i]
-    # go through list to get the names
-    pw = sapply(seq_along(nei), function(x) V(nei[[x]])$name)
-    pw = unlist(pw)
-    pw = as.data.frame(table(pw))
-    # assign the most frequent type 2 vertex
-    rv.g[memb == i] = as.character(pw[which.max(pw$Freq), 1])
-  }
-  obj@hc = hc
-  obj@com = com
-  obj@labels = rv.g
-  obj@ig.i = ig.1
-  return(obj)
-})
 
 # plot heatmap of cluster
 setGeneric('plot.heatmap', def = function(obj, mCounts, ivScale = c(-3, 3), ...) standardGeneric('plot.heatmap'))

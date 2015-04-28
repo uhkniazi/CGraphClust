@@ -61,10 +61,17 @@ getClusterLabels function.
 getProjectedGraph, getCorrelationGraph, getBipartiteGraph, getFinalGraph (to get the intersected graph), 
 getClusterLabels, getHclust, getCommunity
 
-# oCGdeleteSmallCommunities
+# oCGdeleteSmallCommunities (REMOVED)
 if we want to remove vertices/communities below a certain size. this can be useful to remove very small clusters which may
 not really give useful information. it takes as an argument the object of CGraphCluster and a size (default = 3), and removes
 any clusters with number of vertices equal to or less than size. It returns a new object of CGraphCluster size, which has
 the bipartite, correlated and projected graphs similar to the original objects, however the final graph (intersected graph),
 community object, labels and hclust object are different due to removing smaller communities.
+
+# plot.heatmap
+plots an annotated heatmap using the NMF library. Requires the object CGraphClust, count matrix with type 1 vertices in the 
+rows and type 2 vertices in the columns and a default cutoff expression values (-3, 3) - all values below or above these cutoffs
+are thredholded to this value as the extreme values affect the heatmap colouring. The heatmap matrix is scaled by sd and centered 
+to a zero mean along the rows (type 1 vertex) before plotting.
+
 
