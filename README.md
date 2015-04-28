@@ -61,4 +61,10 @@ getClusterLabels function.
 getProjectedGraph, getCorrelationGraph, getBipartiteGraph, getFinalGraph (to get the intersected graph), 
 getClusterLabels, getHclust, getCommunity
 
+# oCGdeleteSmallCommunities
+if we want to remove vertices/communities below a certain size. this can be useful to remove very small clusters which may
+not really give useful information. it takes as an argument the object of CGraphCluster and a size (default = 3), and removes
+any clusters with number of vertices equal to or less than size. It returns a new object of CGraphCluster size, which has
+the bipartite, correlated and projected graphs similar to the original objects, however the final graph (intersected graph),
+community object, labels and hclust object are different due to removing smaller communities.
 

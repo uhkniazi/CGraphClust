@@ -329,8 +329,8 @@ setGeneric('oCGdeleteSmallCommunities', function(obj, size=3)standardGeneric('oC
 setMethod('oCGdeleteSmallCommunities', signature ='CGraphClust', definition = function(obj, size=3){
   # get the community object and cut out small communities
   com = getCommunity(obj)
-  ig.1 = getFinalGraph(ob)
-  i = which(sizes(com) <= 3)
+  ig.1 = getFinalGraph(obj)
+  i = which(sizes(com) <= size)
   m = membership(com)
   # get community member vertex names
   n = names(m[m %in% i])
@@ -369,8 +369,8 @@ setMethod('oCGdeleteSmallCommunities', signature ='CGraphClust', definition = fu
 })
 
 # plot heatmap of cluster
-setGeneric('plot', def = function(obj, mCounts, ivScale = c(-3, 3), ...) standardGeneric('plot'))
-setMethod('plot', signature='CGraphClust', definition = function(obj, mCounts, ivScale = c(-3, 3), ...){
+setGeneric('plot.heatmap', def = function(obj, mCounts, ivScale = c(-3, 3), ...) standardGeneric('plot.heatmap'))
+setMethod('plot.heatmap', signature='CGraphClust', definition = function(obj, mCounts, ivScale = c(-3, 3), ...){
   if (!require(NMF)) stop('R package NMF needs to be installed.')
   n = V(getFinalGraph(obj))$name
   mCounts = mCounts[rownames(mCounts) %in% n,]
