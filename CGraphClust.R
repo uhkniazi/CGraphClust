@@ -151,16 +151,18 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5){
   # on a log scale it follows a poisson or negative binomial dist
   t = log(ivDegGo)
   r = range(t)
-  r = seq(floor(r[1])-0.5, ceiling(r[2])+0.5, by=1)
+  s = seq(floor(r[1])-0.5, ceiling(r[2])+0.5, by=1)
+  r[1] = floor(r[1])
+  r[2] = ceiling(r[2])
   # which distribution can approximate the frequency of reactome terms
-  hist(t, prob=T, main='degree distribution of type 2 vertices', breaks=r,
+  hist(t, prob=T, main='degree distribution of type 2 vertices', breaks=s,
        xlab='log degree', ylab='')
   # try negative binomial and poisson distributions
   # parameterized on the means
-  dn = dnbinom(0:5, size = mean(t), mu = mean(t))
-  dp = dpois(0:5, mean(t))
-  lines(0:5, dn, col='black', type='b')
-  lines(0:5, dp, col='red', type='b')
+  dn = dnbinom(r[1]:r[2], size = mean(t), mu = mean(t))
+  dp = dpois(r[1]:r[2], mean(t))
+  lines(r[1]:r[2], dn, col='black', type='b')
+  lines(r[1]:r[2], dp, col='red', type='b')
   legend('topright', legend =c('nbinom', 'poi'), fill = c('black', 'red'))
   # a poisson distribution with mean(t) fits well - use this as cutoff
   # however a negative binomial will adjust for overdispertion, try both perhaps
@@ -195,6 +197,8 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5){
   w2 = sqrt(w)
   r = range(w2)
   s = seq(floor(r[1])-0.5, ceiling(r[2])+0.5, by = 1)
+  r[1] = floor(r[1])
+  r[2] = ceiling(r[2])
   hist(w2, prob=T, breaks=s, main='distribution of obs to exp ratios', 
        xlab='square root obs to exp ratio', ylab='')
   r = round(r)
