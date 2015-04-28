@@ -235,6 +235,32 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5){
   # delete any orphan edges
   ig.1 = delete.vertices(ig.1, which(d == 0))  
   
+  ## remove small components
+  cl = clusters(ig.1)
+  t = log(cl$csize)
+  r = range(t)
+  s = seq(floor(r[1])-0.5, ceiling(r[2])+0.5, by=1)
+  r[1] = floor(r[1])
+  r[2] = ceiling(r[2])
+  # which distribution can approximate the distribution of cluster sizes
+  hist(t, prob=T, main='distribution of cluster sizes', breaks=s,
+       xlab='log size', ylab='')
+  # try negative binomial and poisson distributions
+  # parameterized on the means
+  dn = dnbinom(r[1]:r[2], size = mean(t), mu = mean(t))
+  dp = dpois(r[1]:r[2], mean(t))
+  lines(r[1]:r[2], dn, col='black', type='b')
+  lines(r[1]:r[2], dp, col='red', type='b')
+  legend('topright', legend =c('nbinom', 'poi'), fill = c('black', 'red'))
+  # a poisson distribution with mean(t) fits well - use this as cutoff
+  # however a negative binomial will adjust for overdispertion, try both perhaps
+  i = round(exp(qpois(0.05, mean(t), lower.tail = F)))
+  #i = round(exp(qnbinom(0.05, size = mean(t), mu = mean(t), lower.tail = F)))
+  i = which(cl$csize < i)
+  v = which(cl$membership %in% i)
+  # delete the components that are small
+  ig.1 = delete.vertices(ig.1, v = v)
+  
   ## clean up the bipartite graph by removing type 2 nodes
   ## that are now redundant, as the intersected final graph has less type 1
   ## vertices than the original building of the bipartite graph. 
@@ -259,10 +285,11 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5){
   # NOTE: if number of edges in the graph larger than 3000 or so then
   # it may take too long or crash the system, so put in a safety check here
   # and choose a different community finding algorithm
+  com = NULL
   if (ecount(ig.1) > 3000) {
-    stop('Too many edges in graph to safely find communities')
-  }
-  com = edge.betweenness.community(ig.1)
+    print('Too many edges in graph to use edge.betweenness communities')
+    com = walktrap.community(ig.1)
+  } else com = edge.betweenness.community(ig.1)
   # get the hclust object 
   hc = as.hclust(com)
   memb = membership(com)
