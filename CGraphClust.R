@@ -254,8 +254,9 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5){
   legend('topright', legend =c('nbinom', 'poi'), fill = c('black', 'red'))
   # a poisson distribution with mean(t) fits well - use this as cutoff
   # however a negative binomial will adjust for overdispertion, try both perhaps
-  i = round(exp(qpois(0.05, mean(t), lower.tail = F)))
+  ## EDIT HERE to get larger clusters i = round(exp(qpois(0.05, mean(t), lower.tail = F)))
   #i = round(exp(qnbinom(0.05, size = mean(t), mu = mean(t), lower.tail = F)))
+  i = 6
   i = which(cl$csize < i)
   v = which(cl$membership %in% i)
   # delete the components that are small
@@ -379,7 +380,7 @@ setMethod('plot.heatmap', signature='CGraphClust', definition = function(obj, mC
   mCounts[mCounts > ivScale[2]] = ivScale[2]
   # draw the heatmap  color='-RdBu:50'
   aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = as.dendrogram(getHclust(obj)),
-           annRow=as.factor(getClusterLabels(obj)), annColors='Set1', Colv=NA)
+           annRow=as.factor(getClusterLabels(obj)), annColors=NA, Colv=NA)
 })
 
 
@@ -417,5 +418,6 @@ setMethod('plot.heatmap.means', signature='CGraphClust', definition = function(o
   # draw the heatmap
   hc = hclust(dist(mCounts))
   aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=as.factor(hc$labels), 
-           annColors='Set1', Colv=NA)
+           annColors=NA, Colv=NA)
+  # removed annColors = 'Set1'
 })
