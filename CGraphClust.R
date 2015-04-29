@@ -355,6 +355,14 @@ setMethod('getCommunity', signature = 'CGraphClust', definition = function(obj){
   return(obj@com)
 })
 
+# get mapping of type 1 vertices to cluster
+setGeneric('getClusterMapping', function(obj)standardGeneric('getClusterMapping'))
+setMethod('getClusterMapping', signature = 'CGraphClust', definition = function(obj){
+  hc = getHClust(obj)
+  df = data.frame(type.1=hc$labels, type.2=getClusterLabels(obj))
+  return(df)
+})
+
 
 # plot heatmap of cluster
 setGeneric('plot.heatmap', def = function(obj, mCounts, ivScale = c(-3, 3), ...) standardGeneric('plot.heatmap'))
@@ -369,8 +377,44 @@ setMethod('plot.heatmap', signature='CGraphClust', definition = function(obj, mC
   # threshhold the values
   mCounts[mCounts < ivScale[1]] = ivScale[1]
   mCounts[mCounts > ivScale[2]] = ivScale[2]
-  # draw the heatmap
-  aheatmap(mCounts, color='-RdBu:50', breaks=0, scale='none', Rowv = as.dendrogram(getHclust(obj)),
-           annRow=getClusterLabels(obj), Colv=NA)
+  # draw the heatmap  color='-RdBu:50'
+  aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = as.dendrogram(getHclust(obj)),
+           annRow=(getClusterLabels(obj)), Colv=NA)
 })
 
+
+# plot heatmap of cluster means
+setGeneric('plot.heatmap.means', def = function(obj, mCounts, ivScale = c(-3, 3), ...) standardGeneric('plot.heatmap.means'))
+setMethod('plot.heatmap.means', signature='CGraphClust', definition = function(obj, mCounts, ivScale = c(-3, 3), ...){
+  if (!require(NMF)) stop('R package NMF needs to be installed.')
+  n = V(getFinalGraph(obj))$name
+  mCounts = mCounts[rownames(mCounts) %in% n,]
+  hc = getHclust(obj)
+  l = hc$labels
+  memb = getClusterLabels(obj)
+  # reorder genes according to their sequence in hc object
+  mCounts = mCounts[l,]
+  mCent = matrix(NA, nrow=length(unique(memb)), ncol = ncol(mCounts))
+  rownames(mCent) = unique(memb)
+  # loop and calculate means for each cluster
+  for(a in 1:nrow(mCent)){
+    i = rownames(mCent)[a]
+    # if cluster has only one member
+    if (sum(memb == i) == 1) {
+      mCent[i,] = mCounts[memb == i,]
+    } else {
+      # else if more than one member, we can use mean 
+      mCent[i,] = colMeans(mCounts[memb == i,])}
+  }
+  mCounts = mCent  
+  # scale across the rows
+  mCounts = t(mCounts)
+  mCounts = scale(mCounts)
+  mCounts = t(mCounts)
+  # threshhold the values
+  mCounts[mCounts < ivScale[1]] = ivScale[1]
+  mCounts[mCounts > ivScale[2]] = ivScale[2]
+  # draw the heatmap
+  hc = hclust(dist(mCounts))
+  aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=as.factor(hc$labels), Colv=NA)
+})
