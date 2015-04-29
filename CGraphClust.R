@@ -358,7 +358,7 @@ setMethod('getCommunity', signature = 'CGraphClust', definition = function(obj){
 # get mapping of type 1 vertices to cluster
 setGeneric('getClusterMapping', function(obj)standardGeneric('getClusterMapping'))
 setMethod('getClusterMapping', signature = 'CGraphClust', definition = function(obj){
-  hc = getHClust(obj)
+  hc = getHclust(obj)
   df = data.frame(type.1=hc$labels, type.2=getClusterLabels(obj))
   return(df)
 })
@@ -379,7 +379,7 @@ setMethod('plot.heatmap', signature='CGraphClust', definition = function(obj, mC
   mCounts[mCounts > ivScale[2]] = ivScale[2]
   # draw the heatmap  color='-RdBu:50'
   aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = as.dendrogram(getHclust(obj)),
-           annRow=(getClusterLabels(obj)), Colv=NA)
+           annRow=as.factor(getClusterLabels(obj)), annColors='Set1', Colv=NA)
 })
 
 
@@ -416,5 +416,6 @@ setMethod('plot.heatmap.means', signature='CGraphClust', definition = function(o
   mCounts[mCounts > ivScale[2]] = ivScale[2]
   # draw the heatmap
   hc = hclust(dist(mCounts))
-  aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=as.factor(hc$labels), Colv=NA)
+  aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=as.factor(hc$labels), 
+           annColors='Set1', Colv=NA)
 })

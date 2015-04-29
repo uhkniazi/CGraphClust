@@ -2,10 +2,7 @@
 Class to create a Hclust object based on shared properties (e.g. pathways) and positive correlation
 
 # Inheritence Structure
-CGraph - Parent Class
-|
-| 
-CGraphClust - Child Class
+CGraph - Parent Class --> CGraphClust - Child Class
 
 # CGraph Class
 assigns weights to one mode projection of graphs based on observed to expected probabilities of vertices of the first kind
@@ -49,9 +46,10 @@ a correlation matrix is converted to an adjacency matrix with a 0 diagonal and c
 or equal to the cutoff value (default 0.5) are chosen.
 # step 4
 the 2 graphs are intersected and only those connections are remaining that are positively correlated and have a very high observed 
-to expected ratios. edge betweeness community finding algorithm is used to detect clusters in this graph. NOTE: if the number of 
-edges is over 3000 then the program stops as this may not give a solution without running out of memory or a reasonable amount of 
-time. A different algorithm is recommended.
+to expected ratios. We remove small clusters by plotting the distribution of log cluster sizes and keep only the large sized clusters.
+edge betweeness community finding algorithm is used to detect clusters in this graph. NOTE: if the number of edges is over 3000 a 
+simpler community finding algorithm is used and a message is written out.
+
 # step 5
 the community is converted to a hclust object which can be used for plotting and heatmaps. each cluster is also assigned a 
 label based on which is the most common type 2 vertex (e.g. pathway) in that cluster and can be accessed via the
@@ -68,10 +66,17 @@ any clusters with number of vertices equal to or less than size. It returns a ne
 the bipartite, correlated and projected graphs similar to the original objects, however the final graph (intersected graph),
 community object, labels and hclust object are different due to removing smaller communities.
 
+# getClusterMapping
+returns a data.frame with mapping type 1 vertex names to corresponding type 2 vertex name that has been used to assign cluster
+name.
+
 # plot.heatmap
 plots an annotated heatmap using the NMF library. Requires the object CGraphClust, count matrix with type 1 vertices in the 
 rows and type 2 vertices in the columns and a default cutoff expression values (-3, 3) - all values below or above these cutoffs
 are thredholded to this value as the extreme values affect the heatmap colouring. The heatmap matrix is scaled by sd and centered 
 to a zero mean along the rows (type 1 vertex) before plotting.
+
+# plot.heatmap.mean
+similar to plot heatmap but will plot the mean profile of type 1 vertices in each cluster. 
 
 
