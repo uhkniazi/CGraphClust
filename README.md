@@ -79,4 +79,17 @@ to a zero mean along the rows (type 1 vertex) before plotting.
 # plot.heatmap.mean
 similar to plot heatmap but will plot the mean profile of type 1 vertices in each cluster. 
 
+# plot.mean.expressions
+plots the mean expression of each group (based on factor fGroups) in each cluster. The function takes the object of CGraphClust type
+a count matrix with rows as type 1 vertices and columns as components of the row vectors (they would usually be your samples), 
+a grouping factor defining the groups, a legend position (default it topright). The function checks the final projected graph with
+type 1 vertices, and uses the names of those vertices to subset the count matrix rows. It assigns cluster labels to each gene and 
+uses that cluster label as a grouping factor to calculate the mean values in that group (similar to function plot.heatmap.means) - i.e. it is taking the rowmeans of the count matrix based on each cluster grouping factor. It then takes that matrix of cluster means and
+takes the mean and standard deviations for each cluster vector - grouped on the second factor (fGroups). Effectively we are taking
+two means of the data, one colMeans of the count matrix (grouped on clusters) and second rowMeans of the matrix (grouped on samples).
+The data is plotted and a list with the matrix of mean and standard deviations is returned.
 
+# NOTE: Ideally one would want to reassign cluster labels, instead of using the most common label in a group. This can be done
+by using the function getClusterMapping, and looking for the type 1 vertices associated with a cluster label. Those type 1 vertex
+names (e.g. gene names in that cluster) can be put into reactome database to see which is the most sensible label to assign to that
+cluster.

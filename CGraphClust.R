@@ -421,3 +421,48 @@ setMethod('plot.heatmap.means', signature='CGraphClust', definition = function(o
            annColors=NA, Colv=NA)
   # removed annColors = 'Set1'
 })
+
+
+# plot line graph of mean expressions in each cluster and each group
+setGeneric('plot.mean.expressions', def = function(obj, mCounts, fGroups, legend.pos='topright', ...) standardGeneric('plot.mean.expressions'))
+setMethod('plot.mean.expressions', signature='CGraphClust', definition = function(obj, mCounts, fGroups, legend.pos='topright', ...){
+  # get the names of the genes present in the final graph
+  n = V(getFinalGraph(obj))$name
+  # sanity check
+  if (sum(rownames(mCounts) %in% n) == 0) stop('Row names of count matrix do not match with genes')
+  # subset the rows of the count matrix based on the genes
+  mCounts = mCounts[rownames(mCounts) %in% n,]  
+  # get the cluster labels from the cluster object
+  hc = getHclust(obj)
+  l = hc$labels
+  memb = getClusterLabels(obj)
+  # reorder genes according to their sequence in hc object
+  mCounts = mCounts[l,]
+  mCent = matrix(NA, nrow=length(unique(memb)), ncol = ncol(mCounts))
+  rownames(mCent) = unique(memb)
+  # loop and calculate means for each cluster
+  for(a in 1:nrow(mCent)){
+    i = rownames(mCent)[a]
+    # if cluster has only one member
+    if (sum(memb == i) == 1) {
+      mCent[i,] = mCounts[memb == i,]
+    } else {
+      # else if more than one member, we can use mean 
+      mCent[i,] = colMeans(mCounts[memb == i,])}
+  }
+  # plot the means for each level of the factor fGroups
+  mPlot = matrix(NA, nrow = nrow(mCent), ncol = length(unique(fGroups)), 
+                 dimnames = list(rownames(mCent), as.character(unique(fGroups))) )
+  mSD = matrix(NA, nrow = nrow(mCent), ncol = length(unique(fGroups)), 
+               dimnames = list(rownames(mCent), as.character(unique(fGroups))) )
+  for(i in 1:nrow(mPlot)){
+    # get the mean for each factor level and assign to the plot matrix
+    mPlot[i,] = tapply(mCent[i,], INDEX = fGroups, FUN = mean)
+    mSD[i,] = tapply(mCent[i,], INDEX = fGroups, FUN = sd)
+  }
+  matplot(mPlot, type='b', lty=1, pch=20, xaxt='n', ylab='Mean Expression', ...)
+  axis(1, at=1:nrow(mPlot), labels = rownames(mPlot), las=2)
+  legend(legend.pos, legend = colnames(mPlot), col=1:ncol(mPlot), lty=1)
+  lRet = list(means=mPlot, sd=mSD)  
+  return(lRet)
+})
