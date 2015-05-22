@@ -460,9 +460,17 @@ setMethod('plot.mean.expressions', signature='CGraphClust', definition = functio
     mPlot[i,] = tapply(mCent[i,], INDEX = fGroups, FUN = mean)
     mSD[i,] = tapply(mCent[i,], INDEX = fGroups, FUN = sd)
   }
-  matplot(mPlot, type='b', lty=1, pch=20, xaxt='n', ylab='Mean Expression', ...)
+  # select number of colours
+  c = c('black', 'red', 'darkblue')
+  if (ncol(mPlot) > 3)  c = rainbow(ncol(mPlot))
+  # plot the matrix
+  matplot(mPlot, type='b', lty=1, pch=20, xaxt='n', col=c, ylab='Mean Expression', ...)
   axis(1, at=1:nrow(mPlot), labels = rownames(mPlot), las=2)
-  legend(legend.pos, legend = colnames(mPlot), col=1:ncol(mPlot), lty=1)
+  # if there are more than 3 factors then plot legend separately
+  if (ncol(mPlot) > 3){
+    plot.new()
+    legend('center', legend = colnames(mPlot), col=c, lty=1)
+  } else legend(legend.pos, legend = colnames(mPlot), col=c, lty=1)
   lRet = list(means=mPlot, sd=mSD)  
   return(lRet)
 })
