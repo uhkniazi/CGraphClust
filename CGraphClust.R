@@ -397,6 +397,7 @@ setMethod('plot.heatmap.means', signature='CGraphClust', definition = function(o
   mCounts = mCounts[l,]
   mCent = matrix(NA, nrow=length(unique(memb)), ncol = ncol(mCounts))
   rownames(mCent) = unique(memb)
+  colnames(mCent) = colnames(mCounts)
   # loop and calculate means for each cluster
   for(a in 1:nrow(mCent)){
     i = rownames(mCent)[a]
