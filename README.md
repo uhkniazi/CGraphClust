@@ -70,7 +70,7 @@ community object, labels and hclust object are different due to removing smaller
 returns a data.frame with mapping type 1 vertex names to corresponding type 2 vertex name that has been used to assign cluster
 name.
 
-# plot.heatmap
+# plot.heatmap.all
 plots an annotated heatmap using the NMF library. Requires the object CGraphClust, count matrix with type 1 vertices in the 
 rows and type 2 vertices in the columns and a default cutoff expression values (-3, 3) - all values below or above these cutoffs
 are thredholded to this value as the extreme values affect the heatmap colouring. The heatmap matrix is scaled by sd and centered 
@@ -89,7 +89,7 @@ takes the mean and standard deviations for each cluster vector - grouped on the 
 two means of the data, one colMeans of the count matrix (grouped on clusters) and second rowMeans of the matrix (grouped on samples).
 The data is plotted and a list with the matrix of mean and standard deviations is returned.
 
-# NOTE: Ideally one would want to reassign cluster labels, instead of using the most common label in a group. This can be done
+NOTE: Ideally one would want to reassign cluster labels, instead of using the most common label in a group. This can be done
 by using the function getClusterMapping, and looking for the type 1 vertices associated with a cluster label. Those type 1 vertex
 names (e.g. gene names in that cluster) can be put into reactome database to see which is the most sensible label to assign to that
 cluster.
