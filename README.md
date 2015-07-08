@@ -93,3 +93,5 @@ NOTE: Ideally one would want to reassign cluster labels, instead of using the mo
 by using the function getClusterMapping, and looking for the type 1 vertices associated with a cluster label. Those type 1 vertex
 names (e.g. gene names in that cluster) can be put into reactome database to see which is the most sensible label to assign to that
 cluster.
+
+# todo - getClusterMean

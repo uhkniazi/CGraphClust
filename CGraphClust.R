@@ -364,10 +364,37 @@ setMethod('getClusterMapping', signature = 'CGraphClust', definition = function(
   return(df)
 })
 
+# get the mean of each cluster based on the count matrix
+setGeneric('getClusterMean', def = function(obj, mCounts) standardGeneric('getClusterMean'))
+setMethod('getClusterMean', signature='CGraphClust', definition = function(obj, mCounts){
+  n = V(getFinalGraph(obj))$name
+  # sanity check
+  if (sum(rownames(mCounts) %in% n) == 0) stop('Row names of count matrix do not match with genes')
+  mCounts = mCounts[rownames(mCounts) %in% n,]
+  hc = getHclust(obj)
+  l = hc$labels
+  memb = getClusterLabels(obj)
+  # reorder genes according to their sequence in hc object
+  mCounts = mCounts[l,]
+  mCent = matrix(NA, nrow=length(unique(memb)), ncol = ncol(mCounts))
+  rownames(mCent) = unique(memb)
+  colnames(mCent) = colnames(mCounts)
+  # loop and calculate means for each cluster
+  for(a in 1:nrow(mCent)){
+    i = rownames(mCent)[a]
+    # if cluster has only one member
+    if (sum(memb == i) == 1) {
+      mCent[i,] = mCounts[memb == i,]
+    } else {
+      # else if more than one member, we can use mean 
+      mCent[i,] = colMeans(mCounts[memb == i,])}
+  }
+  return(mCent)
+})
 
 # plot heatmap of cluster
-setGeneric('plot.heatmap', def = function(obj, mCounts, ivScale = c(-3, 3), ...) standardGeneric('plot.heatmap'))
-setMethod('plot.heatmap', signature='CGraphClust', definition = function(obj, mCounts, ivScale = c(-3, 3), ...){
+setGeneric('plot.heatmap.all', def = function(obj, mCounts, ivScale = c(-3, 3), ...) standardGeneric('plot.heatmap.all'))
+setMethod('plot.heatmap.all', signature='CGraphClust', definition = function(obj, mCounts, ivScale = c(-3, 3), ...){
   if (!require(NMF)) stop('R package NMF needs to be installed.')
   n = V(getFinalGraph(obj))$name
   mCounts = mCounts[rownames(mCounts) %in% n,]
