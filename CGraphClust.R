@@ -227,8 +227,11 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5){
   oIGcor = delete.edges(oIGcor, edges = f)
   
   ### graph intersection
-  l = list(oIGProj, oIGcor)  
-  ig.1 = graph.intersection(l)
+  # this function causing problems?
+  #l = list(oIGProj, oIGcor)  
+  #ig.1 = graph.intersection(l)
+  # use non list version of function
+  ig.1 = igraph::graph.intersection(oIGProj, oIGcor)
   # set observed to expected ratio as weight
   E(ig.1)$weight = E(ig.1)$ob_to_ex
   d = degree(ig.1)
