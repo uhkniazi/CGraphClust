@@ -505,3 +505,39 @@ setMethod('plot.mean.expressions', signature='CGraphClust', definition = functio
   lRet = list(means=mPlot, sd=mSD)  
   return(lRet)
 })
+
+
+# plot line graph of mean expressions in each cluster and each group
+setGeneric('plot.significant.expressions', def = function(obj, mCounts, fGroups, legend.pos='topright', ...) standardGeneric('plot.significant.expressions'))
+setMethod('plot.significant.expressions', signature='CGraphClust', definition = function(obj, mCounts, fGroups, legend.pos='topright', ...){
+  # get the names of the genes present in the final graph
+  mCent = getClusterMean(obj, mCounts)
+  # check which cluster shows significant p-values
+  p.vals = na.omit(apply(mCent, 1, function(x) pairwise.t.test(x, fGroups, p.adjust.method = 'BH')$p.value))
+  fSig = apply(p.vals, 2, function(x) any(x < 0.01))
+  mCent = mCent[fSig,]
+  mCent = t(scale(t(mCent)))
+  # plot the means for each level of the factor fGroups
+  mPlot = matrix(NA, nrow = nrow(mCent), ncol = length(unique(fGroups)), 
+                 dimnames = list(rownames(mCent), as.character(unique(fGroups))) )
+  mSD = matrix(NA, nrow = nrow(mCent), ncol = length(unique(fGroups)), 
+               dimnames = list(rownames(mCent), as.character(unique(fGroups))) )
+  for(i in 1:nrow(mPlot)){
+    # get the mean for each factor level and assign to the plot matrix
+    mPlot[i,] = tapply(mCent[i,], INDEX = fGroups, FUN = mean)
+    mSD[i,] = tapply(mCent[i,], INDEX = fGroups, FUN = sd)
+  }
+  # select number of colours
+  c = c('black', 'red', 'darkblue')
+  if (ncol(mPlot) > 3)  c = rainbow(ncol(mPlot))
+  # plot the matrix
+  matplot(mPlot, type='b', lty=1, pch=20, xaxt='n', col=c, ylab='Mean Expression', ...)
+  axis(1, at=1:nrow(mPlot), labels = rownames(mPlot), las=2)
+  # if there are more than 3 factors then plot legend separately
+  if (ncol(mPlot) > 3){
+    plot.new()
+    legend('center', legend = colnames(mPlot), col=c, lty=1)
+  } else legend(legend.pos, legend = colnames(mPlot), col=c, lty=1)
+  lRet = list(means=mPlot, sd=mSD)  
+  return(lRet)
+})
