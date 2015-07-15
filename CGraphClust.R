@@ -367,22 +367,26 @@ setMethod('getClusterMapping', signature = 'CGraphClust', definition = function(
   return(df)
 })
 
-# get the mean of each cluster based on the count matrix
-setGeneric('getClusterMean', def = function(obj, mCounts) standardGeneric('getClusterMean'))
-setMethod('getClusterMean', signature='CGraphClust', definition = function(obj, mCounts){
+# get the marginal of each cluster based on the count matrix
+setGeneric('getClusterMarginal', def = function(obj, mCounts, bScaled=TRUE) standardGeneric('getClusterMarginal'))
+setMethod('getClusterMarginal', signature='CGraphClust', definition = function(obj, mCounts, bScaled=TRUE){
   n = V(getFinalGraph(obj))$name
   # sanity check
-  if (sum(rownames(mCounts) %in% n) == 0) stop('Row names of count matrix do not match with genes')
+  if (sum(rownames(mCounts) %in% n) == 0) stop('getClusterMarginal: Row names of count matrix do not match with genes')
   mCounts = mCounts[rownames(mCounts) %in% n,]
   hc = getHclust(obj)
   l = hc$labels
   memb = getClusterLabels(obj)
   # reorder genes according to their sequence in hc object
   mCounts = mCounts[l,]
+  # center and scale the data across genes before adding
+  # this highlights the effects on the bar plots better showing directions of effect
+  if (bScaled) mCounts = t(scale(t(mCounts)))
+  # get marginal data for each cluster
   mCent = matrix(NA, nrow=length(unique(memb)), ncol = ncol(mCounts))
   rownames(mCent) = unique(memb)
   colnames(mCent) = colnames(mCounts)
-  # loop and calculate means for each cluster
+  # loop and calculate marginal for each cluster
   for(a in 1:nrow(mCent)){
     i = rownames(mCent)[a]
     # if cluster has only one member
@@ -390,7 +394,7 @@ setMethod('getClusterMean', signature='CGraphClust', definition = function(obj, 
       mCent[i,] = mCounts[memb == i,]
     } else {
       # else if more than one member, we can use mean 
-      mCent[i,] = colMeans(mCounts[memb == i,])}
+      mCent[i,] = colSums(mCounts[memb == i,])}
   }
   return(mCent)
 })
@@ -400,6 +404,8 @@ setGeneric('plot.heatmap.all', def = function(obj, mCounts, ivScale = c(-3, 3), 
 setMethod('plot.heatmap.all', signature='CGraphClust', definition = function(obj, mCounts, ivScale = c(-3, 3), ...){
   if (!require(NMF)) stop('R package NMF needs to be installed.')
   n = V(getFinalGraph(obj))$name
+  # sanity check
+  if (sum(rownames(mCounts) %in% n) == 0) stop('plot.heatmap.all: Row names of count matrix do not match with genes')
   mCounts = mCounts[rownames(mCounts) %in% n,]
   # scale across the rows
   mCounts = t(mCounts)
@@ -418,26 +424,27 @@ setMethod('plot.heatmap.all', signature='CGraphClust', definition = function(obj
 setGeneric('plot.heatmap.means', def = function(obj, mCounts, ivScale = c(-3, 3), ...) standardGeneric('plot.heatmap.means'))
 setMethod('plot.heatmap.means', signature='CGraphClust', definition = function(obj, mCounts, ivScale = c(-3, 3), ...){
   if (!require(NMF)) stop('R package NMF needs to be installed.')
-  n = V(getFinalGraph(obj))$name
-  mCounts = mCounts[rownames(mCounts) %in% n,]
-  hc = getHclust(obj)
-  l = hc$labels
-  memb = getClusterLabels(obj)
-  # reorder genes according to their sequence in hc object
-  mCounts = mCounts[l,]
-  mCent = matrix(NA, nrow=length(unique(memb)), ncol = ncol(mCounts))
-  rownames(mCent) = unique(memb)
-  colnames(mCent) = colnames(mCounts)
-  # loop and calculate means for each cluster
-  for(a in 1:nrow(mCent)){
-    i = rownames(mCent)[a]
-    # if cluster has only one member
-    if (sum(memb == i) == 1) {
-      mCent[i,] = mCounts[memb == i,]
-    } else {
-      # else if more than one member, we can use mean 
-      mCent[i,] = colMeans(mCounts[memb == i,])}
-  }
+#   n = V(getFinalGraph(obj))$name
+#   mCounts = mCounts[rownames(mCounts) %in% n,]
+#   hc = getHclust(obj)
+#   l = hc$labels
+#   memb = getClusterLabels(obj)
+#   # reorder genes according to their sequence in hc object
+#   mCounts = mCounts[l,]
+  mCent = getClusterMarginal(obj, mCounts)
+#   mCent = matrix(NA, nrow=length(unique(memb)), ncol = ncol(mCounts))
+#   rownames(mCent) = unique(memb)
+#   colnames(mCent) = colnames(mCounts)
+#   # loop and calculate means for each cluster
+#   for(a in 1:nrow(mCent)){
+#     i = rownames(mCent)[a]
+#     # if cluster has only one member
+#     if (sum(memb == i) == 1) {
+#       mCent[i,] = mCounts[memb == i,]
+#     } else {
+#       # else if more than one member, we can use mean 
+#       mCent[i,] = colMeans(mCounts[memb == i,])}
+#   }
   mCounts = mCent  
   # scale across the rows
   mCounts = t(mCounts)
@@ -457,30 +464,32 @@ setMethod('plot.heatmap.means', signature='CGraphClust', definition = function(o
 # plot line graph of mean expressions in each cluster and each group
 setGeneric('plot.mean.expressions', def = function(obj, mCounts, fGroups, legend.pos='topright', ...) standardGeneric('plot.mean.expressions'))
 setMethod('plot.mean.expressions', signature='CGraphClust', definition = function(obj, mCounts, fGroups, legend.pos='topright', ...){
-  # get the names of the genes present in the final graph
-  n = V(getFinalGraph(obj))$name
-  # sanity check
-  if (sum(rownames(mCounts) %in% n) == 0) stop('Row names of count matrix do not match with genes')
-  # subset the rows of the count matrix based on the genes
-  mCounts = mCounts[rownames(mCounts) %in% n,]  
-  # get the cluster labels from the cluster object
-  hc = getHclust(obj)
-  l = hc$labels
-  memb = getClusterLabels(obj)
-  # reorder genes according to their sequence in hc object
-  mCounts = mCounts[l,]
-  mCent = matrix(NA, nrow=length(unique(memb)), ncol = ncol(mCounts))
-  rownames(mCent) = unique(memb)
-  # loop and calculate means for each cluster
-  for(a in 1:nrow(mCent)){
-    i = rownames(mCent)[a]
-    # if cluster has only one member
-    if (sum(memb == i) == 1) {
-      mCent[i,] = mCounts[memb == i,]
-    } else {
-      # else if more than one member, we can use mean 
-      mCent[i,] = colMeans(mCounts[memb == i,])}
-  }
+#   # get the names of the genes present in the final graph
+#   n = V(getFinalGraph(obj))$name
+#   # sanity check
+#   if (sum(rownames(mCounts) %in% n) == 0) stop('Row names of count matrix do not match with genes')
+#   # subset the rows of the count matrix based on the genes
+#   mCounts = mCounts[rownames(mCounts) %in% n,]  
+#   # get the cluster labels from the cluster object
+#   hc = getHclust(obj)
+#   l = hc$labels
+#   memb = getClusterLabels(obj)
+#   # reorder genes according to their sequence in hc object
+#   mCounts = mCounts[l,]
+#   mCent = matrix(NA, nrow=length(unique(memb)), ncol = ncol(mCounts))
+#   rownames(mCent) = unique(memb)
+#   # loop and calculate means for each cluster
+#   for(a in 1:nrow(mCent)){
+#     i = rownames(mCent)[a]
+#     # if cluster has only one member
+#     if (sum(memb == i) == 1) {
+#       mCent[i,] = mCounts[memb == i,]
+#     } else {
+#       # else if more than one member, we can use mean 
+#       mCent[i,] = colMeans(mCounts[memb == i,])}
+#   }
+  mCent = getClusterMarginal(obj, mCounts)
+  #mCent = t(scale(t(mCent)))
   # plot the means for each level of the factor fGroups
   mPlot = matrix(NA, nrow = nrow(mCent), ncol = length(unique(fGroups)), 
                  dimnames = list(rownames(mCent), as.character(unique(fGroups))) )
@@ -507,16 +516,18 @@ setMethod('plot.mean.expressions', signature='CGraphClust', definition = functio
 })
 
 
-# plot line graph of mean expressions in each cluster and each group
+# plot line graph of significant expressions in each cluster and each group
 setGeneric('plot.significant.expressions', def = function(obj, mCounts, fGroups, legend.pos='topright', ...) standardGeneric('plot.significant.expressions'))
 setMethod('plot.significant.expressions', signature='CGraphClust', definition = function(obj, mCounts, fGroups, legend.pos='topright', ...){
   # get the names of the genes present in the final graph
-  mCent = getClusterMean(obj, mCounts)
+  mCent = getClusterMarginal(obj, mCounts)
   # check which cluster shows significant p-values
-  p.vals = na.omit(apply(mCent, 1, function(x) pairwise.t.test(x, fGroups, p.adjust.method = 'BH')$p.value))
-  fSig = apply(p.vals, 2, function(x) any(x < 0.01))
+  #p.vals = na.omit(apply(mCent, 1, function(x) pairwise.t.test(x, fGroups, p.adjust.method = 'BH')$p.value))
+  #fSig = apply(p.vals, 2, function(x) any(x < 0.01))
+  p.val = apply(mCent, 1, function(x) anova(lm(x ~ fGroups))$Pr[1])
+  p.val = p.adjust(p.val, method = 'BH')
+  fSig = p.val < 0.01
   mCent = mCent[fSig,]
-  mCent = t(scale(t(mCent)))
   # plot the means for each level of the factor fGroups
   mPlot = matrix(NA, nrow = nrow(mCent), ncol = length(unique(fGroups)), 
                  dimnames = list(rownames(mCent), as.character(unique(fGroups))) )
@@ -541,3 +552,43 @@ setMethod('plot.significant.expressions', signature='CGraphClust', definition = 
   lRet = list(means=mPlot, sd=mSD)  
   return(lRet)
 })
+
+## utility functions for data stabilization
+f_mCalculateLikelihoodMatrix = function(ivDat, fGroups){
+  # if fGroups is not a factor
+  if (!is.factor(fGroups)) stop('f_mCalculateLikelihoodMatrix: Grouping variable not a factor')
+  # get the parameters for the data of the data
+  v.dat = var(ivDat)
+  var.dat = tapply(ivDat, fGroups, var)
+  l.dat = tapply(ivDat, fGroups, length)
+  m.dat = tapply(ivDat, fGroups, mean)
+  se.dat = sqrt(var.dat/l.dat)
+  # sample possible values of the means from uniform distribution
+  theta.mean = rnorm(10000, m.dat, sqrt(v.dat))
+  mLik = matrix(NA, nrow=length(theta.mean), ncol=length(levels(fGroups)))
+  colnames(mLik) = levels(fGroups)
+  
+  for (i in 1:length(levels(fGroups))){
+    # calculate likelihood function for this mean
+    y = dnorm(theta.mean, m.dat[i], se.dat[i])
+    # use rejection sampling to sample from posterior based on likelihood
+    mLik[,i] = sample(theta.mean, 10000, replace = T, prob=y)
+  }
+  return(mLik)
+}
+
+f_ivStabilizeData = function(ivDat, fGroups){
+  mNew = f_mCalculateLikelihoodMatrix(ivDat, fGroups)
+  var.dat = tapply(ivDat, fGroups, var)
+  l.dat = tapply(ivDat, fGroups, length)
+  se.dat = sqrt(var.dat/l.dat)
+  sd.dat = tapply(ivDat, fGroups, sd)
+  ivDat.new = NULL
+  for (i in 1:length(levels(fGroups))){
+    # sample of means from the posterior means
+    m = sample(mNew[,i], size = l.dat[i], replace = T)
+    ivSam = sapply(seq_along(m), function(x) rnorm(1, m[x], sd.dat[i]))
+    ivDat.new = c(ivDat.new, ivSam)
+  }
+  return(ivDat.new)
+}
