@@ -6,6 +6,7 @@
 #       2) positive correlation value
 
 library(methods)
+if (!require(igraph)) stop('CGraphClust.R: library igraph required')
 
 ##### Class CGraph
 # Name: Class CGgraph
@@ -366,6 +367,39 @@ setMethod('getClusterMapping', signature = 'CGraphClust', definition = function(
   df = data.frame(type.1=hc$labels, type.2=getClusterLabels(obj))
   return(df)
 })
+
+
+# get the largest cliques in the graph
+setGeneric('getLargestCliques', function(obj)standardGeneric('getLargestCliques'))
+setMethod('getLargestCliques', signature = 'CGraphClust', definition = function(obj){
+  ig = getFinalGraph(obj)
+  return(largest_cliques(ig))
+})
+
+
+# simple plotting function for the graph
+setGeneric('plot.final.graph', function(obj)standardGeneric('plot.final.graph'))
+setMethod('plot.final.graph', signature = 'CGraphClust', definition = function(obj){
+  ig = getFinalGraph(obj)
+  p.old = par(mar=c(1,1,1,1)+0.1)
+  plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$ob_to_ex), vertex.frame.color=NA)
+  par(p.old)
+})
+
+# simple plotting function for the graph to highlight cliques
+setGeneric('plot.final.graph.clique', function(obj)standardGeneric('plot.final.graph.clique'))
+setMethod('plot.final.graph.clique', signature = 'CGraphClust', definition = function(obj){
+  cl = getLargestCliques(obj)
+  ig = getFinalGraph(obj)
+  c = rainbow(length(cl)+1)
+  V(ig)$color = c[length(c)]
+  # cliques are a list, so choose colours based on number of cliques
+  for (i in 1:length(cl)) V(ig)[cl[[i]]]$color = c[i]
+  p.old = par(mar=c(1,1,1,1)+0.1)
+  plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$ob_to_ex), vertex.frame.color=NA)
+  par(p.old)
+})
+
 
 # get the marginal of each cluster based on the count matrix
 setGeneric('getClusterMarginal', def = function(obj, mCounts, bScaled=TRUE) standardGeneric('getClusterMarginal'))

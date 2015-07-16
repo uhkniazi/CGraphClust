@@ -70,6 +70,12 @@ community object, labels and hclust object are different due to removing smaller
 returns a data.frame with mapping type 1 vertex names to corresponding type 2 vertex name that has been used to assign cluster
 name.
 
+# getLargestCliques
+returns the largest number/s of cliques in a list with vertex names
+
+# plot.final.graph and plot.final.graph.clique
+simple graph plotting functions to give an overview of the graph, uses the Fruchterman-Reingold layout algorithm.
+
 # plot.heatmap.all
 plots an annotated heatmap using the NMF library. Requires the object CGraphClust, count matrix with type 1 vertices in the 
 rows and type 2 vertices in the columns and a default cutoff expression values (-3, 3) - all values below or above these cutoffs
