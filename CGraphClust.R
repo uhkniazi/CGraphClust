@@ -431,7 +431,7 @@ setMethod('plot.heatmap.means', signature='CGraphClust', definition = function(o
 #   memb = getClusterLabels(obj)
 #   # reorder genes according to their sequence in hc object
 #   mCounts = mCounts[l,]
-  mCent = getClusterMarginal(obj, mCounts)
+  mCent = getClusterMarginal(obj, mCounts, bScaled = F)
 #   mCent = matrix(NA, nrow=length(unique(memb)), ncol = ncol(mCounts))
 #   rownames(mCent) = unique(memb)
 #   colnames(mCent) = colnames(mCounts)
@@ -517,8 +517,13 @@ setMethod('plot.mean.expressions', signature='CGraphClust', definition = functio
 
 
 # plot line graph of significant expressions in each cluster and each group
-setGeneric('plot.significant.expressions', def = function(obj, mCounts, fGroups, legend.pos='topright', ...) standardGeneric('plot.significant.expressions'))
-setMethod('plot.significant.expressions', signature='CGraphClust', definition = function(obj, mCounts, fGroups, legend.pos='topright', ...){
+setGeneric('plot.significant.expressions', def = function(obj, mCounts, fGroups, legend.pos='topright', bStabalize=FALSE, ...) standardGeneric('plot.significant.expressions'))
+setMethod('plot.significant.expressions', signature='CGraphClust', definition = function(obj, mCounts, fGroups, legend.pos='topright', bStabalize=FALSE, ...){
+  # stabalize the data before performing DE
+  if (bStabalize){
+    mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
+    colnames(mCounts) = fGroups
+  }  
   # get the names of the genes present in the final graph
   mCent = getClusterMarginal(obj, mCounts)
   # check which cluster shows significant p-values
@@ -528,6 +533,10 @@ setMethod('plot.significant.expressions', signature='CGraphClust', definition = 
   p.val = p.adjust(p.val, method = 'BH')
   fSig = p.val < 0.01
   mCent = mCent[fSig,]
+  p.val = p.val[fSig]
+  # reorder the matrix based on range of mean
+  rSort = apply(mCent, 1, function(x){ m = tapply(x, fGroups, mean); r = range(m); diff(r)}) 
+  mCent = mCent[order(rSort, decreasing = T),]
   # plot the means for each level of the factor fGroups
   mPlot = matrix(NA, nrow = nrow(mCent), ncol = length(unique(fGroups)), 
                  dimnames = list(rownames(mCent), as.character(unique(fGroups))) )
@@ -553,6 +562,25 @@ setMethod('plot.significant.expressions', signature='CGraphClust', definition = 
   return(lRet)
 })
 
+# perform PCA on clusters (cor matrix of clusters) and return the PCA object
+setGeneric('plot.components', def = function(obj, mCounts, fGroups, legend.pos='topright', bStabalize=TRUE, ...) standardGeneric('plot.components'))
+setMethod('plot.components', signature='CGraphClust', definition = function(obj, mCounts, fGroups, legend.pos='topright', bStabalize=TRUE, ...){
+  # stabalize the data before pca
+  if (bStabalize){
+    mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
+    colnames(mCounts) = fGroups
+  }
+  # compress the data for each cluster i.e. get marginals
+  mCent = getClusterMarginal(obj, mCounts, bScaled = F)
+  # center data across clusters i.e. rows
+  mCent = t(scale(t(mCent)))
+  pr.out = prcomp(mCent, scale=T)
+  plot(pr.out$x[,1:2], pch=19, xlab='Z1', ylab='Z2')
+  text(pr.out$x[,1:2], labels=rownames(pr.out$x), cex=0.6, pos=2)
+  return(pr.out)
+})
+
+
 ## utility functions for data stabilization
 f_mCalculateLikelihoodMatrix = function(ivDat, fGroups){
   # if fGroups is not a factor
@@ -563,7 +591,7 @@ f_mCalculateLikelihoodMatrix = function(ivDat, fGroups){
   l.dat = tapply(ivDat, fGroups, length)
   m.dat = tapply(ivDat, fGroups, mean)
   se.dat = sqrt(var.dat/l.dat)
-  # sample possible values of the means from uniform distribution
+  # sample possible values of the means from normal distribution
   theta.mean = rnorm(10000, m.dat, sqrt(v.dat))
   mLik = matrix(NA, nrow=length(theta.mean), ncol=length(levels(fGroups)))
   colnames(mLik) = levels(fGroups)
