@@ -387,8 +387,8 @@ setMethod('plot.final.graph', signature = 'CGraphClust', definition = function(o
 })
 
 # simple plotting function for the graph to highlight cliques
-setGeneric('plot.final.graph.clique', function(obj)standardGeneric('plot.final.graph.clique'))
-setMethod('plot.final.graph.clique', signature = 'CGraphClust', definition = function(obj){
+setGeneric('plot.graph.clique', function(obj)standardGeneric('plot.graph.clique'))
+setMethod('plot.graph.clique', signature = 'CGraphClust', definition = function(obj){
   cl = getLargestCliques(obj)
   ig = getFinalGraph(obj)
   c = rainbow(length(cl)+1)
@@ -458,27 +458,7 @@ setMethod('plot.heatmap.all', signature='CGraphClust', definition = function(obj
 setGeneric('plot.heatmap.means', def = function(obj, mCounts, ivScale = c(-3, 3), ...) standardGeneric('plot.heatmap.means'))
 setMethod('plot.heatmap.means', signature='CGraphClust', definition = function(obj, mCounts, ivScale = c(-3, 3), ...){
   if (!require(NMF)) stop('R package NMF needs to be installed.')
-#   n = V(getFinalGraph(obj))$name
-#   mCounts = mCounts[rownames(mCounts) %in% n,]
-#   hc = getHclust(obj)
-#   l = hc$labels
-#   memb = getClusterLabels(obj)
-#   # reorder genes according to their sequence in hc object
-#   mCounts = mCounts[l,]
   mCent = getClusterMarginal(obj, mCounts, bScaled = F)
-#   mCent = matrix(NA, nrow=length(unique(memb)), ncol = ncol(mCounts))
-#   rownames(mCent) = unique(memb)
-#   colnames(mCent) = colnames(mCounts)
-#   # loop and calculate means for each cluster
-#   for(a in 1:nrow(mCent)){
-#     i = rownames(mCent)[a]
-#     # if cluster has only one member
-#     if (sum(memb == i) == 1) {
-#       mCent[i,] = mCounts[memb == i,]
-#     } else {
-#       # else if more than one member, we can use mean 
-#       mCent[i,] = colMeans(mCounts[memb == i,])}
-#   }
   mCounts = mCent  
   # scale across the rows
   mCounts = t(mCounts)
@@ -498,30 +478,6 @@ setMethod('plot.heatmap.means', signature='CGraphClust', definition = function(o
 # plot line graph of mean expressions in each cluster and each group
 setGeneric('plot.mean.expressions', def = function(obj, mCounts, fGroups, legend.pos='topright', ...) standardGeneric('plot.mean.expressions'))
 setMethod('plot.mean.expressions', signature='CGraphClust', definition = function(obj, mCounts, fGroups, legend.pos='topright', ...){
-#   # get the names of the genes present in the final graph
-#   n = V(getFinalGraph(obj))$name
-#   # sanity check
-#   if (sum(rownames(mCounts) %in% n) == 0) stop('Row names of count matrix do not match with genes')
-#   # subset the rows of the count matrix based on the genes
-#   mCounts = mCounts[rownames(mCounts) %in% n,]  
-#   # get the cluster labels from the cluster object
-#   hc = getHclust(obj)
-#   l = hc$labels
-#   memb = getClusterLabels(obj)
-#   # reorder genes according to their sequence in hc object
-#   mCounts = mCounts[l,]
-#   mCent = matrix(NA, nrow=length(unique(memb)), ncol = ncol(mCounts))
-#   rownames(mCent) = unique(memb)
-#   # loop and calculate means for each cluster
-#   for(a in 1:nrow(mCent)){
-#     i = rownames(mCent)[a]
-#     # if cluster has only one member
-#     if (sum(memb == i) == 1) {
-#       mCent[i,] = mCounts[memb == i,]
-#     } else {
-#       # else if more than one member, we can use mean 
-#       mCent[i,] = colMeans(mCounts[memb == i,])}
-#   }
   mCent = getClusterMarginal(obj, mCounts)
   #mCent = t(scale(t(mCent)))
   # plot the means for each level of the factor fGroups
@@ -614,6 +570,72 @@ setMethod('plot.components', signature='CGraphClust', definition = function(obj,
   return(pr.out)
 })
 
+# extract subgraph for a given cluster
+setGeneric('getClusterSubgraph', def = function(obj, csClustLabel = NULL) standardGeneric('getClusterSubgraph'))
+setMethod('getClusterSubgraph', signature='CGraphClust', definition = function(obj, csClustLabel = NULL){
+  # check if label has been provided
+  if (is.null(csClustLabel)) stop('Provide a cluster label')
+  # check if label actually exists in the cluster labels list
+  dfClust = getClusterMapping(obj)
+  f = dfClust$type.2 %in% csClustLabel
+  if (sum(f) == 0) stop('Cluster label does not match with actual labels')
+  # if labels match correctly get the corresponding vertex labels
+  v = as.character(dfClust$type.1[f])
+  ig.f = getFinalGraph(obj)
+  ig.ret = induced.subgraph(ig.f, V(ig.f)[v])
+  return(ig.ret)
+})
+
+setGeneric('mPrintCentralitySummary', def = function(obj) standardGeneric('mPrintCentralitySummary'))
+setMethod('mPrintCentralitySummary', signature='CGraphClust', definition = function(obj){
+  # calculate 3 measures of centrality i.e. degree, closeness and betweenness
+  ig.f = getFinalGraph(obj)
+  deg = degree(ig.f)
+  clo = closeness(ig.f)
+  bet = betweenness(ig.f, directed = F)
+  # calculate the page rank and authority_score
+  aut = authority_score(ig.f, scale = F)
+  aut = aut$vector
+  # print the summary of the data
+  print('Degree summary')
+  print(summary(deg))
+  print('Closeness summary')
+  print(summary(clo))
+  print('Betweenness summary')
+  print(summary(bet))
+  print('Hub score summary')
+  print(summary(aut))
+  # print correlation summary
+  m = cbind(degree=deg, closeness=clo, betweenness=bet, hub=aut)
+  print('Correlation between scores')
+  print(round(cor(m), 3))
+  return(m)  
+})
+
+# get the top gene list
+setGeneric('lGetTopVertices', function(obj)standardGeneric('lGetTopVertices'))
+setMethod('lGetTopVertices', signature = 'CGraphClust', definition = function(obj){
+  cl = getLargestCliques(obj)
+  ig.f = getFinalGraph(obj)
+  cvTop.cl = names(unlist(cl))
+  cvTop.cl = unique(cvTop.cl)
+  # 2 % of the top genes
+  top.2 = vcount(ig.f) * 0.02
+  deg = degree(ig.f)
+  clo = closeness(ig.f)
+  bet = betweenness(ig.f, directed = F)
+  # calculate the page rank and authority_score
+  aut = authority_score(ig.f, scale = F)
+  aut = aut$vector
+  lTop = list()
+  lTop$clique = cvTop.cl
+  lTop$degree = names(sort(deg, decreasing = T)[1:top.2])
+  lTop$closeness = names(sort(clo, decreasing = T)[1:top.2])
+  lTop$betweenness = names(sort(bet, decreasing = T)[1:top.2])
+  lTop$hub = names(sort(aut, decreasing = T)[1:top.2])
+  return(lTop)
+})
+
 
 ## utility functions for data stabilization
 f_mCalculateLikelihoodMatrix = function(ivDat, fGroups){
@@ -653,4 +675,9 @@ f_ivStabilizeData = function(ivDat, fGroups){
     ivDat.new = c(ivDat.new, ivSam)
   }
   return(ivDat.new)
+}
+
+f_dfGetGeneAnnotation = function(cvEnterezID = NULL) {
+  if (!require(org.Hs.eg.db)) stop('org.Hs.eg.db annotation library required')
+  return(select(org.Hs.eg.db, cvEnterezID, columns = c('SYMBOL', 'GENENAME'), keytype = 'ENTREZID'))  
 }

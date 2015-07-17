@@ -73,7 +73,7 @@ name.
 # getLargestCliques
 returns the largest number/s of cliques in a list with vertex names
 
-# plot.final.graph and plot.final.graph.clique
+# plot.final.graph and plot.graph.clique
 simple graph plotting functions to give an overview of the graph, uses the Fruchterman-Reingold layout algorithm.
 
 # plot.heatmap.all
@@ -133,7 +133,27 @@ Performs a principal component analysis on the correlation matrix of the cluster
 f_ivStabalizeData (set bStabalize=FALSE to not do this), then getClusterMarginal is used to get marginal data for each cluster.
 The first 2 components are plotted and the prcomp object is returned.
 
+# getClusterSubgraph
+Takes a cluster label and returns the igraph object for that subgraph
 
+# mPrintCentralitySummary
+Centrality can be measured by various methods, the function returns a matrix with various centrality measures for each vertex.  
+1- Degree: the number of connections for each vertex.  
+2- Closeness: how close a vertex is to other vertices in the graph.  
+3- Betweenness: how many shortest paths between other vertices pass through the given vertex.  
+4- Hub: hub score or authority score: http://www.cs.cornell.edu/home/kleinber/auth.pdf - these are nodes that have a large in-degree
+ and a lot of overlap in the sets of nodes that point to them. Techically they are calculated by http://igraph.org/r/doc/authority_score.html  
+The correlation should be small between these metrics, and the function reports a correlation matrix and returns the measures in
+a matrix.
+  
+some examples can be seen here: http://cs.brynmawr.edu/Courses/cs380/spring2013/section02/slides/05_Centrality.pdf  
+http://www.evernote.com/l/ASAPToyPhMRNM6235zEpyVJdU1KPSISX5Do/  
+
+# lGetTopVertices
+Simple summary function, reports the names of vertices in:  
+1- The vertices in the largest clique.  
+2- The top 2% of the vertices from the centrality scores.  
+The data is returned in a list format.  
 
 
 
