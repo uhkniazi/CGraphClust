@@ -31,7 +31,9 @@ mCor = cor(mCounts)
 hist(sample(mCor, 1000, replace = F), prob=T)
 
 # create the graph cluster object
+# using absolute correlation vs actual values lead to different clusters
 oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.6)#, iCorCut = 0.7)
+oGr = CGraphClust(dfGraph, (mCor), iCorCut = 0.8)#, iCorCut = 0.7)
 
 # order the count matrix before making heatmaps or plots
 rownames(mCounts) = fGroups
