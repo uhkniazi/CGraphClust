@@ -570,6 +570,23 @@ setMethod('plot.components', signature='CGraphClust', definition = function(obj,
   return(pr.out)
 })
 
+# plot the expression of all members of the given cluster
+setGeneric('plot.cluster.expressions', def = function(obj, mCounts, fGroups, csClustLabel, ...) standardGeneric('plot.cluster.expressions'))
+setMethod('plot.cluster.expressions', signature='CGraphClust', definition = function(obj, mCounts, fGroups, csClustLabel, ...){
+  n = V(getClusterSubgraph(obj, csClustLabel))$name
+  # sanity check
+  if (sum(rownames(mCounts) %in% n) == 0) stop('plot.cluster.expressions: Row names of count matrix do not match with genes')
+  mCounts = mCounts[rownames(mCounts) %in% n,]  
+  # scale before plotting
+  mPlot = scale(t(mCounts))
+  c = rainbow(ncol(mPlot))
+  # plot the matrix
+  matplot(mPlot, type='l', lty=1, pch=20, xaxt='n', col=c, ylab='Mean Expression', ...)
+  axis(1, at=1:nrow(mPlot), labels = rownames(mPlot), las=2, cex.axis=0.5)
+})
+
+
+
 # extract subgraph for a given cluster
 setGeneric('getClusterSubgraph', def = function(obj, csClustLabel = NULL) standardGeneric('getClusterSubgraph'))
 setMethod('getClusterSubgraph', signature='CGraphClust', definition = function(obj, csClustLabel = NULL){
@@ -671,7 +688,7 @@ f_ivStabilizeData = function(ivDat, fGroups){
   for (i in 1:length(levels(fGroups))){
     # sample of means from the posterior means
     m = sample(mNew[,i], size = l.dat[i], replace = T)
-    ivSam = sapply(seq_along(m), function(x) rnorm(1, m[x], sd.dat[i]))
+    ivSam = sapply(seq_along(m), function(x) rnorm(1, m[x], se.dat[i]))
     ivDat.new = c(ivDat.new, ivSam)
   }
   return(ivDat.new)
