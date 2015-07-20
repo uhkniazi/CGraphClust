@@ -105,6 +105,12 @@ f_ivStabilizeData for details. The main difference to the previous function is t
 using the fGroups as the grouping factor for the samples. It will select only significant clusters and plot them in a sorted 
 order - based on the range of change.
 
+# plot.cluster.expressions
+Plot a line graph of expressions of all the members of the cluster, in order of the given
+columns of the count matrix. These patterns make more sense if the graph was built on the
+correlation matrix instead of absolute correlation values.
+
+
 # getClusterMarginal
 ARGS: object of CGraphClust class, mCounts = count matrix with rows as type 1 vertices (genes) and columns as samples;  
 bScaled = TRUE (default) - will scale the mCounts matrix (i.e. z scaled with zero center) before calculations. This can be useful 
@@ -125,7 +131,7 @@ the parameters fixed data variance (prior) and X means (number of means = number
 possible means, a likelihood vector is calculated for each possible mean, where the data parameter is the mean for the group, and
 the standard error of mean is the SD parameter of normal density function. Using this likelihood vector as a probability of 
 sampling (similar to rejection sampling) - we sample from the prior to create a posterior set of means. To create a new set of 
-data (posterior predictive) for each group - we sample from the posterior mean, and using that and the SD (not SE) for a rnorm
+data (posterior predictive) for each group - we sample from the posterior mean, and using that and the SE (not SD) for a rnorm
 function we sample new data.
 
 # plot.components
