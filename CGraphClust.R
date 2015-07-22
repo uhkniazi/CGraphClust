@@ -474,6 +474,25 @@ setMethod('plot.heatmap.means', signature='CGraphClust', definition = function(o
   # removed annColors = 'Set1'
 })
 
+# plots heatmap for one cluster
+setGeneric('plot.heatmap.cluster', def = function(obj, mCounts, csClustLabel, ivScale = c(-3, 3), ...) standardGeneric('plot.heatmap.cluster'))
+setMethod('plot.heatmap.cluster', signature='CGraphClust', definition = function(obj, mCounts, csClustLabel, ivScale = c(-3, 3), ...){
+  if (!require(NMF)) stop('R package NMF needs to be installed.')
+  n = V(getClusterSubgraph(obj, csClustLabel))$name
+  # sanity check
+  if (sum(rownames(mCounts) %in% n) == 0) stop('plot.heatmap.cluster: Row names of count matrix do not match with genes')
+  mCounts = mCounts[rownames(mCounts) %in% n,]
+  # scale before plotting, across genes i.e. rows
+  mCounts = t(scale(t(mCounts)))
+  # threshhold the values
+  mCounts[mCounts < ivScale[1]] = ivScale[1]
+  mCounts[mCounts > ivScale[2]] = ivScale[2]
+  # draw the heatmap
+  hc = hclust(dist(mCounts))
+  aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=NA, 
+           annColors=NA, Colv=NA)
+  # removed annColors = 'Set1'
+})
 
 # plot line graph of mean expressions in each cluster and each group
 setGeneric('plot.mean.expressions', def = function(obj, mCounts, fGroups, legend.pos='topright', ...) standardGeneric('plot.mean.expressions'))
@@ -494,7 +513,7 @@ setMethod('plot.mean.expressions', signature='CGraphClust', definition = functio
   c = c('black', 'red', 'darkblue')
   if (ncol(mPlot) > 3)  c = rainbow(ncol(mPlot))
   # plot the matrix
-  matplot(mPlot, type='b', lty=1, pch=20, xaxt='n', col=c, ylab='Mean Expression', ...)
+  matplot(mPlot, type='b', lty=1, pch=20, xaxt='n', col=c, ylab='Total Expression', ...)
   axis(1, at=1:nrow(mPlot), labels = rownames(mPlot), las=2)
   # if there are more than 3 factors then plot legend separately
   if (ncol(mPlot) > 3){
@@ -541,7 +560,7 @@ setMethod('plot.significant.expressions', signature='CGraphClust', definition = 
   c = c('black', 'red', 'darkblue')
   if (ncol(mPlot) > 3)  c = rainbow(ncol(mPlot))
   # plot the matrix
-  matplot(mPlot, type='b', lty=1, pch=20, xaxt='n', col=c, ylab='Mean Expression', ...)
+  matplot(mPlot, type='b', lty=1, pch=20, xaxt='n', col=c, ylab='Total Expression', ...)
   axis(1, at=1:nrow(mPlot), labels = rownames(mPlot), las=2)
   # if there are more than 3 factors then plot legend separately
   if (ncol(mPlot) > 3){
@@ -581,7 +600,7 @@ setMethod('plot.cluster.expressions', signature='CGraphClust', definition = func
   mPlot = scale(t(mCounts))
   c = rainbow(ncol(mPlot))
   # plot the matrix
-  matplot(mPlot, type='l', lty=1, pch=20, xaxt='n', col=c, ylab='Mean Expression', ...)
+  matplot(mPlot, type='l', lty=1, pch=20, xaxt='n', col=c, ylab='Expression', ...)
   axis(1, at=1:nrow(mPlot), labels = rownames(mPlot), las=2, cex.axis=0.5)
 })
 

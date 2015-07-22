@@ -110,6 +110,9 @@ Plot a line graph of expressions of all the members of the cluster, in order of 
 columns of the count matrix. These patterns make more sense if the graph was built on the
 correlation matrix instead of absolute correlation values.
 
+# plot.heatmap.cluster
+very similar to the previous function, but plots heatmap instead of line graph
+
 
 # getClusterMarginal
 ARGS: object of CGraphClust class, mCounts = count matrix with rows as type 1 vertices (genes) and columns as samples;  
