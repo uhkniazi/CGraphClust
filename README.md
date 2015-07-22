@@ -70,6 +70,9 @@ community object, labels and hclust object are different due to removing smaller
 returns a data.frame with mapping type 1 vertex names to corresponding type 2 vertex name that has been used to assign cluster
 name.
 
+# getClusterMatrix
+returns the subset of the matrix that contains only the data from the named cluster
+
 # getLargestCliques
 returns the largest number/s of cliques in a list with vertex names
 

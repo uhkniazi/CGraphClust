@@ -376,6 +376,16 @@ setMethod('getLargestCliques', signature = 'CGraphClust', definition = function(
   return(largest_cliques(ig))
 })
 
+# get the matrix for the cluster 
+setGeneric('getClusterMatrix', def = function(obj, mCounts, csClustLabel) standardGeneric('getClusterMatrix'))
+setMethod('getClusterMatrix', signature='CGraphClust', definition = function(obj, mCounts, csClustLabel){
+  n = V(getClusterSubgraph(obj, csClustLabel))$name
+  # sanity check
+  if (sum(rownames(mCounts) %in% n) == 0) stop('getClusterMatrix: Row names of count matrix do not match with genes')
+  mCounts = mCounts[rownames(mCounts) %in% n,]
+  return(mCounts)
+})
+
 
 # simple plotting function for the graph
 setGeneric('plot.final.graph', function(obj)standardGeneric('plot.final.graph'))

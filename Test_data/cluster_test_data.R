@@ -32,7 +32,7 @@ hist(sample(mCor, 1000, replace = F), prob=T)
 
 # create the graph cluster object
 # using absolute correlation vs actual values lead to different clusters
-oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.6)#, iCorCut = 0.7)
+oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.7)#, iCorCut = 0.7)
 oGr = CGraphClust(dfGraph, (mCor), iCorCut = 0.8)#, iCorCut = 0.7)
 
 # order the count matrix before making heatmaps or plots
@@ -47,6 +47,11 @@ plot.mean.expressions(oGr, t(mCounts), fGroups, legend.pos = 'bottomleft')
 plot.significant.expressions(oGr, t(mCounts), fGroups)
 # only one cluster
 plot.cluster.expressions(oGr, t(mCounts), fGroups, csClustLabel = '3247509', main='cluster')
+# plot summary heatmaps
+plot.heatmap.all(oGr, t(mCounts))
+plot.heatmap.means(oGr, t(mCounts))
+plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '3247509', main='cluster')
+plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '1280215', main='cluster')
 # without data stabalization
 pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = F)
 biplot(pr.out)
@@ -70,9 +75,7 @@ l = lGetTopVertices(oGr)
 l = unique(unlist(l))
 f_dfGetGeneAnnotation(cvEnterezID = l)
 
-# plot summary heatmaps
-plot.heatmap.all(oGr, t(mCounts))
-plot.heatmap.means(oGr, t(mCounts))
+
 
 # plotting of the igraph object and saving for cytoscape
 ig = getFinalGraph(oGr)
