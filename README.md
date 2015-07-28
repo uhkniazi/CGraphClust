@@ -79,6 +79,9 @@ returns the largest number/s of cliques in a list with vertex names
 # plot.final.graph and plot.graph.clique
 simple graph plotting functions to give an overview of the graph, uses the Fruchterman-Reingold layout algorithm.
 
+# plot.centrality.graph
+plots the graph with the nodes colored on centrality. Returns the igraph object.
+
 # plot.heatmap.all
 plots an annotated heatmap using the NMF library. Requires the object CGraphClust, count matrix with type 1 vertices in the 
 rows and type 2 vertices in the columns and a default cutoff expression values (-3, 3) - all values below or above these cutoffs
@@ -164,7 +167,7 @@ http://www.evernote.com/l/ASAPToyPhMRNM6235zEpyVJdU1KPSISX5Do/
 # lGetTopVertices
 Simple summary function, reports the names of vertices in:  
 1- The vertices in the largest clique.  
-2- The top 2% of the vertices from the centrality scores.  
+2- The top Quantile of the vertices from the centrality scores - default is 0.95, change iQuantile argument.  
 The data is returned in a list format.  
 
 

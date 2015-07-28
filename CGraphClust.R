@@ -396,6 +396,46 @@ setMethod('plot.final.graph', signature = 'CGraphClust', definition = function(o
   par(p.old)
 })
 
+setGeneric('plot.centrality.graph', function(obj, iQuantile=0.95)standardGeneric('plot.centrality.graph'))
+setMethod('plot.centrality.graph', signature = 'CGraphClust', definition = function(obj, iQuantile=0.95){
+  ig = getFinalGraph(obj)
+  mCent = mPrintCentralitySummary(obj)
+  V(ig)$color = 'lightgrey'
+  # get vertices with highest 5% of degrees
+  d = mCent[,'degree']
+  c = quantile(d, iQuantile)
+  d = d[d >= c]
+  n = names(d)
+  V(ig)[n]$color = 'blue'
+  
+  # betweenness
+  d = mCent[,'betweenness']
+  c = quantile(d, iQuantile)
+  d = d[d >= c]
+  n = names(d)
+  V(ig)[n]$color = 'red'
+  
+  # hub
+  d = mCent[,'hub']
+  c = quantile(d, iQuantile)
+  d = d[d >= c]
+  n = names(d)
+  V(ig)[n]$color = 'blue'
+  
+  # closeness
+  d = mCent[,'closeness']
+  c = quantile(d, iQuantile)
+  d = d[d >= c]
+  n = names(d)
+  V(ig)[n]$color = 'orange'
+  # plot the graph
+  p.old = par(mar=c(1,1,1,1)+0.1)
+  plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$ob_to_ex), vertex.frame.color=NA)
+  legend('topright', legend = c('Degree', 'Hub', 'Betweenness', 'Closeness'), fill = c('blue', 'blue', 'red', 'orange'))
+  par(p.old)
+  return(ig)
+})
+
 # simple plotting function for the graph to highlight cliques
 setGeneric('plot.graph.clique', function(obj)standardGeneric('plot.graph.clique'))
 setMethod('plot.graph.clique', signature = 'CGraphClust', definition = function(obj){
@@ -659,14 +699,14 @@ setMethod('mPrintCentralitySummary', signature='CGraphClust', definition = funct
 })
 
 # get the top gene list
-setGeneric('lGetTopVertices', function(obj)standardGeneric('lGetTopVertices'))
-setMethod('lGetTopVertices', signature = 'CGraphClust', definition = function(obj){
+setGeneric('lGetTopVertices', function(obj, iQuantile=0.95)standardGeneric('lGetTopVertices'))
+setMethod('lGetTopVertices', signature = 'CGraphClust', definition = function(obj, iQuantile=0.95){
   cl = getLargestCliques(obj)
   ig.f = getFinalGraph(obj)
   cvTop.cl = names(unlist(cl))
   cvTop.cl = unique(cvTop.cl)
   # 2 % of the top genes
-  top.2 = vcount(ig.f) * 0.02
+  top.2 = vcount(ig.f) * (1-iQuantile)
   deg = degree(ig.f)
   clo = closeness(ig.f)
   bet = betweenness(ig.f, directed = F)

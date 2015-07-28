@@ -6,31 +6,28 @@
 
 
 source('CGraphClust.R')
-
+p.old = par()
 set.seed(123)
 # universe of possible type 2 vertices
 type.2.universe = LETTERS[1:26]
 type.1.universe = 1:7
-
+# graph data frame
 dfGraph = NULL
-p.old = par()
-
+# randomly assign labels to type 1 vertices
 for (i in seq_along(type.1.universe)){
   s = sample(type.2.universe, 5, replace = F)
   df = data.frame(i, s)
   dfGraph = rbind(dfGraph, df)
 }
-
 ## assign some labels non randomly
-i = 8:10#sample(1:10, size = 3, replace = F)
+i = 8:10
 for (x in sample(1:26, 5, replace = F)){
   s = LETTERS[x]
   df = data.frame(i, s)
   dfGraph = rbind(dfGraph, df)
 }
-
+# groups control and treatment
 fGroups = gl(2, k = 5, labels = c('con', 'treat'))
-
 # generate some test data
 mCounts = matrix(NA, nrow = 10, ncol = 10, dimnames = list(1:10, fGroups))
 for (r in 1:(nrow(mCounts))){
@@ -62,7 +59,6 @@ for (r in 1:(nrow(mCounts))){
 # create correlation matrix
 mCor = cor(t(mCounts))
 hist(mCor)
-oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.5)
 
 ####### create bipartite graph
 oIGbp = graph.data.frame(dfGraph, directed = F)
@@ -79,7 +75,8 @@ fType = V(oIGbp)$type
 V(oIGbp)[fType]$shape = 'circle'
 V(oIGbp)[!fType]$shape = 'square'
 
-par(mar=c(1,1,1,1)+0.1)
+pdf('Temp/Figures/graphs.pdf')
+par(mar=c(1,1,1,1)+0.1)#, mfrow=c(2,2))
 plot(oIGbp, layout=layout_as_bipartite, vertex.size=10)
 
 oGr = CGraph(oIGbp)
@@ -87,4 +84,31 @@ oIG.proj = getProjectedGraph(oGr)
 E(oIG.proj)$weight = E(oIG.proj)$ob_to_ex
 plot(oIG.proj, vertex.size=10, edge.label=round(E(oIG.proj)$ob_to_ex, 2), edge.label.cex=0.7, layout=layout_with_fr)
 
+# remove the low weight edges
+w2 = E(oIG.proj)$weight
+c = qnbinom(0.05, size = median(w2), mu=median(w2), lower.tail = F)
+f = which(w2 < c)
+oIGProj = delete.edges(oIG.proj, edges = f)
+# plot the new graph
+#plot(oIGProj, vertex.size=10, edge.label=round(E(oIGProj)$ob_to_ex, 2), edge.label.cex=0.7, layout=layout_with_fr)
 
+
+### create correlation graph and intersect
+mCor = abs(mCor)
+diag(mCor) = 0
+# create the graph of correlations
+oIGcor = graph.adjacency(mCor, mode='min', weighted=T)
+c = E(oIGcor)$weight
+E(oIGcor)$cor = E(oIGcor)$weight
+iCorCut = 0.5
+f = which(c < iCorCut)
+oIGcor = delete.edges(oIGcor, edges = f)
+plot(oIGcor, vertex.size=10, edge.label=round(E(oIGcor)$cor, 2), edge.label.cex=0.7, layout=layout_with_fr)
+# intersect the 2 graphs
+ig.1 = igraph::graph.intersection(oIGProj, oIGcor)
+# set observed to expected ratio as weight
+E(ig.1)$weight = E(ig.1)$ob_to_ex
+d = degree(ig.1)
+plot(ig.1, vertex.size=10, edge.label=round(E(ig.1)$ob_to_ex, 2), edge.label.cex=0.7, layout=layout_with_fr)
+
+dev.off(dev.cur())
