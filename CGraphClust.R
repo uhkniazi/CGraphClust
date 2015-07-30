@@ -505,8 +505,8 @@ setMethod('plot.heatmap.all', signature='CGraphClust', definition = function(obj
 
 
 # plot heatmap of cluster means
-setGeneric('plot.heatmap.means', def = function(obj, mCounts, ivScale = c(-3, 3), ...) standardGeneric('plot.heatmap.means'))
-setMethod('plot.heatmap.means', signature='CGraphClust', definition = function(obj, mCounts, ivScale = c(-3, 3), ...){
+setGeneric('plot.heatmap.marginal', def = function(obj, mCounts, ivScale = c(-3, 3), ...) standardGeneric('plot.heatmap.marginal'))
+setMethod('plot.heatmap.marginal', signature='CGraphClust', definition = function(obj, mCounts, ivScale = c(-3, 3), ...){
   if (!require(NMF)) stop('R package NMF needs to be installed.')
   mCent = getClusterMarginal(obj, mCounts, bScaled = F)
   mCounts = mCent  
