@@ -7,7 +7,7 @@
 library(reactome.db)
 library(org.Hs.eg.db)
 source('CGraphClust.R')
-
+p.old = par()
 # load the test data
 dfData = read.csv(file.choose(), header=T, row.names=1)
 n = gsub('X(\\d+)', replacement = '\\1', x = colnames(dfData))
@@ -40,6 +40,13 @@ rownames(mCounts) = fGroups
 mCounts = mCounts[order(fGroups),]
 fGroups = fGroups[order(fGroups)]
 
+# plot the main communities and centrality graphs
+ig = getFinalGraph(oGr)
+par(mar=c(1,1,1,1)+0.1)
+plot(getCommunity(oGr), ig, vertex.label=NA, vertex.size=2, layout=layout.fruchterman.reingold, vertex.frame.color='grey')
+par(p.old)
+plot.centrality.graph(oGr)
+
 # sample plots
 # mean expression in every cluster
 plot.mean.expressions(oGr, t(mCounts), fGroups, legend.pos = 'bottomleft', main='Total Change in Each Cluster')
@@ -71,7 +78,8 @@ f_dfGetGeneAnnotation(cvEnterezID = n)
 plot.graph.clique(obj = oGr)
 # final graph
 plot.final.graph(oGr)
-
+# centrality
+plot.centrality.graph(oGr)
 # top vertices based on centrality
 mCent = mPrintCentralitySummary(oGr)
 # top 2% of the vertices from each category and largest clique
@@ -79,17 +87,69 @@ l = lGetTopVertices(oGr)
 l = unique(unlist(l))
 f_dfGetGeneAnnotation(cvEnterezID = l)
 
+# get clusters of choice to make subgraphs
+dfCluster = getClusterMapping(oGr)
+colnames(dfCluster) = c('gene', 'cluster')
+dfCluster = dfCluster[order(dfCluster$cluster),]
+
+ig = getFinalGraph(oGr)
+# 1280215
+n = as.character(dfCluster[dfCluster$cluster == '1280215', 'gene'])
+ig.sub = induced_subgraph(ig, vids = n)
+par(mar=c(1,1,1,1)+0.1)
+n = f_dfGetGeneAnnotation(V(ig.sub)$name)
+V(ig.sub)[n$ENTREZID]$label = n$SYMBOL
+plot(ig.sub, vertex.label=NA, vertex.size=2, layout=layout_with_fr, main='Cluster 1280215')
+v.l = largest_cliques(ig.sub)
+ig.sub = induced_subgraph(ig.sub, unlist(v.l))
+plot(ig.sub, vertex.label.cex=0.8, vertex.size=20, layout=layout_with_fr, main='Cluster 1280215')
+
+# 168249
+n = as.character(dfCluster[dfCluster$cluster == '168249', 'gene'])
+ig.sub = induced_subgraph(ig, vids = n)
+par(mar=c(1,1,1,1)+0.1)
+n = f_dfGetGeneAnnotation(V(ig.sub)$name)
+plot(ig.sub, vertex.label=NA, vertex.size=2, layout=layout_with_fr, main='Cluster 168249')
+V(ig.sub)[n$ENTREZID]$label = n$SYMBOL
+v.l = largest_cliques(ig.sub)
+ig.sub = induced_subgraph(ig.sub, unlist(v.l))
+plot(ig.sub, vertex.label.cex=0.8, vertex.size=20, layout=layout_with_fr, main='Cluster 168249')
+
+# 3247509
+n = as.character(dfCluster[dfCluster$cluster == '3247509', 'gene'])
+ig.sub = induced_subgraph(ig, vids = n)
+par(mar=c(1,1,1,1)+0.1)
+n = f_dfGetGeneAnnotation(V(ig.sub)$name)
+plot(ig.sub, vertex.label=NA, vertex.size=2, layout=layout_with_fr, main='Cluster 3247509')
+V(ig.sub)[n$ENTREZID]$label = n$SYMBOL
+v.l = largest_cliques(ig.sub)
+ig.sub = induced_subgraph(ig.sub, unlist(v.l))
+plot(ig.sub, vertex.label.cex=0.8, vertex.size=20, layout=layout_with_fr, main='Cluster 3247509')
+
+# 72203
+n = as.character(dfCluster[dfCluster$cluster == '72203', 'gene'])
+ig.sub = induced_subgraph(ig, vids = n)
+par(mar=c(1,1,1,1)+0.1)
+n = f_dfGetGeneAnnotation(V(ig.sub)$name)
+plot(ig.sub, vertex.label=NA, vertex.size=2, layout=layout_with_fr, main='Cluster 72203')
+V(ig.sub)[n$ENTREZID]$label = n$SYMBOL
+v.l = largest_cliques(ig.sub)
+ig.sub = induced_subgraph(ig.sub, unlist(v.l))
+plot(ig.sub, vertex.label.cex=0.8, vertex.size=20, layout=layout_with_fr, main='Cluster 72203')
+
 
 
 # plotting of the igraph object and saving for cytoscape
 ig = getFinalGraph(oGr)
-p.old = par(mar=c(1,1,1,1)+0.1)
-plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$ob_to_ex), vertex.frame.color=NA)
+
+par(mar=c(1,1,1,1)+0.1)
+plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$ob_to_ex), vertex.frame.color='grey')
 plot(getCommunity(oGr), ig, vertex.label=NA, vertex.size=2, layout=layout.fruchterman.reingold, vertex.frame.color=NA)
 par(p.old)
-df = getClusterMapping(oGr)
-colnames(df) = c('gene', 'cluster')
-df = df[order(df$cluster),]
+# get graph object, assign symbol labels and save for cytoscape
+ig = getFinalGraph(oGr)
+n = f_dfGetGeneAnnotation(V(ig)$name)
+V(ig)[n$ENTREZID]$label = n$SYMBOL
 
-write.csv(df, 'Test_data/clusters.csv')
-write.graph(ig, file = 'Temp/graph.gml', format = 'graphml')
+write.csv(dfCluster, 'Temp/clusters.csv')
+write.graph(ig, file = 'Temp/graph.graphml', format = 'graphml')
