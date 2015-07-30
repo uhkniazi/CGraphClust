@@ -5,30 +5,51 @@
 
 library(GEOquery)
 library(Biobase)
-#library(annotate)
-#library(org.Hs.eg.db)
 library(lumi)
-#source('~/Dropbox/Home/Data/R/My_Libraries/NGS_functions.R')
 
 # global variables
 p.old = par()
 
 ## data loading
 # load the data, clean and create factors
-gse =  getGEO('GSE63881', GSEMatrix = T, destdir = 'Data_external/')
-oExp = gse$GSE63881_series_matrix.txt.gz
+gse =  getGEO('GSE19491', GSEMatrix = T, destdir = 'Data_external/')
+oExp = gse$GSE19491_series_matrix.txt.gz
 
 # print samples
-dfSam = as.data.frame(table(oExp$characteristics_ch1.1))
+as.data.frame(table(oExp$source_name_ch1))
+
+# get the whole blood data
+i = grep('Whole', x = oExp$source_name_ch1, ignore.case = F, perl = T)
+oExp = oExp[,i]
 
 ## data normalization
 # normalize and log2 transform the data using lumi
-oExp.lumi = oExp; #lumiT(oExp, 'log2')
+oExp.lumi = lumiT(oExp, 'log2')
 # remove any NA data
 exprs(oExp.lumi) = na.omit(exprs(oExp.lumi))
-fSamples = factor(as.character(oExp$characteristics_ch1.1), levels = c("phase: Acute",
-                                                                 "phase: Convalescent"),
-                  labels = c('AC', 'CONV'))  
+fSamples = rep(NA, 180)
+f = as.character(oExp$source_name_ch1)
+# create factors
+i = grep('healthy', f)
+fSamples[i] = 'HC'
+
+i = grep('Latent', f)
+fSamples[i] = 'LTBI'
+
+i = grep('Active TB', f, ignore.case = F)
+fSamples[i] = 'ATB'
+
+i = grep('before treatment', f)
+fSamples[i] = '0'
+
+i = grep('2 months', f)
+fSamples[i] = '2'
+
+i = grep('12 months', f)
+fSamples[i] = '12'
+
+fSamples = factor(fSamples)
+
 oExp.lumi$fSamples = fSamples
 
 ## data normalization
@@ -65,4 +86,10 @@ colnames(dfData) = n
 fSamples = oExp$fSamples
 dfData$fSamples = fSamples
 
-write.csv(dfData, file='Test_data/test_data_GSE63881.csv')
+#write.csv(dfData, file='Test_data/test_data_GSE19491_full.csv')
+
+# save only the 0, 2, 12 month for cluster analysis test data
+i = which(fSamples %in% c('0', '2', '12'))
+
+dfData = dfData[i,]
+write.csv(dfData, file='Test_data/test_data_GSE19491.csv')
