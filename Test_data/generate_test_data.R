@@ -12,6 +12,7 @@ p.old = par()
 
 ## data loading
 # load the data, clean and create factors
+dir.create('Data_external', showWarnings = F)
 gse =  getGEO('GSE19491', GSEMatrix = T, destdir = 'Data_external/')
 oExp = gse$GSE19491_series_matrix.txt.gz
 
@@ -19,7 +20,7 @@ oExp = gse$GSE19491_series_matrix.txt.gz
 as.data.frame(table(oExp$source_name_ch1))
 
 # get the whole blood data
-i = grep('Whole', x = oExp$source_name_ch1, ignore.case = F, perl = T)
+i = grep('treatment', x = oExp$source_name_ch1, ignore.case = F, perl = T)
 oExp = oExp[,i]
 
 ## data normalization
@@ -27,18 +28,9 @@ oExp = oExp[,i]
 oExp.lumi = lumiT(oExp, 'log2')
 # remove any NA data
 exprs(oExp.lumi) = na.omit(exprs(oExp.lumi))
-fSamples = rep(NA, 180)
+fSamples = rep(NA, 21)
 f = as.character(oExp$source_name_ch1)
 # create factors
-i = grep('healthy', f)
-fSamples[i] = 'HC'
-
-i = grep('Latent', f)
-fSamples[i] = 'LTBI'
-
-i = grep('Active TB', f, ignore.case = F)
-fSamples[i] = 'ATB'
-
 i = grep('before treatment', f)
 fSamples[i] = '0'
 
@@ -61,7 +53,7 @@ gc()
 fSamples = oExp$fSamples
 pano = apply(exprs(oExp), 1, function(x) anova(lm(x~fSamples))$Pr[1])
 pano.adj = p.adjust(pano, method = 'BH')
-n = which(pano.adj < 0.01)
+n = which(pano.adj < 0.1)
 n = names(n)
 # count matrix
 dfData = data.frame(t(exprs(oExp)[n,]))
@@ -85,11 +77,6 @@ colnames(dfData) = n
 # assign sample ids
 fSamples = oExp$fSamples
 dfData$fSamples = fSamples
+dir.create('Test_data', showWarnings = F)
 
-#write.csv(dfData, file='Test_data/test_data_GSE19491_full.csv')
-
-# save only the 0, 2, 12 month for cluster analysis test data
-i = which(fSamples %in% c('0', '2', '12'))
-
-dfData = dfData[i,]
 write.csv(dfData, file='Test_data/test_data_GSE19491.csv')
