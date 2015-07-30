@@ -32,8 +32,7 @@ hist(sample(mCor, 1000, replace = F), prob=T, main='Correlation of genes', xlab=
 
 # create the graph cluster object
 # using absolute correlation vs actual values lead to different clusters
-oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.7)#, iCorCut = 0.7)
-#oGr = CGraphClust(dfGraph, (mCor), iCorCut = 0.8)#, iCorCut = 0.7)
+oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.7)
 
 # order the count matrix before making heatmaps or plots
 rownames(mCounts) = fGroups
@@ -45,47 +44,49 @@ ig = getFinalGraph(oGr)
 par(mar=c(1,1,1,1)+0.1)
 plot(getCommunity(oGr), ig, vertex.label=NA, vertex.size=2, layout=layout.fruchterman.reingold, vertex.frame.color='grey')
 par(p.old)
+# look at the graph centrality properties
 plot.centrality.graph(oGr)
+# plot largest connected graph - clique
+plot.graph.clique(oGr)
 
-# sample plots
-# mean expression in every cluster
-plot.mean.expressions(oGr, t(mCounts), fGroups, legend.pos = 'bottomleft', main='Total Change in Each Cluster')
-# only significant clusters
-plot.significant.expressions(oGr, t(mCounts), fGroups, main='Significant Clusters', lwd=2)
-# only one cluster
-plot.cluster.expressions(oGr, t(mCounts), fGroups, csClustLabel = '3247509', main='cluster')
-# plot summary heatmaps
-plot.heatmap.all(oGr, t(mCounts))
-plot.heatmap.means(oGr, t(mCounts))
-plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '392499', main='392499 - Metabolism of proteins')
-plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '168249', main='cluster')
-plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '1280215', main='cluster')
-plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '3247509', main='cluster')
-plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '72203', main='cluster')
-# without data stabalization
-pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = F)
-biplot(pr.out)
-
-# with some stabalization
-pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)
-par(mar=c(4,2,4,2))
-biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
-
-# graph properties
+# get the genes of importance based on graph properties
+# largest clique
 n = getLargestCliques(oGr)
 n = names(unlist(n))
 f_dfGetGeneAnnotation(cvEnterezID = n)
-plot.graph.clique(obj = oGr)
-# final graph
-plot.final.graph(oGr)
-# centrality
-plot.centrality.graph(oGr)
-# top vertices based on centrality
+
+# get the centrality parameters
 mCent = mPrintCentralitySummary(oGr)
-# top 2% of the vertices from each category and largest clique
+# top  5% of the vertices from each category and largest clique
 l = lGetTopVertices(oGr)
-l = unique(unlist(l))
-f_dfGetGeneAnnotation(cvEnterezID = l)
+# top genes based on centrality parameters
+f_dfGetGeneAnnotation(l$degree)
+f_dfGetGeneAnnotation(l$hub)
+f_dfGetGeneAnnotation(l$betweenness)
+
+## we can look at the problem from the other direction and look at clusters instead of genes
+# sample plots
+# mean expression of groups in every cluster
+plot.mean.expressions(oGr, t(mCounts), fGroups, legend.pos = 'bottomleft', main='Total Change in Each Cluster')
+# only significant clusters
+plot.significant.expressions(oGr, t(mCounts), fGroups, main='Significant Clusters', lwd=2)
+
+# plot summary heatmaps
+# expression in all clusters
+plot.heatmap.all(oGr, t(mCounts))
+# marginal expression level in each cluster
+plot.heatmap.marginal(oGr, t(mCounts))
+# plot selected clusters
+plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '1280215')
+plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '168249')
+plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '3247509')
+plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '72203')
+
+# plot PCA on components of clusters
+# with some variance stabalization
+pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)
+par(mar=c(4,2,4,2))
+biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
 
 # get clusters of choice to make subgraphs
 dfCluster = getClusterMapping(oGr)
@@ -93,6 +94,7 @@ colnames(dfCluster) = c('gene', 'cluster')
 dfCluster = dfCluster[order(dfCluster$cluster),]
 
 ig = getFinalGraph(oGr)
+# look at subgraph properties in clusters
 # 1280215
 n = as.character(dfCluster[dfCluster$cluster == '1280215', 'gene'])
 ig.sub = induced_subgraph(ig, vids = n)
@@ -137,19 +139,11 @@ v.l = largest_cliques(ig.sub)
 ig.sub = induced_subgraph(ig.sub, unlist(v.l))
 plot(ig.sub, vertex.label.cex=0.8, vertex.size=20, layout=layout_with_fr, main='Cluster 72203')
 
-
-
-# plotting of the igraph object and saving for cytoscape
-ig = getFinalGraph(oGr)
-
-par(mar=c(1,1,1,1)+0.1)
-plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$ob_to_ex), vertex.frame.color='grey')
-plot(getCommunity(oGr), ig, vertex.label=NA, vertex.size=2, layout=layout.fruchterman.reingold, vertex.frame.color=NA)
-par(p.old)
-# get graph object, assign symbol labels and save for cytoscape
+# saving graph object to visualize in cytoscape or other graph viewers
 ig = getFinalGraph(oGr)
 n = f_dfGetGeneAnnotation(V(ig)$name)
 V(ig)[n$ENTREZID]$label = n$SYMBOL
 
-write.csv(dfCluster, 'Temp/clusters.csv')
-write.graph(ig, file = 'Temp/graph.graphml', format = 'graphml')
+dir.create('Test_data', showWarnings = F)
+write.csv(dfCluster, 'Test_data/clusters.csv')
+write.graph(ig, file = 'Test_data/graph.graphml', format = 'graphml')
