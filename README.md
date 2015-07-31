@@ -152,7 +152,7 @@ The first 2 components are plotted and the prcomp object is returned.
 # getClusterSubgraph
 Takes a cluster label and returns the igraph object for that subgraph
 
-# mPrintCentralitySummary
+# mPrintCentralitySummary 
 Centrality can be measured by various methods, the function returns a matrix with various centrality measures for each vertex.  
 1- Degree: the number of connections for each vertex.  
 2- Closeness: how close a vertex is to other vertices in the graph.  
@@ -165,15 +165,36 @@ a matrix.
 some examples can be seen here: http://cs.brynmawr.edu/Courses/cs380/spring2013/section02/slides/05_Centrality.pdf  
 http://www.evernote.com/l/ASAPToyPhMRNM6235zEpyVJdU1KPSISX5Do/  
 
+# getCentralityMatrix
+similar to mPrintCentralitySummary but just returns the matrix
+
+
+# plot.centrality.diagnostics'
+The function creates an ordered statistic of each centrality measure, and makes a bar plot, while colouring each bar with the
+colour of the cluster of that value. It then groups the vector into 0-90% and 91-100% quantiles, subsets the data over 90% quantile
+and draws another bar plot with cluster wise colours, but only for the top 10% quantile. This kind of plot can highlight which
+centrality measure may be important.  
+RETS: returns the list of data frames with the top 10% vertices and its associated cluster label.
+
+
 # lGetTopVertices
 Simple summary function, reports the names of vertices in:  
 1- The vertices in the largest clique.  
 2- The top Quantile of the vertices from the centrality scores - default is 0.95, change iQuantile argument.  
 The data is returned in a list format.  
 
+# getSignificantClusters
+ARGS: the function will take the graph object, count matirx (rows are type 1 vertices e.g. genes), grouping factor (representing 
+columns) and a boolean value (if to perform data stabalization).  
+The function calculates the column sums for the rows of each cluster - i.e. calculates a marginal for each cluster. Then performs 
+an anova on each vector of cluster values grouping them on the fGroups factor. Multiple testing adjustment method used is 'BH' and 
+at a FDR of 0.01 the significant clusters are selected. Each group mean for a cluster vector is used to calculate the group means 
+and then the difference in the maximum and miminum mean to rank the clusters on that. The return value is the marginal matrix 
+sorted on the ranking of clusters and the p values.  
+RETS: list
 
-
-
+# getLargestCliqueInCluster
+Takes a cluster label, finds the largest clique in that cluster and returns an igraph object
 
 
 

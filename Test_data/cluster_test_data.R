@@ -42,11 +42,14 @@ fGroups = fGroups[order(fGroups)]
 # plot the main communities and centrality graphs
 ig = getFinalGraph(oGr)
 par(mar=c(1,1,1,1)+0.1)
+set.seed(1)
 plot(getCommunity(oGr), ig, vertex.label=NA, vertex.size=2, layout=layout.fruchterman.reingold, vertex.frame.color='grey')
 par(p.old)
 # look at the graph centrality properties
+set.seed(1)
 plot.centrality.graph(oGr)
 # plot largest connected graph - clique
+set.seed(1)
 plot.graph.clique(oGr)
 
 # get the genes of importance based on graph properties
@@ -93,51 +96,20 @@ dfCluster = getClusterMapping(oGr)
 colnames(dfCluster) = c('gene', 'cluster')
 dfCluster = dfCluster[order(dfCluster$cluster),]
 
-ig = getFinalGraph(oGr)
-# look at subgraph properties in clusters
-# 1280215
-n = as.character(dfCluster[dfCluster$cluster == '1280215', 'gene'])
-ig.sub = induced_subgraph(ig, vids = n)
+# plot the subgraphs of the 4 top significant clusters
+l = getSignificantClusters(oGr, mCounts = t(mCounts), fGroups)
+csClust = rownames(l$clusters)[1:4]
 par(mar=c(1,1,1,1)+0.1)
-n = f_dfGetGeneAnnotation(V(ig.sub)$name)
-V(ig.sub)[n$ENTREZID]$label = n$SYMBOL
-plot(ig.sub, vertex.label=NA, vertex.size=2, layout=layout_with_fr, main='Cluster 1280215')
-v.l = largest_cliques(ig.sub)
-ig.sub = induced_subgraph(ig.sub, unlist(v.l))
-plot(ig.sub, vertex.label.cex=0.8, vertex.size=20, layout=layout_with_fr, main='Cluster 1280215')
+sapply(seq_along(csClust), function(x){
+  set.seed(1)
+  ig.sub = getClusterSubgraph(oGr, csClustLabel = csClust[x])
+  plot(ig.sub, vertex.label=NA, vertex.size=2, layout=layout_with_fr, main=csClust[x])
+  ig.sub = getLargestCliqueInCluster(oGr, csClustLabel = csClust[x])
+  n = f_dfGetGeneAnnotation(V(ig.sub)$name)
+  V(ig.sub)[n$ENTREZID]$label = n$SYMBOL
+  plot(ig.sub, vertex.label.cex=0.8, vertex.size=20, layout=layout_with_fr, main=csClust[x])
+})
 
-# 168249
-n = as.character(dfCluster[dfCluster$cluster == '168249', 'gene'])
-ig.sub = induced_subgraph(ig, vids = n)
-par(mar=c(1,1,1,1)+0.1)
-n = f_dfGetGeneAnnotation(V(ig.sub)$name)
-plot(ig.sub, vertex.label=NA, vertex.size=2, layout=layout_with_fr, main='Cluster 168249')
-V(ig.sub)[n$ENTREZID]$label = n$SYMBOL
-v.l = largest_cliques(ig.sub)
-ig.sub = induced_subgraph(ig.sub, unlist(v.l))
-plot(ig.sub, vertex.label.cex=0.8, vertex.size=20, layout=layout_with_fr, main='Cluster 168249')
-
-# 3247509
-n = as.character(dfCluster[dfCluster$cluster == '3247509', 'gene'])
-ig.sub = induced_subgraph(ig, vids = n)
-par(mar=c(1,1,1,1)+0.1)
-n = f_dfGetGeneAnnotation(V(ig.sub)$name)
-plot(ig.sub, vertex.label=NA, vertex.size=2, layout=layout_with_fr, main='Cluster 3247509')
-V(ig.sub)[n$ENTREZID]$label = n$SYMBOL
-v.l = largest_cliques(ig.sub)
-ig.sub = induced_subgraph(ig.sub, unlist(v.l))
-plot(ig.sub, vertex.label.cex=0.8, vertex.size=20, layout=layout_with_fr, main='Cluster 3247509')
-
-# 72203
-n = as.character(dfCluster[dfCluster$cluster == '72203', 'gene'])
-ig.sub = induced_subgraph(ig, vids = n)
-par(mar=c(1,1,1,1)+0.1)
-n = f_dfGetGeneAnnotation(V(ig.sub)$name)
-plot(ig.sub, vertex.label=NA, vertex.size=2, layout=layout_with_fr, main='Cluster 72203')
-V(ig.sub)[n$ENTREZID]$label = n$SYMBOL
-v.l = largest_cliques(ig.sub)
-ig.sub = induced_subgraph(ig.sub, unlist(v.l))
-plot(ig.sub, vertex.label.cex=0.8, vertex.size=20, layout=layout_with_fr, main='Cluster 72203')
 
 # saving graph object to visualize in cytoscape or other graph viewers
 ig = getFinalGraph(oGr)

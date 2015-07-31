@@ -723,6 +723,95 @@ setMethod('lGetTopVertices', signature = 'CGraphClust', definition = function(ob
 })
 
 
+# get the significant clusters matrix and the p.values
+setGeneric('getSignificantClusters', def = function(obj, mCounts, fGroups, bStabalize=FALSE, ...) standardGeneric('getSignificantClusters'))
+setMethod('getSignificantClusters', signature='CGraphClust', definition = function(obj, mCounts, fGroups, bStabalize=FALSE, ...){
+  # stabalize the data before performing DE
+  if (bStabalize){
+    mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
+    colnames(mCounts) = fGroups
+  }  
+  # get the marginal each cluster
+  mCent = getClusterMarginal(obj, mCounts)
+  # check which cluster shows significant p-values
+  #p.vals = na.omit(apply(mCent, 1, function(x) pairwise.t.test(x, fGroups, p.adjust.method = 'BH')$p.value))
+  #fSig = apply(p.vals, 2, function(x) any(x < 0.01))
+  p.val = apply(mCent, 1, function(x) anova(lm(x ~ fGroups))$Pr[1])
+  p.val = p.adjust(p.val, method = 'BH')
+  fSig = p.val < 0.01
+  mCent = mCent[fSig,]
+  p.val = p.val[fSig]
+  # reorder the matrix based on range of mean
+  rSort = apply(mCent, 1, function(x){ m = tapply(x, fGroups, mean); r = range(m); diff(r)}) 
+  mCent = mCent[order(rSort, decreasing = T),]
+  p.val = p.val[order(rSort, decreasing = T)]
+  lRet = list(clusters=mCent, p.val=p.val)  
+  return(lRet)
+})
+
+
+# returns igraph object with largest clique in given cluster
+setGeneric('getLargestCliqueInCluster', def = function(obj, csClustLabel, ...) standardGeneric('getLargestCliqueInCluster'))
+setMethod('getLargestCliqueInCluster', signature='CGraphClust', definition = function(obj, csClustLabel, ...){
+  ig.sub = getClusterSubgraph(obj, csClustLabel)
+  v.l = largest_cliques(ig.sub)
+  return(induced_subgraph(ig.sub, unlist(v.l)))  
+})
+
+# makes bar plots of ordered statistics of centrality measures coloured by clusters
+setGeneric('plot.centrality.diagnostics', def = function(obj, ...) standardGeneric('plot.centrality.diagnostics'))
+setMethod('plot.centrality.diagnostics', signature='CGraphClust', definition = function(obj, ...){
+  p.old = par()
+  # get the cluster to gene mapping
+  dfCluster = getClusterMapping(obj)
+  colnames(dfCluster) = c('gene', 'cluster')
+  # get the centrality parameters
+  mCent = getCentralityMatrix(obj)
+  rownames(dfCluster) = dfCluster$gene
+  mCent = mCent[rownames(dfCluster),]
+  dfCluster = cbind(dfCluster, mCent)
+  # plot bar plots
+  col = rainbow(length(unique(dfCluster$cluster)))
+  csPlots = c('degree', 'closeness', 'betweenness', 'hub')
+  lRet = vector('list', length(csPlots))
+  names(lRet) = csPlots
+  for (x in seq_along(csPlots)){#sapply(seq_along(csPlots), function(x){
+    dfPlot = dfCluster[,c('cluster', csPlots[x])]
+    dfPlot = dfPlot[order(dfPlot[,csPlots[x]], decreasing = F),]
+    col.p = col[as.numeric(dfPlot$cluster)]
+    barplot(dfPlot[,csPlots[x]], col=col.p, main=csPlots[x])
+    cut.pts = quantile(dfPlot[,csPlots[x]], probs = c(0, 0.9, 1))
+    groups = cut(dfPlot[,csPlots[x]], breaks = cut.pts, labels = c('[0,90]', '(90,100]'), include.lowest = T)
+    dfPlot$groups = groups
+    dfPlot.sub = dfPlot[dfPlot$groups == '(90,100]',]
+    # plot the subplot of the last 90% quantile
+    col.p = col[as.numeric(dfPlot.sub$cluster)]
+    barplot(dfPlot.sub[,csPlots[x]], col=col.p, main=paste(csPlots[x], '(90,100] Quantile'))
+    legend('topleft', legend = unique(dfPlot.sub$cluster), fill = col[as.numeric(unique(dfPlot.sub$cluster))])
+    lRet[[csPlots[x]]] = dfPlot.sub
+  }
+  # return the list of data frames with the top genes and the associated clusters
+  return(lRet)
+})
+
+
+# similar to mPrintCentralitySummary, just returns matrix instead of printing
+setGeneric('getCentralityMatrix', def = function(obj) standardGeneric('getCentralityMatrix'))
+setMethod('getCentralityMatrix', signature='CGraphClust', definition = function(obj){
+  # calculate 3 measures of centrality i.e. degree, closeness and betweenness
+  ig.f = getFinalGraph(obj)
+  deg = degree(ig.f)
+  clo = closeness(ig.f)
+  bet = betweenness(ig.f, directed = F)
+  # calculate the page rank and authority_score
+  aut = authority_score(ig.f, scale = F)
+  aut = aut$vector
+  m = cbind(degree=deg, closeness=clo, betweenness=bet, hub=aut)
+  return(m)  
+})
+
+
+
 ## utility functions for data stabilization
 f_mCalculateLikelihoodMatrix = function(ivDat, fGroups){
   # if fGroups is not a factor
