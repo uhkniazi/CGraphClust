@@ -44,7 +44,6 @@ ig = getFinalGraph(oGr)
 par(mar=c(1,1,1,1)+0.1)
 set.seed(1)
 plot(getCommunity(oGr), ig, vertex.label=NA, vertex.size=2, layout=layout.fruchterman.reingold, vertex.frame.color='grey')
-par(p.old)
 # look at the graph centrality properties
 set.seed(1)
 plot.centrality.graph(oGr)
@@ -66,6 +65,8 @@ l = lGetTopVertices(oGr)
 f_dfGetGeneAnnotation(l$degree)
 f_dfGetGeneAnnotation(l$hub)
 f_dfGetGeneAnnotation(l$betweenness)
+par(p.old)
+plot.centrality.diagnostics(oGr)
 
 ## we can look at the problem from the other direction and look at clusters instead of genes
 # sample plots
@@ -103,11 +104,13 @@ par(mar=c(1,1,1,1)+0.1)
 sapply(seq_along(csClust), function(x){
   set.seed(1)
   ig.sub = getClusterSubgraph(oGr, csClustLabel = csClust[x])
-  plot(ig.sub, vertex.label=NA, vertex.size=2, layout=layout_with_fr, main=csClust[x])
+  ig.sub = f_igCalculateVertexSizes(ig.sub, t(mCounts), fGroups)
+  plot(ig.sub, vertex.label=NA, layout=layout_with_fr, main=csClust[x])
   ig.sub = getLargestCliqueInCluster(oGr, csClustLabel = csClust[x])
+  ig.sub = f_igCalculateVertexSizes(ig.sub, t(mCounts), fGroups)
   n = f_dfGetGeneAnnotation(V(ig.sub)$name)
   V(ig.sub)[n$ENTREZID]$label = n$SYMBOL
-  plot(ig.sub, vertex.label.cex=0.8, vertex.size=20, layout=layout_with_fr, main=csClust[x])
+  plot(ig.sub, vertex.label.cex=0.8, layout=layout_with_fr, main=csClust[x])
 })
 
 

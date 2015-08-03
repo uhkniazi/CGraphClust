@@ -196,7 +196,12 @@ RETS: list
 # getLargestCliqueInCluster
 Takes a cluster label, finds the largest clique in that cluster and returns an igraph object
 
-
+# f_igCalculateVertexSizes
+Utility function to calculate vertex sizes of nodes of the graph, using the expression data, grouping factor and number of nodes
+in the graph. Node sizes are calculated by log10 fold change between the mean of 2 groups (in case of more than 2 groups, the 
+means of 2 groups at the extremes are used using the range function). This size factor is multiplied by a iSize (default NULL) 
+argument. If it is provided (set value to around 20 or 30 for large graphs - depending on drawing area) - for small graphs leave 
+this area blank and a multiplicative factor is calculated using 4000/vcount(ig). 
 
 
 

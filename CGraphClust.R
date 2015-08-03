@@ -448,6 +448,7 @@ setMethod('plot.graph.clique', signature = 'CGraphClust', definition = function(
   p.old = par(mar=c(1,1,1,1)+0.1)
   plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$ob_to_ex), vertex.frame.color=NA)
   par(p.old)
+  return(ig)
 })
 
 
@@ -855,4 +856,25 @@ f_ivStabilizeData = function(ivDat, fGroups){
 f_dfGetGeneAnnotation = function(cvEnterezID = NULL) {
   if (!require(org.Hs.eg.db)) stop('org.Hs.eg.db annotation library required')
   return(select(org.Hs.eg.db, cvEnterezID, columns = c('SYMBOL', 'GENENAME'), keytype = 'ENTREZID'))  
+}
+
+
+f_igCalculateVertexSizes = function(ig, mCounts, fGroups, bStabalize=FALSE, iSize=NULL){
+  n = V(ig)$name
+  # sanity check
+  if (sum(rownames(mCounts) %in% n) == 0) stop('f_igCalculatevertexSizes: Row names of count matrix do not match with genes')
+  
+  # calculate fold changes function
+  lf_getFC = function(x, f, bS=FALSE){
+    # if data stabalization required
+    if (bS) x = f_ivStabilizeData(x, f)
+    r = range(tapply(x, f, mean))
+    fc = log10(r[2]) - log10(r[1])
+    return(fc)
+  }
+  if (is.null(iSize)) iSize = 4000/vcount(ig)
+  mCounts = mCounts[n,]
+  s = apply(mCounts, 1, function(x) lf_getFC(x, fGroups, bStabalize))
+  V(ig)[n]$size = s * iSize
+  return(ig)
 }
