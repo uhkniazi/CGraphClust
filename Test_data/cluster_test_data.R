@@ -104,10 +104,10 @@ par(mar=c(1,1,1,1)+0.1)
 sapply(seq_along(csClust), function(x){
   set.seed(1)
   ig.sub = getClusterSubgraph(oGr, csClustLabel = csClust[x])
-  ig.sub = f_igCalculateVertexSizes(ig.sub, t(mCounts), fGroups)
+  ig.sub = f_igCalculateVertexSizesAndColors(ig.sub, t(mCounts), fGroups, bColor = T)
   plot(ig.sub, vertex.label=NA, layout=layout_with_fr, main=csClust[x])
   ig.sub = getLargestCliqueInCluster(oGr, csClustLabel = csClust[x])
-  ig.sub = f_igCalculateVertexSizes(ig.sub, t(mCounts), fGroups)
+  ig.sub = f_igCalculateVertexSizesAndColors(ig.sub, t(mCounts), fGroups, bColor = T)
   n = f_dfGetGeneAnnotation(V(ig.sub)$name)
   V(ig.sub)[n$ENTREZID]$label = n$SYMBOL
   plot(ig.sub, vertex.label.cex=0.8, layout=layout_with_fr, main=csClust[x])
