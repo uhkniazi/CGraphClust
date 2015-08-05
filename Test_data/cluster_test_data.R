@@ -6,6 +6,7 @@
 
 library(reactome.db)
 library(org.Hs.eg.db)
+library(simpIntLists)
 source('CGraphClust.R')
 p.old = par()
 # load the test data
@@ -16,6 +17,14 @@ colnames(dfData) = n
 # separate the factor and the count matrix
 fGroups = factor(dfData$fSamples)
 mCounts = as.matrix(dfData[,1:(ncol(dfData)-1)])
+
+# build a graph on biogrid data
+data(HumanBioGRIDInteractionEntrezId)
+l1 = sapply(HumanBioGRIDInteractionEntrezId, function(x) do.call(cbind, x))
+l2 = do.call(rbind, l1)
+dfGraph = data.frame(ENTREZID = as.character(l2[,'interactors']), TYPE.2 = as.character(l2[,'name']), stringsAsFactors = F)
+f = dfGraph$ENTREZID %in% colnames(mCounts)
+dfGraph = dfGraph[f,]
 
 dfGraph = AnnotationDbi::select(reactome.db, colnames(mCounts), 'REACTOMEID', 'ENTREZID')
 dfGraph = na.omit(dfGraph)
@@ -43,13 +52,23 @@ fGroups = fGroups[order(fGroups)]
 ig = getFinalGraph(oGr)
 par(mar=c(1,1,1,1)+0.1)
 set.seed(1)
-plot(getCommunity(oGr), ig, vertex.label=NA, vertex.size=2, layout=layout.fruchterman.reingold, vertex.frame.color='grey')
+plot(getCommunity(oGr), ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr, vertex.frame.color='grey')
 # look at the graph centrality properties
 set.seed(1)
 plot.centrality.graph(oGr)
 # plot largest connected graph - clique
 set.seed(1)
-plot.graph.clique(oGr)
+ig = plot.graph.clique(oGr)
+# plot the largest clique
+par(mar=c(1,1,1,1)+0.1)
+ig = induced_subgraph(getFinalGraph(oGr), vids = unlist(getLargestCliques(oGr)))
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T)
+n = V(ig)$name
+lab = f_dfGetGeneAnnotation(n)
+V(ig)$label = as.character(lab$SYMBOL)
+plot(ig, layout=layout_with_fr)
+legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+par(p.old)
 
 # get the genes of importance based on graph properties
 # largest clique
