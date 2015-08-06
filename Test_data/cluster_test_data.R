@@ -6,8 +6,8 @@
 
 library(reactome.db)
 library(org.Hs.eg.db)
-library(simpIntLists)
-library(GO.db)
+# library(simpIntLists)
+# library(GO.db)
 source('CGraphClust.R')
 p.old = par()
 # load the test data
@@ -19,22 +19,22 @@ colnames(dfData) = n
 fGroups = factor(dfData$fSamples)
 mCounts = as.matrix(dfData[,1:(ncol(dfData)-1)])
 
-# build a graph on biogrid data
-data(HumanBioGRIDInteractionEntrezId)
-l1 = sapply(HumanBioGRIDInteractionEntrezId, function(x) do.call(cbind, x))
-l2 = do.call(rbind, l1)
-dfGraph = data.frame(ENTREZID = as.character(l2[,'interactors']), TYPE.2 = paste('t', as.character(l2[,'name']), sep = '.') 
-                     , stringsAsFactors = F)
-f = dfGraph$ENTREZID %in% colnames(mCounts)
-dfGraph = dfGraph[f,]
+# # build a graph on biogrid data
+# data(HumanBioGRIDInteractionEntrezId)
+# l1 = sapply(HumanBioGRIDInteractionEntrezId, function(x) do.call(cbind, x))
+# l2 = do.call(rbind, l1)
+# dfGraph = data.frame(ENTREZID = as.character(l2[,'interactors']), TYPE.2 = paste('t', as.character(l2[,'name']), sep = '.') 
+#                      , stringsAsFactors = F)
+# f = dfGraph$ENTREZID %in% colnames(mCounts)
+# dfGraph = dfGraph[f,]
 
 dfGraph = AnnotationDbi::select(reactome.db, colnames(mCounts), 'REACTOMEID', 'ENTREZID')
 dfGraph = na.omit(dfGraph)
 
-dfGraph = AnnotationDbi::select(org.Hs.eg.db, colnames(mCounts), 'GO', 'ENTREZID')
-dfGraph = dfGraph[dfGraph$ONTOLOGY == 'BP',]
-dfGraph = dfGraph[,c('ENTREZID', 'GO')]
-dfGraph = na.omit(dfGraph)
+# dfGraph = AnnotationDbi::select(org.Hs.eg.db, colnames(mCounts), 'GO', 'ENTREZID')
+# dfGraph = dfGraph[dfGraph$ONTOLOGY == 'BP',]
+# dfGraph = dfGraph[,c('ENTREZID', 'GO')]
+# dfGraph = na.omit(dfGraph)
 
 # select genes that have a reactome term attached
 n = unique(dfGraph$ENTREZID)
