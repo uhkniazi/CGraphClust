@@ -6,8 +6,6 @@
 
 library(reactome.db)
 library(org.Hs.eg.db)
-# library(simpIntLists)
-# library(GO.db)
 source('CGraphClust.R')
 p.old = par()
 # load the test data
@@ -19,6 +17,18 @@ colnames(dfData) = n
 fGroups = factor(dfData$fSamples)
 mCounts = as.matrix(dfData[,1:(ncol(dfData)-1)])
 
+# convert enterez ids to uniprot
+dfMap = AnnotationDbi::select(org.Hs.eg.db, colnames(mCounts), 'UNIPROT', 'ENTREZID')
+dfMap = na.omit(dfMap)
+# load the uniprot2reactome mapping obtained from
+# http://www.reactome.org/download/current/UniProt2Reactome_All_Levels.txt
+# use grep to subset the data to human
+dfReactome = read.csv(file.choose(), header = F, stringsAsFactors=F, sep='\t')
+dfReactome.sub = dfReactome[dfReactome$V1 %in% dfMap$UNIPROT,]
+i = match(dfReactome.sub$V1, dfMap$UNIPROT)
+dfReactome.sub$ENTREZID = dfMap$ENTREZID[i]
+dfGraph = dfReactome.sub[,c('ENTREZID', 'V2')]
+
 # # build a graph on biogrid data
 # data(HumanBioGRIDInteractionEntrezId)
 # l1 = sapply(HumanBioGRIDInteractionEntrezId, function(x) do.call(cbind, x))
@@ -28,8 +38,8 @@ mCounts = as.matrix(dfData[,1:(ncol(dfData)-1)])
 # f = dfGraph$ENTREZID %in% colnames(mCounts)
 # dfGraph = dfGraph[f,]
 
-dfGraph = AnnotationDbi::select(reactome.db, colnames(mCounts), 'REACTOMEID', 'ENTREZID')
-dfGraph = na.omit(dfGraph)
+# dfGraph = AnnotationDbi::select(reactome.db, colnames(mCounts), 'REACTOMEID', 'ENTREZID')
+# dfGraph = na.omit(dfGraph)
 
 # dfGraph = AnnotationDbi::select(org.Hs.eg.db, colnames(mCounts), 'GO', 'ENTREZID')
 # dfGraph = dfGraph[dfGraph$ONTOLOGY == 'BP',]
@@ -91,6 +101,7 @@ l = lGetTopVertices(oGr)
 f_dfGetGeneAnnotation(l$degree)
 f_dfGetGeneAnnotation(l$hub)
 f_dfGetGeneAnnotation(l$betweenness)
+f_dfGetGeneAnnotation(l$closeness)
 par(p.old)
 plot.centrality.diagnostics(oGr)
 
@@ -125,7 +136,7 @@ dfCluster = dfCluster[order(dfCluster$cluster),]
 
 # plot the subgraphs of the 4 top significant clusters
 l = getSignificantClusters(oGr, mCounts = t(mCounts), fGroups)
-csClust = rownames(l$clusters)[1:4]
+csClust = rownames(l$clusters)[1:6]
 par(mar=c(1,1,1,1)+0.1)
 sapply(seq_along(csClust), function(x){
   set.seed(1)
