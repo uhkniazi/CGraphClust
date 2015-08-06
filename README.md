@@ -129,9 +129,7 @@ The function does some error checking first to see if the matrix row names match
 count matrix based on its order in the hclust object (using the type 1 vertex names). Each cluster was assigned a label earlier 
 which was the most common shared type 2 vertex in that cluster (e.g. the most common REACTOME term for a cluster of genes). For each
 set of genes in the cluster based on the cluster label (we haven't seen it yet, but it may be possible that a cluster label may 
-be assigned to more than one clusters?) - we add the scaled (or not scaled) expression values for each gene together, i.e. taking
-the marginal of the contingency table, adding across the columns (compressing the columns) to create one total expression row 
-for each cluster.
+be assigned to more than one clusters?) - we take the mean of the scaled (or not scaled) expression values for each gene together, i.e. taking the marginal of the contingency table, averaging across the columns (compressing the columns) to create one total expression row for each cluster.
 
 
 # f_ivStabilizeData and f_mCalculateLikelihoodMatrix
@@ -146,8 +144,10 @@ function we sample new data.
 
 # plot.components
 Performs a principal component analysis on the correlation matrix of the clusters. The data is first stabalized using 
-f_ivStabalizeData (set bStabalize=FALSE to not do this), then getClusterMarginal is used to get marginal data for each cluster.
-The first 2 components are plotted and the prcomp object is returned.
+f_ivStabalizeData (set bStabalize=FALSE to not do this), then getClusterMarginal is used to get marginal data for each cluster. The 
+significant clusters are selected after using the function getSignificantClusters (to select only clusters that show a significant 
+change between the conditions using ANOVA) and this matrix is used for PCA where the row vectors are clusters and the columns are
+the components (i.e. sample measurements). The first 2 components are plotted and the prcomp object is returned.
 
 # getClusterSubgraph
 Takes a cluster label and returns the igraph object for that subgraph

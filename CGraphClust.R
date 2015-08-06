@@ -479,7 +479,7 @@ setMethod('getClusterMarginal', signature='CGraphClust', definition = function(o
       mCent[i,] = mCounts[memb == i,]
     } else {
       # else if more than one member, we can use mean 
-      mCent[i,] = colSums(mCounts[memb == i,])}
+      mCent[i,] = colMeans(mCounts[memb == i,])}
   }
   return(mCent)
 })
@@ -634,6 +634,10 @@ setMethod('plot.components', signature='CGraphClust', definition = function(obj,
   mCent = getClusterMarginal(obj, mCounts, bScaled = F)
   # center data across clusters i.e. rows
   mCent = t(scale(t(mCent)))
+  # plot only significant clusters
+  l = getSignificantClusters(oGr, mCounts, fGroups)
+  csClust = rownames(l$clusters)
+  mCent = mCent[csClust,]  
   pr.out = prcomp(mCent, scale=T)
   plot(pr.out$x[,1:2], pch=19, xlab='Z1', ylab='Z2')
   text(pr.out$x[,1:2], labels=rownames(pr.out$x), cex=0.6, pos=2)
