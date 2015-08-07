@@ -4,7 +4,7 @@
 # Desc: generate clusters for data
 
 
-library(reactome.db)
+#library(reactome.db)
 library(org.Hs.eg.db)
 source('CGraphClust.R')
 p.old = par()
@@ -22,28 +22,15 @@ dfMap = AnnotationDbi::select(org.Hs.eg.db, colnames(mCounts), 'UNIPROT', 'ENTRE
 dfMap = na.omit(dfMap)
 # load the uniprot2reactome mapping obtained from
 # http://www.reactome.org/download/current/UniProt2Reactome_All_Levels.txt
-# use grep to subset the data to human
 dfReactome = read.csv(file.choose(), header = F, stringsAsFactors=F, sep='\t')
 dfReactome.sub = dfReactome[dfReactome$V1 %in% dfMap$UNIPROT,]
+# get the matching positions for uniprot ids in the reactome table
 i = match(dfReactome.sub$V1, dfMap$UNIPROT)
 dfReactome.sub$ENTREZID = dfMap$ENTREZID[i]
 dfGraph = dfReactome.sub[,c('ENTREZID', 'V2')]
-
-# # build a graph on biogrid data
-# data(HumanBioGRIDInteractionEntrezId)
-# l1 = sapply(HumanBioGRIDInteractionEntrezId, function(x) do.call(cbind, x))
-# l2 = do.call(rbind, l1)
-# dfGraph = data.frame(ENTREZID = as.character(l2[,'interactors']), TYPE.2 = paste('t', as.character(l2[,'name']), sep = '.') 
-#                      , stringsAsFactors = F)
-# f = dfGraph$ENTREZID %in% colnames(mCounts)
-# dfGraph = dfGraph[f,]
+dfGraph = na.omit(dfGraph)
 
 # dfGraph = AnnotationDbi::select(reactome.db, colnames(mCounts), 'REACTOMEID', 'ENTREZID')
-# dfGraph = na.omit(dfGraph)
-
-# dfGraph = AnnotationDbi::select(org.Hs.eg.db, colnames(mCounts), 'GO', 'ENTREZID')
-# dfGraph = dfGraph[dfGraph$ONTOLOGY == 'BP',]
-# dfGraph = dfGraph[,c('ENTREZID', 'GO')]
 # dfGraph = na.omit(dfGraph)
 
 # select genes that have a reactome term attached
@@ -69,10 +56,27 @@ fGroups = fGroups[order(fGroups)]
 ig = getFinalGraph(oGr)
 par(mar=c(1,1,1,1)+0.1)
 set.seed(1)
-plot(getCommunity(oGr), ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr, vertex.frame.color='grey')
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T, iSize = 20)
+plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr, 
+     vertex.frame.color=NA, mark.groups=NULL, edge.color='lightgrey')
+
 # look at the graph centrality properties
 set.seed(1)
-plot.centrality.graph(oGr)
+ig = plot.centrality.graph(oGr)
+par(p.old)
+plot.centrality.diagnostics(oGr)
+
+# get the centrality parameters
+mCent = mPrintCentralitySummary(oGr)
+# top  5% of the vertices from each category and largest clique
+l = lGetTopVertices(oGr)
+# top genes based on centrality parameters
+df = f_dfGetGeneAnnotation(l$degree)
+f_dfGetGeneAnnotation(l$hub)
+f_dfGetGeneAnnotation(l$betweenness)
+f_dfGetGeneAnnotation(l$closeness)
+
+
 # plot largest connected graph - clique
 set.seed(1)
 ig = plot.graph.clique(oGr)
@@ -110,7 +114,7 @@ plot.centrality.diagnostics(oGr)
 # mean expression of groups in every cluster
 plot.mean.expressions(oGr, t(mCounts), fGroups, legend.pos = 'bottomleft', main='Total Change in Each Cluster')
 # only significant clusters
-plot.significant.expressions(oGr, t(mCounts), fGroups, main='Significant Clusters', lwd=2)
+plot.significant.expressions(oGr, t(mCounts), fGroups, main='Significant Clusters', lwd=2, bStabalize = T)
 
 # plot summary heatmaps
 # expression in all clusters
@@ -153,6 +157,13 @@ sapply(seq_along(csClust), function(x){
 
 # saving graph object to visualize in cytoscape or other graph viewers
 ig = getFinalGraph(oGr)
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T, iSize = 20)
+set.seed(1)
+par(mar=c(1,1,1,1)+0.1)
+plot(ig, vertex.label=NA, layout=layout_with_fr, vertex.frame.color='grey')
+set.seed(1)
+plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr, vertex.frame.color='grey')
+
 n = f_dfGetGeneAnnotation(V(ig)$name)
 V(ig)[n$ENTREZID]$label = n$SYMBOL
 ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T)

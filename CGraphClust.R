@@ -920,4 +920,23 @@ f_igCalculateVertexSizesAndColors = function(ig, mCounts, fGroups, bColor = FALS
   return(ig)
 }
 
-
+# utility function to obtain gene information from genbank
+f_csGetGeneSummaryFromGenbank = function(iID){
+  if (!require(annotate) || !require(XML)) stop('CRAN packge XML and Bioconductor library annotate required')
+  warning(paste('The powers that be at NCBI have been known to ban the', 
+                'IP addresses of users who abuse their servers (currently', 
+                'defined as less then 2 seconds between queries). Do NOT',
+                'put this function in a tight loop or you may find your access revoked',
+                'see help annotate::genbank for details.'))
+  gene = genbank(as.numeric(iID))
+  r = xmlRoot(gene)
+  # count number of nodes
+  iNode = length(xmlChildren(r))
+  csRet = rep(NA, iNode)
+  names(csRet) = as.character(iID)
+  for (i in 1:iNode){
+    x = r[[i]][['Entrezgene_summary']][[1]]
+    csRet[i] = x$value
+  }
+  return(csRet)
+}

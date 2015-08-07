@@ -204,6 +204,10 @@ is used as the second level, and if mean of levels(factor)[1] is < mean levels(f
 a positive change with a colour of red (pink) or else negative change with blue colour
 
 
+# f_csGetGeneSummaryFromGenbank
+Utility function using the bioconductor package annoate and cran package XML to query genbank for a gene, download the xml file
+and extracts the summary for the gene returning it in a character string format. It can take a vectorized form of the gene list and
+returns a vectorized named character string
 
 
 
