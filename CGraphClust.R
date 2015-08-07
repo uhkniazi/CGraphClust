@@ -933,9 +933,11 @@ f_csGetGeneSummaryFromGenbank = function(iID){
   # count number of nodes
   iNode = length(xmlChildren(r))
   csRet = rep(NA, iNode)
-  names(csRet) = as.character(iID)
+  #names(csRet) = as.character(iID)
+  names(csRet) = sapply(seq_along(1:iNode), function(x) r[[x]][['Entrezgene_gene']][[1]][[1]][[1]]$value)
   for (i in 1:iNode){
     x = r[[i]][['Entrezgene_summary']][[1]]
+    if (is.null(x$value)) next;
     csRet[i] = x$value
   }
   return(csRet)

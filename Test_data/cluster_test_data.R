@@ -63,6 +63,9 @@ plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr,
 # look at the graph centrality properties
 set.seed(1)
 ig = plot.centrality.graph(oGr)
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 20)
+set.seed(1)
+plot(ig, vertex.label=NA, layout=layout_with_fr, vertex.frame.color=NA, edge.color='lightgrey')
 par(p.old)
 plot.centrality.diagnostics(oGr)
 
