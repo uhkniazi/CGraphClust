@@ -108,9 +108,8 @@ cluster.
 
 # plot.significant.expressions
 Very similar to plot.mean.expressions, but it will first optionally stabalize the data (default FALSE). See the function 
-f_ivStabilizeData for details. The main difference to the previous function is that it will perform an anova on each cluster 
-using the fGroups as the grouping factor for the samples. It will select only significant clusters and plot them in a sorted 
-order - based on the range of change.
+f_ivStabilizeData for details. The main difference to the previous function is that it will call getSignificantClusters and use the
+names of significant clusters to plot only those.
 
 # plot.cluster.expressions
 Plot a line graph of expressions of all the members of the cluster, in order of the given
@@ -133,7 +132,7 @@ be assigned to more than one clusters?) - we take the mean of the scaled (or not
 
 
 # f_ivStabilizeData and f_mCalculateLikelihoodMatrix
-Utility functions for count matrix stabalization, if you expect that the data groups have outliers. This will use the overall 
+Utility functions for count matrix stabalization, if you expect that the data groups have outliers. The function sets the seed before doing anything else in order to produce reproducible results. This will use the overall 
 data variance as a fixed prior variance, and create a prior distribution of the means by sampling from the normal distribution with
 the parameters fixed data variance (prior) and X means (number of means = number of levels). Using this prior distribution of 
 possible means, a likelihood vector is calculated for each possible mean, where the data parameter is the mean for the group, and
@@ -186,9 +185,7 @@ The data is returned in a list format.
 # getSignificantClusters
 ARGS: the function will take the graph object, count matirx (rows are type 1 vertices e.g. genes), grouping factor (representing 
 columns) and a boolean value (if to perform data stabalization).  
-The function calculates the column sums for the rows of each cluster - i.e. calculates a marginal for each cluster. Then performs 
-an anova on each vector of cluster values grouping them on the fGroups factor. Multiple testing adjustment method used is 'BH' and 
-at a FDR of 0.01 the significant clusters are selected. Each group mean for a cluster vector is used to calculate the group means 
+The function calculates the marginal for each cluster using getClusterMarginal function. Then performs an anova on each vector of cluster values grouping them on the fGroups factor. Multiple testing adjustment method used is 'BH' and at a FDR of 0.01 the significant clusters are selected. Each group mean for a cluster vector is used to calculate the group means 
 and then the difference in the maximum and miminum mean to rank the clusters on that. The return value is the marginal matrix 
 sorted on the ranking of clusters and the p values.  
 RETS: list

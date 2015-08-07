@@ -548,7 +548,7 @@ setMethod('plot.heatmap.cluster', signature='CGraphClust', definition = function
 # plot line graph of mean expressions in each cluster and each group
 setGeneric('plot.mean.expressions', def = function(obj, mCounts, fGroups, legend.pos='topright', ...) standardGeneric('plot.mean.expressions'))
 setMethod('plot.mean.expressions', signature='CGraphClust', definition = function(obj, mCounts, fGroups, legend.pos='topright', ...){
-  mCent = getClusterMarginal(obj, mCounts)
+  mCent = getClusterMarginal(obj, mCounts, bScaled = FALSE)
   #mCent = t(scale(t(mCent)))
   # plot the means for each level of the factor fGroups
   mPlot = matrix(NA, nrow = nrow(mCent), ncol = length(unique(fGroups)), 
@@ -561,16 +561,16 @@ setMethod('plot.mean.expressions', signature='CGraphClust', definition = functio
     mSD[i,] = tapply(mCent[i,], INDEX = fGroups, FUN = sd)
   }
   # select number of colours
-  c = c('black', 'red', 'darkblue')
+  c = c('black', 'red', 'darkgreen')
   if (ncol(mPlot) > 3)  c = rainbow(ncol(mPlot))
   # plot the matrix
-  matplot(mPlot, type='b', lty=1, pch=20, xaxt='n', col=c, ylab='Total Expression', ...)
+  matplot(mPlot, type='b', lty=1, pch=20, xaxt='n', col=c, ylab='Mean Expression', ...)
   axis(1, at=1:nrow(mPlot), labels = rownames(mPlot), las=2)
   # if there are more than 3 factors then plot legend separately
   if (ncol(mPlot) > 3){
     plot.new()
-    legend('center', legend = colnames(mPlot), col=c, lty=1)
-  } else legend(legend.pos, legend = colnames(mPlot), col=c, lty=1)
+    legend('center', legend = colnames(mPlot), col=c, lty=1, lwd=2)
+  } else legend(legend.pos, legend = colnames(mPlot), col=c, lty=1, lwd=2)
   lRet = list(means=mPlot, sd=mSD)  
   return(lRet)
 })
@@ -584,19 +584,20 @@ setMethod('plot.significant.expressions', signature='CGraphClust', definition = 
     mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
     colnames(mCounts) = fGroups
   }  
-  # get the names of the genes present in the final graph
-  mCent = getClusterMarginal(obj, mCounts)
-  # check which cluster shows significant p-values
-  #p.vals = na.omit(apply(mCent, 1, function(x) pairwise.t.test(x, fGroups, p.adjust.method = 'BH')$p.value))
-  #fSig = apply(p.vals, 2, function(x) any(x < 0.01))
-  p.val = apply(mCent, 1, function(x) anova(lm(x ~ fGroups))$Pr[1])
-  p.val = p.adjust(p.val, method = 'BH')
-  fSig = p.val < 0.01
-  mCent = mCent[fSig,]
-  p.val = p.val[fSig]
-  # reorder the matrix based on range of mean
-  rSort = apply(mCent, 1, function(x){ m = tapply(x, fGroups, mean); r = range(m); diff(r)}) 
-  mCent = mCent[order(rSort, decreasing = T),]
+  # get significant clusters
+  mCent = getSignificantClusters(obj, mCounts, fGroups)$clusters
+#   mCent = getClusterMarginal(obj, mCounts)
+#   # check which cluster shows significant p-values
+#   #p.vals = na.omit(apply(mCent, 1, function(x) pairwise.t.test(x, fGroups, p.adjust.method = 'BH')$p.value))
+#   #fSig = apply(p.vals, 2, function(x) any(x < 0.01))
+#   p.val = apply(mCent, 1, function(x) anova(lm(x ~ fGroups))$Pr[1])
+#   p.val = p.adjust(p.val, method = 'BH')
+#   fSig = p.val < 0.01
+#   mCent = mCent[fSig,]
+#   p.val = p.val[fSig]
+#   # reorder the matrix based on range of mean
+#   rSort = apply(mCent, 1, function(x){ m = tapply(x, fGroups, mean); r = range(m); diff(r)}) 
+#   mCent = mCent[order(rSort, decreasing = T),]
   # plot the means for each level of the factor fGroups
   mPlot = matrix(NA, nrow = nrow(mCent), ncol = length(unique(fGroups)), 
                  dimnames = list(rownames(mCent), as.character(unique(fGroups))) )
@@ -608,16 +609,16 @@ setMethod('plot.significant.expressions', signature='CGraphClust', definition = 
     mSD[i,] = tapply(mCent[i,], INDEX = fGroups, FUN = sd)
   }
   # select number of colours
-  c = c('black', 'red', 'darkblue')
+  c = c('black', 'red', 'darkgreen')
   if (ncol(mPlot) > 3)  c = rainbow(ncol(mPlot))
   # plot the matrix
-  matplot(mPlot, type='b', lty=1, pch=20, xaxt='n', col=c, ylab='Total Expression', ...)
+  matplot(mPlot, type='b', lty=1, pch=20, xaxt='n', col=c, ylab='Mean Expression', ...)
   axis(1, at=1:nrow(mPlot), labels = rownames(mPlot), las=2)
   # if there are more than 3 factors then plot legend separately
   if (ncol(mPlot) > 3){
     plot.new()
-    legend('center', legend = colnames(mPlot), col=c, lty=1)
-  } else legend(legend.pos, legend = colnames(mPlot), col=c, lty=1)
+    legend('center', legend = colnames(mPlot), col=c, lty=1, lwd=2)
+  } else legend(legend.pos, legend = colnames(mPlot), col=c, lty=1, lwd=2)
   lRet = list(means=mPlot, sd=mSD)  
   return(lRet)
 })
@@ -737,7 +738,7 @@ setMethod('getSignificantClusters', signature='CGraphClust', definition = functi
     colnames(mCounts) = fGroups
   }  
   # get the marginal each cluster
-  mCent = getClusterMarginal(obj, mCounts)
+  mCent = getClusterMarginal(obj, mCounts, bScaled = F)
   # check which cluster shows significant p-values
   #p.vals = na.omit(apply(mCent, 1, function(x) pairwise.t.test(x, fGroups, p.adjust.method = 'BH')$p.value))
   #fSig = apply(p.vals, 2, function(x) any(x < 0.01))
@@ -842,6 +843,8 @@ f_mCalculateLikelihoodMatrix = function(ivDat, fGroups){
 }
 
 f_ivStabilizeData = function(ivDat, fGroups){
+  # set seed 
+  set.seed(123)
   mNew = f_mCalculateLikelihoodMatrix(ivDat, fGroups)
   var.dat = tapply(ivDat, fGroups, var)
   l.dat = tapply(ivDat, fGroups, length)
