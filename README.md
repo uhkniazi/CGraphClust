@@ -88,9 +88,13 @@ rows and type 2 vertices in the columns and a default cutoff expression values (
 are thredholded to this value as the extreme values affect the heatmap colouring. The heatmap matrix is scaled by sd and centered 
 to a zero mean along the rows (type 1 vertex) before plotting.
 
+# plot.heatmap.significant.clusters
+similar to plot heatmap all, but uses the getSignificantClusters function to get the data matrix for the marginals of clusters
+showing significant expression.
+
 # plot.heatmap.marginal
-similar to plot heatmap but will plot the marginal profile of type 1 vertices in each cluster, i.e. by performing a column sum
-on the data matrix, where the rows represent the type 1 vertices in the cluster and the columns are the individual samples (components) of the vector.  
+similar to plot heatmap but will plot the marginal profile of type 1 vertices in each cluster, i.e. by calling getClusterMarginal
+on the data matrix. 
 
 # plot.mean.expressions
 plots the mean expression of each group (based on factor fGroups) in each cluster. The function takes the object of CGraphClust type

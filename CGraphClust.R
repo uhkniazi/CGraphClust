@@ -453,8 +453,8 @@ setMethod('plot.graph.clique', signature = 'CGraphClust', definition = function(
 
 
 # get the marginal of each cluster based on the count matrix
-setGeneric('getClusterMarginal', def = function(obj, mCounts, bScaled=TRUE) standardGeneric('getClusterMarginal'))
-setMethod('getClusterMarginal', signature='CGraphClust', definition = function(obj, mCounts, bScaled=TRUE){
+setGeneric('getClusterMarginal', def = function(obj, mCounts, bScaled=FALSE) standardGeneric('getClusterMarginal'))
+setMethod('getClusterMarginal', signature='CGraphClust', definition = function(obj, mCounts, bScaled=FALSE){
   n = V(getFinalGraph(obj))$name
   # sanity check
   if (sum(rownames(mCounts) %in% n) == 0) stop('getClusterMarginal: Row names of count matrix do not match with genes')
@@ -510,6 +510,32 @@ setGeneric('plot.heatmap.marginal', def = function(obj, mCounts, ivScale = c(-3,
 setMethod('plot.heatmap.marginal', signature='CGraphClust', definition = function(obj, mCounts, ivScale = c(-3, 3), ...){
   if (!require(NMF)) stop('R package NMF needs to be installed.')
   mCent = getClusterMarginal(obj, mCounts, bScaled = F)
+  mCounts = mCent  
+  # scale across the rows
+  mCounts = t(mCounts)
+  mCounts = scale(mCounts)
+  mCounts = t(mCounts)
+  # threshhold the values
+  mCounts[mCounts < ivScale[1]] = ivScale[1]
+  mCounts[mCounts > ivScale[2]] = ivScale[2]
+  # draw the heatmap
+  hc = hclust(dist(mCounts))
+  aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=as.factor(hc$labels), 
+           annColors=NA, Colv=NA)
+  # removed annColors = 'Set1'
+})
+
+# plot heatmap of significant clusters only
+setGeneric('plot.heatmap.significant.clusters', def = function(obj, mCounts, fGroups, bStabalize = F, ivScale = c(-3, 3), ...) standardGeneric('plot.heatmap.significant.clusters'))
+setMethod('plot.heatmap.significant.clusters', signature='CGraphClust', definition = function(obj, mCounts, fGroups, bStabalize = F, ivScale = c(-3, 3), ...){
+  if (!require(NMF)) stop('R package NMF needs to be installed.')
+  # stabalize the data before performing DE
+  if (bStabalize){
+    mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
+    colnames(mCounts) = fGroups
+  }  
+  # get significant clusters which also gives the marginals
+  mCent = getSignificantClusters(obj, mCounts, fGroups)$clusters
   mCounts = mCent  
   # scale across the rows
   mCounts = t(mCounts)
