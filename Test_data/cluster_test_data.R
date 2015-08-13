@@ -92,7 +92,7 @@ dev.off(dev.cur())
 # get the centrality parameters
 mCent = mPrintCentralitySummary(oGr)
 # top  5% of the vertices from each category and largest clique
-l = lGetTopVertices(oGr, iQuantile = 0.90)
+l = lGetTopVertices(oGr, iQuantile = 0.85)
 # top genes based on centrality parameters
 dfClique = f_dfGetGeneAnnotation(l$clique)
 cvSum = f_csGetGeneSummaryFromGenbank(dfClique$ENTREZID)
@@ -232,6 +232,22 @@ mC[mC > +3] = +3
 hc = hclust(dist(mC))
 aheatmap(mC, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=NA, 
          annColors=NA, Colv=NA)
+
+# table for printing
+csClust = '1280215'
+dfCluster = dfCluster[dfCluster$cluster == csClust,]
+dfCluster = f_dfGetGeneAnnotation(as.character(dfCluster$gene))
+
+l = lGetTopVertices(oGr, iQuantile = 0.85)
+sapply(l, length)
+f = sapply(seq_along(1:5), function(x) dfCluster$ENTREZID %in% l[[x]])
+colnames(f) = names(l)
+dfCluster = cbind(dfCluster, f)
+n = f_csGetGeneSummaryFromGenbank(dfCluster$ENTREZID)
+cvSum.2 = as.character(dfCluster$SYMBOL)
+dfCluster$Summary = n[cvSum.2]
+write.csv(dfCluster, file='Temp/Figures/cluster_1280215.csv')
+
 
 # plot the subgraphs of the significant clusters
 l = getSignificantClusters(oGr, mCounts = t(mCounts), fGroups, bStabalize = T)
