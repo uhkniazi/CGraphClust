@@ -520,9 +520,10 @@ setMethod('plot.heatmap.marginal', signature='CGraphClust', definition = functio
   mCounts[mCounts > ivScale[2]] = ivScale[2]
   # draw the heatmap
   hc = hclust(dist(mCounts))
-  aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=as.factor(hc$labels), 
-           annColors=NA, Colv=NA)
+  #   aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=as.factor(hc$labels), 
+  #            annColors=NA, Colv=NA)
   # removed annColors = 'Set1'
+  aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, Colv=NA)
 })
 
 # plot heatmap of significant clusters only
@@ -546,9 +547,10 @@ setMethod('plot.heatmap.significant.clusters', signature='CGraphClust', definiti
   mCounts[mCounts > ivScale[2]] = ivScale[2]
   # draw the heatmap
   hc = hclust(dist(mCounts))
-  aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=as.factor(hc$labels), 
-           annColors=NA, Colv=NA)
+  #   aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=as.factor(hc$labels), 
+  #            annColors=NA, Colv=NA)
   # removed annColors = 'Set1'
+  aheatmap(mCounts, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, Colv=NA)
 })
 
 # plots heatmap for one cluster
