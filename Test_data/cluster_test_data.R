@@ -23,6 +23,8 @@ dfMap = na.omit(dfMap)
 # load the uniprot2reactome mapping obtained from
 # http://www.reactome.org/download/current/UniProt2Reactome_All_Levels.txt
 dfReactome = read.csv(file.choose(), header = F, stringsAsFactors=F, sep='\t')
+x = gsub('\\w+-\\w+-(\\d+)', replacement = '\\1', x = dfReactome$V2, perl = T)
+dfReactome$V2 = x
 dfReactome.sub = dfReactome[dfReactome$V1 %in% dfMap$UNIPROT,]
 # get the matching positions for uniprot ids in the reactome table
 i = match(dfReactome.sub$V1, dfMap$UNIPROT)
@@ -41,7 +43,7 @@ mCounts = mCounts[,n]
 mCor = cor(mCounts)
 
 # check distribution 
-hist(sample(mCor, 1000, replace = F), prob=T, main='Correlation of genes', xlab='')
+hist(sample(mCor, 1000, replace = F), prob=T, main='Correlation of genes', xlab='', family='Arial')
 
 # create the graph cluster object
 # using absolute correlation vs actual values lead to different clusters
@@ -59,15 +61,33 @@ set.seed(1)
 ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T, iSize = 20)
 plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr, 
      vertex.frame.color=NA, mark.groups=NULL, edge.color='lightgrey')
+set.seed(1)
+ig = getFinalGraph(oGr)
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 30)
+plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr, 
+     vertex.frame.color=NA, edge.color='darkgrey')
 
 # look at the graph centrality properties
 set.seed(1)
 ig = plot.centrality.graph(oGr)
-ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 20)
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 30)
 set.seed(1)
-plot(ig, vertex.label=NA, layout=layout_with_fr, vertex.frame.color=NA, edge.color='lightgrey')
+plot(ig, vertex.label=NA, layout=layout_with_fr, vertex.frame.color=NA, edge.color='darkgrey')
 par(p.old)
 plot.centrality.diagnostics(oGr)
+
+# make a pdf output
+pdf('Temp/Figures/Graph_structure.pdf')
+par(mar=c(1,1,1,1)+0.1, family='Helvetica')
+ig = getFinalGraph(oGr)
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 30)
+set.seed(1)
+plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr, 
+     vertex.frame.color=NA, edge.color='darkgrey')
+set.seed(1)
+ig = plot.centrality.graph(oGr)
+dev.off(dev.cur())
+
 
 # get the centrality parameters
 mCent = mPrintCentralitySummary(oGr)
@@ -168,7 +188,7 @@ par(p.old)
 # mean expression of groups in every cluster
 plot.mean.expressions(oGr, t(mCounts), fGroups, legend.pos = 'bottomleft', main='Total Change in Each Cluster')
 # only significant clusters
-par(mar=c(7, 3, 2, 2)+0.1)
+#par(mar=c(7, 3, 2, 2)+0.1)
 plot.significant.expressions(oGr, t(mCounts), fGroups, main='Significant Clusters', lwd=2, bStabalize = T, cex.axis=0.7)
 pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)
 par(mar=c(4,2,4,2))
@@ -178,6 +198,9 @@ biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
 plot.heatmap.all(oGr, t(mCounts))
 # marginal expression level in each cluster
 plot.heatmap.marginal(oGr, t(mCounts))
+plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = T)
+plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = F)
+
 # # plot selected clusters
 # plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '1280215')
 # plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '168249')
@@ -189,6 +212,26 @@ plot.heatmap.marginal(oGr, t(mCounts))
 dfCluster = getClusterMapping(oGr)
 colnames(dfCluster) = c('gene', 'cluster')
 dfCluster = dfCluster[order(dfCluster$cluster),]
+
+# plot one cluster of choice on pdf
+csClust = '1280215'
+set.seed(1)
+ig.sub = getClusterSubgraph(oGr, csClustLabel = csClust)
+ig.sub = f_igCalculateVertexSizesAndColors(ig.sub, t(mCounts), fGroups, bColor = T)
+n = f_dfGetGeneAnnotation(V(ig.sub)$name)
+V(ig.sub)[n$ENTREZID]$label = n$SYMBOL
+plot(ig.sub, vertex.label.cex=0.7, layout=layout_with_fr)
+mC = t(mCounts)
+mC = mC[n$ENTREZID,]
+rownames(mC) = n$SYMBOL
+mC = t(scale(t(mC)))
+# threshhold the values
+mC[mC < -3] = -3
+mC[mC > +3] = +3
+# draw the heatmap
+hc = hclust(dist(mC))
+aheatmap(mC, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=NA, 
+         annColors=NA, Colv=NA)
 
 # plot the subgraphs of the significant clusters
 l = getSignificantClusters(oGr, mCounts = t(mCounts), fGroups, bStabalize = T)
