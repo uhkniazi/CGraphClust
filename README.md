@@ -26,10 +26,14 @@ getBipartiteGraph & getProjectedGraph
 class to create a igraph and hclust object based on 2 criteria: 1) shared properties or connections with type 2 vertices in a bipartite graph and 2) positive correlation value.
 
 # Constructor - CGraphClust
-Arguments - a data frame of 2 columns and n rows, where column 1 represents vertices of type 1 (e.g. Gene symbols) and column 2
-represents vertices of type 2 (e.g. Pathways related to the corresponding gene symbol). A correlation matrix of the expression
-values of e.g. the Genes with column and rownames being the same as the entries in column 1 of the data frame. The third argument
-is a cutoff value of correlations (default is 0.5) - i.e. anything below 0.5 is not considered to be related. 
+## Arguments
+dfGraph = a data frame of 2 columns and n rows, where column 1 represents vertices of type 1 (e.g. Gene symbols) and column 2
+represents vertices of type 2 (e.g. Pathways related to the corresponding gene symbol).  
+mCor = A correlation matrix of the expression values of e.g. the Genes with column and rownames being the same as the entries in column 1 of the data frame.  
+iCorCut = 0.5 DEFAULT, a cutoff value of correlations (default is 0.5) - i.e. anything below 0.5 is not considered to be related.  
+bSuppressPlots = TRUE DEFAULT, should the plots be drawn while building graph.  
+iMinComponentSize = 6 DEFAULT, Before finding the communities, the smallest strongly connected components less than the this size 
+are removed, this can be adjusted, if a graph has many small communities.
 # step 1
 bipartite graph is created and some cleaning performed, i.e. those type 2 vertices with too many connections (degree) with type 1
 vertices are removed. this is done by looking at the distribution of the degrees on a log scale and approximating a negative
@@ -186,6 +190,10 @@ Simple summary function, reports the names of vertices in:
 2- The top Quantile of the vertices from the centrality scores - default is 0.95, change iQuantile argument.  
 The data is returned in a list format.  
 
+# dfGetTopVertices
+Very similar to previous function lGetTopVertices, but data is returned in a data frame format.  
+This can be useful for quickly getting a summary of genes and printing them out.
+
 # getSignificantClusters
 ARGS: the function will take the graph object, count matirx (rows are type 1 vertices e.g. genes), grouping factor (representing 
 columns) and a boolean value (if to perform data stabalization).  
@@ -199,16 +207,14 @@ Takes a cluster label, finds the largest clique in that cluster and returns an i
 
 # f_igCalculateVertexSizesAndColors
 Utility function to calculate vertex sizes of nodes of the graph, using the expression data, grouping factor and number of nodes
-in the graph. Node sizes are calculated by log10 fold change between the mean of 2 groups (in case of more than 2 groups, the 
-means of 2 groups at the extremes are used using the range function). This size factor is multiplied by a iSize (default NULL) 
-argument. If it is provided (set value to around 20 or 30 for large graphs - depending on drawing area) - for small graphs leave 
-this area blank and a multiplicative factor is calculated using 4000/vcount(ig). 
+in the graph. Node sizes are calculated by log2 fold change between the mean of 2 groups (the 2 extreme levels are used i.e. the base line level of the factor and the last level of the factor to calculate the difference). This size factor is multiplied by a iSize (default NULL) argument and absolute value is saved. If it is provided (set value to around 20 or 30 for large graphs - depending on drawing area) - for small graphs leave this area blank and a multiplicative factor is calculated using 4000/vcount(ig). 
 If the bColors variable is set (default FALSE), then factor with levels(factor)[1] is used as baseline and levels(factor)[last]
 is used as the second level, and if mean of levels(factor)[1] is < mean levels(factor)[length(levels(factor))], it suggests 
 a positive change with a colour of red (pink) or else negative change with blue colour
 
-
 # f_csGetGeneSummaryFromGenbank
+## NOTE
+This function does not seem to work well in vectorized format, needs fixing at some point.
 Utility function using the bioconductor package annoate and cran package XML to query genbank for a gene, download the xml file
 and extracts the summary for the gene returning it in a character string format. It can take a vectorized form of the gene list and
 returns a vectorized named character string

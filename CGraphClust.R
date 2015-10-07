@@ -125,7 +125,7 @@ setClass('CGraphClust', slots=list(hc='ANY', com='ANY',
 
 
 # constructor
-CGraphClust = function(dfGraph, mCor, iCorCut=0.5){
+CGraphClust = function(dfGraph, mCor, iCorCut=0.5, bSuppressPlots = T, iMinComponentSize=6){
   dfGraph = na.omit(dfGraph)
   # some error checks
   if (ncol(dfGraph) != 2) {
@@ -155,16 +155,18 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5){
   s = seq(floor(r[1])-0.5, ceiling(r[2])+0.5, by=1)
   r[1] = floor(r[1])
   r[2] = ceiling(r[2])
-  # which distribution can approximate the frequency of reactome terms
-  hist(t, prob=T, main='degree distribution of type 2 vertices', breaks=s,
-       xlab='log degree', ylab='')
-  # try negative binomial and poisson distributions
-  # parameterized on the means
-  dn = dnbinom(r[1]:r[2], size = mean(t), mu = mean(t))
-  dp = dpois(r[1]:r[2], mean(t))
-  lines(r[1]:r[2], dn, col='black', type='b')
-  lines(r[1]:r[2], dp, col='red', type='b')
-  legend('topright', legend =c('nbinom', 'poi'), fill = c('black', 'red'))
+  if (!bSuppressPlots){
+    # which distribution can approximate the frequency of reactome terms
+    hist(t, prob=T, main='degree distribution of type 2 vertices', breaks=s,
+         xlab='log degree', ylab='')
+    # try negative binomial and poisson distributions
+    # parameterized on the means
+    dn = dnbinom(r[1]:r[2], size = mean(t), mu = mean(t))
+    dp = dpois(r[1]:r[2], mean(t))
+    lines(r[1]:r[2], dn, col='black', type='b')
+    lines(r[1]:r[2], dp, col='red', type='b')
+    legend('topright', legend =c('nbinom', 'poi'), fill = c('black', 'red'))
+  }
   # a poisson distribution with mean(t) fits well - use this as cutoff
   # however a negative binomial will adjust for overdispertion, try both perhaps
   #i = round(exp(qpois(0.05, mean(t), lower.tail = F)))
@@ -200,15 +202,16 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5){
   s = seq(floor(r[1])-0.5, ceiling(r[2])+0.5, by = 1)
   r[1] = floor(r[1])
   r[2] = ceiling(r[2])
-  hist(w2, prob=T, breaks=s, main='distribution of obs to exp ratios', 
-       xlab='square root obs to exp ratio', ylab='')
-  r = round(r)
-  dp = dpois(r[1]:r[2], lambda = median(w2))
-  dn = dnbinom(r[1]:r[2], size = median(w2), mu = median(w2))
-  lines(r[1]:r[2], dp, col='red', type='b')
-  lines(r[1]:r[2], dn, col='blue', type='b')
-  legend('topright', legend = c('poi', 'nbin'), fill = c('red', 'blue'))
-  
+  if (!bSuppressPlots){
+    hist(w2, prob=T, breaks=s, main='distribution of obs to exp ratios', 
+         xlab='square root obs to exp ratio', ylab='')
+    r = round(r)
+    dp = dpois(r[1]:r[2], lambda = median(w2))
+    dn = dnbinom(r[1]:r[2], size = median(w2), mu = median(w2))
+    lines(r[1]:r[2], dp, col='red', type='b')
+    lines(r[1]:r[2], dn, col='blue', type='b')
+    legend('topright', legend = c('poi', 'nbin'), fill = c('red', 'blue'))
+  }
   # NOTE: this cutoff can be changed, the lower it is the more edges in the graph
   # use negative binomial to choose cutoff
   c = qnbinom(0.05, size = median(w2), mu=median(w2), lower.tail = F)
@@ -241,26 +244,26 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5){
   
   ## remove small components
   cl = clusters(ig.1)
-  t = log(cl$csize)
-  r = range(t)
-  s = seq(floor(r[1])-0.5, ceiling(r[2])+0.5, by=1)
-  r[1] = floor(r[1])
-  r[2] = ceiling(r[2])
-  # which distribution can approximate the distribution of cluster sizes
-  hist(t, prob=T, main='distribution of cluster sizes', breaks=s,
-       xlab='log size', ylab='')
-  # try negative binomial and poisson distributions
-  # parameterized on the means
-  dn = dnbinom(r[1]:r[2], size = mean(t), mu = mean(t))
-  dp = dpois(r[1]:r[2], mean(t))
-  lines(r[1]:r[2], dn, col='black', type='b')
-  lines(r[1]:r[2], dp, col='red', type='b')
-  legend('topright', legend =c('nbinom', 'poi'), fill = c('black', 'red'))
+#   t = log(cl$csize)
+#   r = range(t)
+#   s = seq(floor(r[1])-0.5, ceiling(r[2])+0.5, by=1)
+#   r[1] = floor(r[1])
+#   r[2] = ceiling(r[2])
+#   # which distribution can approximate the distribution of cluster sizes
+#   hist(t, prob=T, main='distribution of cluster sizes', breaks=s,
+#        xlab='log size', ylab='')
+#   # try negative binomial and poisson distributions
+#   # parameterized on the means
+#   dn = dnbinom(r[1]:r[2], size = mean(t), mu = mean(t))
+#   dp = dpois(r[1]:r[2], mean(t))
+#   lines(r[1]:r[2], dn, col='black', type='b')
+#   lines(r[1]:r[2], dp, col='red', type='b')
+#   legend('topright', legend =c('nbinom', 'poi'), fill = c('black', 'red'))
   # a poisson distribution with mean(t) fits well - use this as cutoff
   # however a negative binomial will adjust for overdispertion, try both perhaps
   ## EDIT HERE to get larger clusters i = round(exp(qpois(0.05, mean(t), lower.tail = F)))
   #i = round(exp(qnbinom(0.05, size = mean(t), mu = mean(t), lower.tail = F)))
-  i = 6
+  i = iMinComponentSize
   i = which(cl$csize < i)
   v = which(cl$membership %in% i)
   # delete the components that are small
@@ -845,6 +848,21 @@ setMethod('getCentralityMatrix', signature='CGraphClust', definition = function(
 })
 
 
+# returns a data frame with the top vertices
+setGeneric('dfGetTopVertices', def = function(obj, iQuantile=0.95) standardGeneric('dfGetTopVertices'))
+setMethod('dfGetTopVertices', signature='CGraphClust', definition = function(obj, iQuantile=0.95){
+  # get the top vertices
+  l = lGetTopVertices(oGr, iQuantile)
+  top.genes = unique(unlist(l))
+  dfRet = data.frame(VertexID = as.character(top.genes))
+  # create a true / false vector of matches
+  f = sapply(seq_along(1:length(l)), function(x) dfRet$VertexID %in% l[[x]])
+  colnames(f) = names(l)
+  dfRet = cbind(dfRet, f)
+  return(dfRet)
+})
+
+
 
 ## utility functions for data stabilization
 f_mCalculateLikelihoodMatrix = function(ivDat, fGroups){
@@ -923,9 +941,10 @@ f_igCalculateVertexSizesAndColors = function(ig, mCounts, fGroups, bColor = FALS
   # calculate fold changes function
   lf_getFC = function(x, f, bS=FALSE){
     # if data stabalization required
+    l = levels(f)
     if (bS) x = f_ivStabilizeData(x, f)
-    r = range(tapply(x, f, mean))
-    fc = log10(r[2]) - log10(r[1])
+    r = tapply(x, f, mean)
+    fc = log2(r[l[length(l)]]) - log2(r[l[1]])
     return(fc)
   }
   # calculate colour function
@@ -940,7 +959,7 @@ f_igCalculateVertexSizesAndColors = function(ig, mCounts, fGroups, bColor = FALS
   if (is.null(iSize)) iSize = 4000/vcount(ig)
   mCounts = mCounts[n,]
   s = apply(mCounts, 1, function(x) lf_getFC(x, fGroups, bStabalize))
-  V(ig)[n]$size = s * iSize
+  V(ig)[n]$size = abs(s * iSize)
   # assign colours if required
   if (bColor){c = sapply(seq_along(n), function(x) lf_getDirection(mCounts[n[x], ], fGroups, bStabalize))
               V(ig)[n]$color = c
