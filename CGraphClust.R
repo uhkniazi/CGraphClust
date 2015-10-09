@@ -290,11 +290,11 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5, bSuppressPlots = T, iMinCompo
   # reset the type flag
   f = V(oIGbp)$type
   # create communities in the graph
-  # NOTE: if number of edges in the graph larger than 3000 or so then
+  # NOTE: if number of edges in the graph larger than 5000 or so then
   # it may take too long or crash the system, so put in a safety check here
   # and choose a different community finding algorithm
   com = NULL
-  if (ecount(ig.1) > 3000) {
+  if (ecount(ig.1) > 5000) {
     print('Too many edges in graph to use edge.betweenness communities')
     com = walktrap.community(ig.1)
   } else com = edge.betweenness.community(ig.1)
