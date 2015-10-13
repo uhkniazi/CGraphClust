@@ -161,25 +161,25 @@ aheatmap(m1, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = TRU
 
 # plot a graph of these top genes
 par(mar=c(1,1,1,1)+0.1)
-ig = induced_subgraph(getFinalGraph(oGr), vids = dfTopGenes.cent$VertexID)
+ig = induced_subgraph(getFinalGraph(oGr), vids = as.character(dfTopGenes.cent$VertexID))
 ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T, iSize=30)
 n = V(ig)$name
 lab = f_dfGetGeneAnnotation(n)
 V(ig)$label = as.character(lab$SYMBOL)
 set.seed(1)
-plot(ig, vertex.label.cex=0.3, layout=layout_with_fr, vertex.frame.color='darkgrey', edge.color='lightgrey', main='12 vs 0')
+plot(ig, vertex.label.cex=0.2, layout=layout_with_fr, vertex.frame.color='darkgrey', edge.color='lightgrey', main='12 vs 0')
 legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
 
 # switch the factor levels
 par(mar=c(1,1,1,1)+0.1)
-ig = induced_subgraph(getFinalGraph(oGr), vids = dfTopGenes.cent$VertexID)
+ig = induced_subgraph(getFinalGraph(oGr), vids = as.character(dfTopGenes.cent$VertexID))
 fG = factor(fGroups, levels = c('0', '12', '2'))
 ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fG, bColor = T, iSize=30)
 n = V(ig)$name
 lab = f_dfGetGeneAnnotation(n)
 V(ig)$label = as.character(lab$SYMBOL)
 set.seed(1)
-plot(ig, vertex.label.cex=0.3, layout=layout_with_fr, vertex.frame.color='darkgrey', edge.color='lightgrey', main='2 vs 0')
+plot(ig, vertex.label.cex=0.2, layout=layout_with_fr, vertex.frame.color='darkgrey', edge.color='lightgrey', main='2 vs 0')
 legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
 
 
