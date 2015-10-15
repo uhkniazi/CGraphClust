@@ -230,7 +230,12 @@ plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = F)
 
 #### plot a graph of top clusters clusters 
 m = getSignificantClusters(oGr, t(mCounts), fGroups, bStabalize = T)
-csClust = rownames(m$clusters)[1:15]
+dfCluster = getClusterMapping(oGr)
+colnames(dfCluster) = c('gene', 'cluster')
+rownames(dfCluster) = dfCluster$gene
+# how many genes in each cluster
+sort(table(dfCluster$cluster))
+csClust = rownames(m$clusters)
 
 # plot these genes 
 par(mar=c(1,1,1,1)+0.1)
@@ -254,6 +259,12 @@ V(ig)$label = as.character(lab$SYMBOL)
 set.seed(1)
 plot(ig, vertex.label.cex=0.14, layout=layout_with_fr, vertex.frame.color='darkgrey', edge.color='lightgrey', main='2 vs 0')
 legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+
+dfCluster = dfCluster[dfCluster$cluster %in% csClust,]
+df = f_dfGetGeneAnnotation(as.character(dfCluster$gene))
+dfCluster = cbind(dfCluster[as.character(df$ENTREZID),], SYMBOL=df$SYMBOL, GENENAME=df$GENENAME)
+write.csv(dfCluster, file='Results/Top_Clusters.csv')
+
 
 # plot one cluster of choice
 csClust = '1280215'
