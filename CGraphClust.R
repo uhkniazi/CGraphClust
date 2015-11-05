@@ -865,46 +865,97 @@ setMethod('dfGetTopVertices', signature='CGraphClust', definition = function(obj
 
 
 ## utility functions for data stabilization
-f_mCalculateLikelihoodMatrix = function(ivDat, fGroups){
-  # if fGroups is not a factor
-  if (!is.factor(fGroups)) stop('f_mCalculateLikelihoodMatrix: Grouping variable not a factor')
-  # get the parameters for the data of the data
-  v.dat = var(ivDat)
-  var.dat = tapply(ivDat, fGroups, var)
-  l.dat = tapply(ivDat, fGroups, length)
-  m.dat = tapply(ivDat, fGroups, mean)
-  se.dat = sqrt(var.dat/l.dat)
-  # sample possible values of the means from normal distribution
-  theta.mean = rnorm(10000, m.dat, sqrt(v.dat))
-  mLik = matrix(NA, nrow=length(theta.mean), ncol=length(levels(fGroups)))
-  colnames(mLik) = levels(fGroups)
-  
-  for (i in 1:length(levels(fGroups))){
-    # calculate likelihood function for this mean
-    y = dnorm(theta.mean, m.dat[i], se.dat[i])
-    # use rejection sampling to sample from posterior based on likelihood
-    mLik[,i] = sample(theta.mean, 10000, replace = T, prob=y)
-  }
-  return(mLik)
-}
+# f_mCalculateLikelihoodMatrix = function(ivDat, fGroups){
+#   # if fGroups is not a factor
+#   if (!is.factor(fGroups)) stop('f_mCalculateLikelihoodMatrix: Grouping variable not a factor')
+#   # get the parameters for the data of the data
+#   v.dat = var(ivDat)
+#   var.dat = tapply(ivDat, fGroups, var)
+#   l.dat = tapply(ivDat, fGroups, length)
+#   m.dat = tapply(ivDat, fGroups, mean)
+#   se.dat = sqrt(var.dat/l.dat)
+#   # sample possible values of the means from normal distribution
+#   theta.mean = rnorm(10000, m.dat, sqrt(v.dat))
+#   mLik = matrix(NA, nrow=length(theta.mean), ncol=length(levels(fGroups)))
+#   colnames(mLik) = levels(fGroups)
+#   
+#   for (i in 1:length(levels(fGroups))){
+#     # calculate likelihood function for this mean
+#     y = dnorm(theta.mean, m.dat[i], se.dat[i])
+#     # use rejection sampling to sample from posterior based on likelihood
+#     mLik[,i] = sample(theta.mean, 10000, replace = T, prob=y)
+#   }
+#   return(mLik)
+# }
+# 
+# f_ivStabilizeData = function(ivDat, fGroups){
+#   # set seed 
+#   set.seed(123)
+#   mNew = f_mCalculateLikelihoodMatrix(ivDat, fGroups)
+#   var.dat = tapply(ivDat, fGroups, var)
+#   l.dat = tapply(ivDat, fGroups, length)
+#   se.dat = sqrt(var.dat/l.dat)
+#   sd.dat = tapply(ivDat, fGroups, sd)
+#   ivDat.new = NULL
+#   for (i in 1:length(levels(fGroups))){
+#     # sample of means from the posterior means
+#     m = sample(mNew[,i], size = l.dat[i], replace = T)
+#     ivSam = sapply(seq_along(m), function(x) rnorm(1, m[x], se.dat[i]))
+#     ivDat.new = c(ivDat.new, ivSam)
+#   }
+#   return(ivDat.new)
+# }
 
 f_ivStabilizeData = function(ivDat, fGroups){
-  # set seed 
   set.seed(123)
-  mNew = f_mCalculateLikelihoodMatrix(ivDat, fGroups)
-  var.dat = tapply(ivDat, fGroups, var)
-  l.dat = tapply(ivDat, fGroups, length)
-  se.dat = sqrt(var.dat/l.dat)
-  sd.dat = tapply(ivDat, fGroups, sd)
-  ivDat.new = NULL
-  for (i in 1:length(levels(fGroups))){
-    # sample of means from the posterior means
-    m = sample(mNew[,i], size = l.dat[i], replace = T)
-    ivSam = sapply(seq_along(m), function(x) rnorm(1, m[x], se.dat[i]))
-    ivDat.new = c(ivDat.new, ivSam)
+  # if fGroups is not a factor
+  if (!is.factor(fGroups)) stop('f_ivStabalizeData: Grouping variable not a factor')
+  # calculate prior parameters
+  #prior.ssd = sum((ivDat - mean(ivDat))^2)
+  # uncomment these lines if prior parameters calculated by pooled data
+  #   sigma.0 = var(ivDat)
+  #   k.0 = length(ivDat)
+  #   v.0 = k.0 - 1
+  #   mu.0 = mean(ivDat)
+  # comment these lines if using not using non-informataive prior
+  sigma.0 = 0
+  k.0 = 0
+  v.0 = - 1
+  mu.0 = 0
+  
+  ## look at page 68 of Bayesian Data Analysis (Gelman) for formula
+  sim.post = function(dat.grp){
+    # calculate conjugate posterior
+    n = length(dat.grp)
+    k.n = k.0 + n
+    v.n = v.0 + n
+    y.bar = mean(dat.grp)
+    s = sd(dat.grp)
+    mu.n = (k.0/k.n * mu.0) + (n/k.n * y.bar)
+    sigma.n = (( v.0*sigma.0 ) + ( (n-1)*(s^2) ) + ( (k.0*n/k.n)*((y.bar-mu.0)^2) )) / v.n
+    #post.scale = ((prior.dof * prior.scale) + (var(dat.grp) * (length(dat.grp) - 1))) / post.dof
+    ## simulate variance
+    sigma = (sigma.n * v.n)/rchisq(1000, v.n)
+    mu = rnorm(1000, mu.n, sqrt(sigma)/sqrt(k.n))
+    return(list(mu=mu, var=sigma))
   }
-  return(ivDat.new)
+  
+  #   post.pred = function(theta, n){
+  #     return(rnorm(n, mean(theta$mu), sd = mean(sqrt(theta$var))))    
+  #   }
+  
+  # get a sample of the posterior means for each group
+  ivDat.new = tapply(ivDat, fGroups, function(x) sample(sim.post(x)$mu, size = length(x), replace = T))
+  ivDat.ret = vector('numeric', length=length(ivDat))
+  # put the data in the same order as the groups
+  l = levels(fGroups)
+  for (i in seq_along(l)){
+    temp = ivDat.new[l[[i]]]
+    ivDat.ret[fGroups == l[i]] = unlist(temp)
+  }
+  return(ivDat.ret)  
 }
+
 
 f_dfGetGeneAnnotation = function(cvEnterezID = NULL) {
   if (!require(org.Hs.eg.db)) stop('org.Hs.eg.db annotation library required')
