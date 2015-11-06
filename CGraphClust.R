@@ -458,6 +458,22 @@ setMethod('plot.graph.clique', signature = 'CGraphClust', definition = function(
 # get the marginal of each cluster based on the count matrix
 setGeneric('getClusterMarginal', def = function(obj, mCounts, bScaled=FALSE) standardGeneric('getClusterMarginal'))
 setMethod('getClusterMarginal', signature='CGraphClust', definition = function(obj, mCounts, bScaled=FALSE){
+  # internal function
+  f_edge.score = function(cluster, mCl){
+    g = getClusterSubgraph(obj, cluster)
+    # get the list of edges
+    el = get.edgelist(g)
+    # for each edge list row, get the 
+    # expression matrix rows
+    mRet = apply(el, 1, function(x){
+      m = colSums(mCl[x,])
+      fac = E(g)[get.edge.ids(g, x)]$ob_to_ex
+      # multiply the weight by the weight factor
+      return(m * fac)
+    })
+    mRet = t(mRet)
+    return(mRet)    
+  }
   n = V(getFinalGraph(obj))$name
   # sanity check
   if (sum(rownames(mCounts) %in% n) == 0) stop('getClusterMarginal: Row names of count matrix do not match with genes')
@@ -482,7 +498,9 @@ setMethod('getClusterMarginal', signature='CGraphClust', definition = function(o
       mCent[i,] = mCounts[memb == i,]
     } else {
       # else if more than one member, we can use mean 
-      mCent[i,] = colMeans(mCounts[memb == i,])}
+      ## make change here for using edges 
+      #mCent[i,] = colMeans(mCounts[memb == i,])}
+      mCent[i,] = colMeans(f_edge.score(i, mCounts[memb==i,]))}
   }
   return(mCent)
 })
@@ -907,21 +925,21 @@ setMethod('dfGetTopVertices', signature='CGraphClust', definition = function(obj
 # }
 
 f_ivStabilizeData = function(ivDat, fGroups){
-  set.seed(123)
+  #set.seed(123)
   # if fGroups is not a factor
   if (!is.factor(fGroups)) stop('f_ivStabalizeData: Grouping variable not a factor')
   # calculate prior parameters
   #prior.ssd = sum((ivDat - mean(ivDat))^2)
   # uncomment these lines if prior parameters calculated by pooled data
-  #   sigma.0 = var(ivDat)
-  #   k.0 = length(ivDat)
-  #   v.0 = k.0 - 1
-  #   mu.0 = mean(ivDat)
+#     sigma.0 = var(ivDat)
+#     k.0 = length(ivDat)
+#     v.0 = k.0 - 1
+#     mu.0 = mean(ivDat)
   # comment these lines if using not using non-informataive prior
-  sigma.0 = 0
-  k.0 = 0
-  v.0 = - 1
-  mu.0 = 0
+  sigma.0 = var(ivDat)
+  k.0 = 2
+  v.0 = k.0 - 1
+  mu.0 = mean(ivDat)
   
   ## look at page 68 of Bayesian Data Analysis (Gelman) for formula
   sim.post = function(dat.grp){
