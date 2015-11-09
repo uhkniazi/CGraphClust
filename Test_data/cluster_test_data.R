@@ -227,6 +227,9 @@ biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
 # plot summary heatmaps
 # marginal expression level in each cluster
 plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = F)
+# plot variance of cluster
+m = getSignificantClusters(oGr, t(mCounts), fGroups)$clusters
+plot.cluster.variance(oGr, m[c('1280218', '1280215'),], fGroups)
 
 #### plot a graph of top clusters clusters 
 m = getSignificantClusters(oGr, t(mCounts), fGroups, bStabalize = T)

@@ -716,6 +716,35 @@ setMethod('plot.components', signature='CGraphClust', definition = function(obj,
   return(pr.out)
 })
 
+# plot heatmap of cluster means
+setGeneric('plot.cluster.variance', def = function(obj, mCent, fGroups, iDrawCount=4, ...) standardGeneric('plot.cluster.variance'))
+setMethod('plot.cluster.variance', signature='CGraphClust', definition = function(obj, mCent, fGroups, iDrawCount=4, ...){
+  if (!require(lattice)) stop('R package lattice needs to be installed.')
+  # for each cluster calculate the posterior variance
+  fac = sapply(seq_along(levels(fGroups)), function(x) {
+    rep(levels(fGroups)[x], times=100)
+  })
+  fac.1 = as.vector(fac)
+  rn = rownames(mCent)
+  if (length(rn) > iDrawCount) rn = rn[1:iDrawCount]
+  # plot 4 clusters per panel
+  dfVar = sapply(seq_along(rn), function(x){
+    l = f_lpostVariance(mCent[rn[x],], fGroups)
+    l2 = lapply(l, function(x) sample(x, 100, replace = T))
+#     l2 = lapply(l, function(x){
+#       # get the mean and se using central limit theorem and simulation
+#       m = mean(x); se = sd(x)/sqrt(length(x))
+#       return(rnorm(100, m, se))      
+#     })
+    return(unlist(l2))
+    
+  })
+  colnames(dfVar) = rn
+  dfVar = stack(as.data.frame(dfVar))
+  dfVar$fac = factor(fac.1,levels = levels(fGroups)) 
+  bwplot(~values | fac+ind, data=dfVar, do.out=TRUE) 
+})
+
 # plot the expression of all members of the given cluster
 setGeneric('plot.cluster.expressions', def = function(obj, mCounts, fGroups, csClustLabel, ...) standardGeneric('plot.cluster.expressions'))
 setMethod('plot.cluster.expressions', signature='CGraphClust', definition = function(obj, mCounts, fGroups, csClustLabel, ...){
@@ -1000,11 +1029,11 @@ f_lpostVariance = function(ivDat, fGroups){
   #set.seed(123)
   # if fGroups is not a factor
   if (!is.factor(fGroups)) stop('f_ivStabalizeData: Grouping variable not a factor')
-  # calculate weakly informative prior parameters  
-  sigma.0 = var(ivDat)
-  k.0 = 2
+  # calculate using non-informative prior parameters  
+  sigma.0 = 0
+  k.0 = 0
   v.0 = k.0 - 1
-  mu.0 = mean(ivDat)
+  mu.0 = 0
   
   ## look at page 68 of Bayesian Data Analysis (Gelman) for formula
   sim.post = function(dat.grp){
