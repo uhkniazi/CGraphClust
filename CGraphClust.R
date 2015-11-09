@@ -468,8 +468,9 @@ setMethod('getClusterMarginal', signature='CGraphClust', definition = function(o
     mRet = apply(el, 1, function(x){
       m = colSums(mCl[x,])
       fac = E(g)[get.edge.ids(g, x)]$ob_to_ex
-      # multiply the weight by the weight factor
-      return(m * fac)
+#       # multiply the weight by the weight factor
+#       return(m * fac)
+        return(m)
     })
     mRet = t(mRet)
     return(mRet)    
@@ -493,15 +494,18 @@ setMethod('getClusterMarginal', signature='CGraphClust', definition = function(o
   # loop and calculate marginal for each cluster
   for(a in 1:nrow(mCent)){
     i = rownames(mCent)[a]
-    # if cluster has only one member
+    # if cluster has only one member then remove from analysis
     if (sum(memb == i) == 1) {
-      mCent[i,] = mCounts[memb == i,]
+      # mCent[i,] = mCounts[memb == i,]
+      next;
     } else {
       # else if more than one member, we can use mean 
       ## make change here for using edges 
       #mCent[i,] = colMeans(mCounts[memb == i,])}
       mCent[i,] = colMeans(f_edge.score(i, mCounts[memb==i,]))}
   }
+  # remove rows with NA in it, i.e. clusters with only one member
+  mCent = na.omit(mCent)
   return(mCent)
 })
 
@@ -551,14 +555,19 @@ setMethod('plot.heatmap.marginal', signature='CGraphClust', definition = functio
 setGeneric('plot.heatmap.significant.clusters', def = function(obj, mCounts, fGroups, bStabalize = F, ivScale = c(-3, 3), ...) standardGeneric('plot.heatmap.significant.clusters'))
 setMethod('plot.heatmap.significant.clusters', signature='CGraphClust', definition = function(obj, mCounts, fGroups, bStabalize = F, ivScale = c(-3, 3), ...){
   if (!require(NMF)) stop('R package NMF needs to be installed.')
-  # stabalize the data before performing DE
-  if (bStabalize){
-    mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
-    colnames(mCounts) = fGroups
-  }  
+  #   # stabalize the data before performing DE
+  #   if (bStabalize){
+  #     mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
+  #     colnames(mCounts) = fGroups
+  #   }  
   # get significant clusters which also gives the marginals
   mCent = getSignificantClusters(obj, mCounts, fGroups)$clusters
   mCounts = mCent  
+  # stabalize the significant cluster marginals
+  if (bStabalize){
+    mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
+    colnames(mCounts) = fGroups
+  }
   # scale across the rows
   mCounts = t(mCounts)
   mCounts = scale(mCounts)
@@ -628,26 +637,31 @@ setMethod('plot.mean.expressions', signature='CGraphClust', definition = functio
 # plot line graph of significant expressions in each cluster and each group
 setGeneric('plot.significant.expressions', def = function(obj, mCounts, fGroups, legend.pos='topright', bStabalize=FALSE, ...) standardGeneric('plot.significant.expressions'))
 setMethod('plot.significant.expressions', signature='CGraphClust', definition = function(obj, mCounts, fGroups, legend.pos='topright', bStabalize=FALSE, ...){
-  # stabalize the data before performing DE
-  if (bStabalize){
-    mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
-    colnames(mCounts) = fGroups
-  }  
+  #   # stabalize the data before performing DE
+  #   if (bStabalize){
+  #     mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
+  #     colnames(mCounts) = fGroups
+  #   }  
   # get significant clusters
   mCent = getSignificantClusters(obj, mCounts, fGroups)$clusters
-#   mCent = getClusterMarginal(obj, mCounts)
-#   # check which cluster shows significant p-values
-#   #p.vals = na.omit(apply(mCent, 1, function(x) pairwise.t.test(x, fGroups, p.adjust.method = 'BH')$p.value))
-#   #fSig = apply(p.vals, 2, function(x) any(x < 0.01))
-#   p.val = apply(mCent, 1, function(x) anova(lm(x ~ fGroups))$Pr[1])
-#   p.val = p.adjust(p.val, method = 'BH')
-#   fSig = p.val < 0.01
-#   mCent = mCent[fSig,]
-#   p.val = p.val[fSig]
-#   # reorder the matrix based on range of mean
-#   rSort = apply(mCent, 1, function(x){ m = tapply(x, fGroups, mean); r = range(m); diff(r)}) 
-#   mCent = mCent[order(rSort, decreasing = T),]
+  #   mCent = getClusterMarginal(obj, mCounts)
+  #   # check which cluster shows significant p-values
+  #   #p.vals = na.omit(apply(mCent, 1, function(x) pairwise.t.test(x, fGroups, p.adjust.method = 'BH')$p.value))
+  #   #fSig = apply(p.vals, 2, function(x) any(x < 0.01))
+  #   p.val = apply(mCent, 1, function(x) anova(lm(x ~ fGroups))$Pr[1])
+  #   p.val = p.adjust(p.val, method = 'BH')
+  #   fSig = p.val < 0.01
+  #   mCent = mCent[fSig,]
+  #   p.val = p.val[fSig]
+  #   # reorder the matrix based on range of mean
+  #   rSort = apply(mCent, 1, function(x){ m = tapply(x, fGroups, mean); r = range(m); diff(r)}) 
+  #   mCent = mCent[order(rSort, decreasing = T),]
   # plot the means for each level of the factor fGroups
+  # stabalize the significant clusters marginal
+  if (bStabalize){
+    mCent = t(apply(mCent, 1, function(x) f_ivStabilizeData(x, fGroups)))
+    colnames(mCent) = fGroups
+  }  
   mPlot = matrix(NA, nrow = nrow(mCent), ncol = length(unique(fGroups)), 
                  dimnames = list(rownames(mCent), as.character(unique(fGroups))) )
   mSD = matrix(NA, nrow = nrow(mCent), ncol = length(unique(fGroups)), 
@@ -675,19 +689,27 @@ setMethod('plot.significant.expressions', signature='CGraphClust', definition = 
 # perform PCA on clusters (cor matrix of clusters) and return the PCA object
 setGeneric('plot.components', def = function(obj, mCounts, fGroups, legend.pos='topright', bStabalize=TRUE, ...) standardGeneric('plot.components'))
 setMethod('plot.components', signature='CGraphClust', definition = function(obj, mCounts, fGroups, legend.pos='topright', bStabalize=TRUE, ...){
-  # stabalize the data before pca
-  if (bStabalize){
-    mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
-    colnames(mCounts) = fGroups
-  }
+#   # stabalize the data before pca
+#   if (bStabalize){
+#     mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
+#     colnames(mCounts) = fGroups
+#   }
   # compress the data for each cluster i.e. get marginals
-  mCent = getClusterMarginal(obj, mCounts, bScaled = F)
+#   mCent = getClusterMarginal(obj, mCounts, bScaled = F)
+#   # center data across clusters i.e. rows
+#   mCent = t(scale(t(mCent)))
+#   # plot only significant clusters
+#   l = getSignificantClusters(obj, mCounts, fGroups)
+#   csClust = rownames(l$clusters)
+#   mCent = mCent[csClust,]  
+  mCent = getSignificantClusters(obj, mCounts, fGroups)$clusters
+  # stabalize the significant clusters marginal
+  if (bStabalize){
+    mCent = t(apply(mCent, 1, function(x) f_ivStabilizeData(x, fGroups)))
+    colnames(mCent) = fGroups
+  }  
   # center data across clusters i.e. rows
   mCent = t(scale(t(mCent)))
-  # plot only significant clusters
-  l = getSignificantClusters(oGr, mCounts, fGroups)
-  csClust = rownames(l$clusters)
-  mCent = mCent[csClust,]  
   pr.out = prcomp(mCent, scale=T)
   plot(pr.out$x[,1:2], pch=19, xlab='Z1', ylab='Z2')
   text(pr.out$x[,1:2], labels=rownames(pr.out$x), cex=0.6, pos=2)
@@ -779,14 +801,14 @@ setMethod('lGetTopVertices', signature = 'CGraphClust', definition = function(ob
 
 
 # get the significant clusters matrix and the p.values
-setGeneric('getSignificantClusters', def = function(obj, mCounts, fGroups, bStabalize=FALSE, ...) standardGeneric('getSignificantClusters'))
-setMethod('getSignificantClusters', signature='CGraphClust', definition = function(obj, mCounts, fGroups, bStabalize=FALSE, ...){
-  # stabalize the data before performing DE
-  if (bStabalize){
-    mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
-    colnames(mCounts) = fGroups
-  }  
-  # get the marginal each cluster
+setGeneric('getSignificantClusters', def = function(obj, mCounts, fGroups, ...) standardGeneric('getSignificantClusters'))
+setMethod('getSignificantClusters', signature='CGraphClust', definition = function(obj, mCounts, fGroups, ...){
+#   # stabalize the data before performing DE
+#   if (bStabalize){
+#     mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
+#     colnames(mCounts) = fGroups
+#   }  
+  # get the marginal of each cluster
   mCent = getClusterMarginal(obj, mCounts, bScaled = F)
   # check which cluster shows significant p-values
   #p.vals = na.omit(apply(mCent, 1, function(x) pairwise.t.test(x, fGroups, p.adjust.method = 'BH')$p.value))
