@@ -996,6 +996,37 @@ f_ivStabilizeData = function(ivDat, fGroups){
   return(ivDat.ret)  
 }
 
+f_lpostVariance = function(ivDat, fGroups){
+  #set.seed(123)
+  # if fGroups is not a factor
+  if (!is.factor(fGroups)) stop('f_ivStabalizeData: Grouping variable not a factor')
+  # calculate weakly informative prior parameters  
+  sigma.0 = var(ivDat)
+  k.0 = 2
+  v.0 = k.0 - 1
+  mu.0 = mean(ivDat)
+  
+  ## look at page 68 of Bayesian Data Analysis (Gelman) for formula
+  sim.post = function(dat.grp){
+    # calculate conjugate posterior
+    n = length(dat.grp)
+    k.n = k.0 + n
+    v.n = v.0 + n
+    y.bar = mean(dat.grp)
+    s = sd(dat.grp)
+    mu.n = (k.0/k.n * mu.0) + (n/k.n * y.bar)
+    sigma.n = (( v.0*sigma.0 ) + ( (n-1)*(s^2) ) + ( (k.0*n/k.n)*((y.bar-mu.0)^2) )) / v.n
+    #post.scale = ((prior.dof * prior.scale) + (var(dat.grp) * (length(dat.grp) - 1))) / post.dof
+    ## simulate variance
+    sigma = (sigma.n * v.n)/rchisq(1000, v.n)
+    mu = rnorm(1000, mu.n, sqrt(sigma)/sqrt(k.n))
+    return(list(mu=mu, var=sigma))
+  }
+    
+  # get a sample of the posterior variance for each group
+  return(tapply(ivDat, fGroups, function(x) sim.post(x)$var))
+}
+
 
 f_dfGetGeneAnnotation = function(cvEnterezID = NULL) {
   if (!require(org.Hs.eg.db)) stop('org.Hs.eg.db annotation library required')
