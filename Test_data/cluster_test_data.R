@@ -231,6 +231,8 @@ plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = F)
 m = getSignificantClusters(oGr, t(mCounts), fGroups)$clusters
 plot.cluster.variance(oGr, m[c('1280218', '1280215'),], fGroups)
 
+# plot a cluster of choice as heatmap
+plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '109582')
 #### plot a graph of top clusters clusters 
 m = getSignificantClusters(oGr, t(mCounts), fGroups, bStabalize = T)
 dfCluster = getClusterMapping(oGr)

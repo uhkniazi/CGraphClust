@@ -736,13 +736,14 @@ setMethod('plot.cluster.variance', signature='CGraphClust', definition = functio
 #       m = mean(x); se = sd(x)/sqrt(length(x))
 #       return(rnorm(100, m, se))      
 #     })
-    return(unlist(l2))
+    # return log of the variance
+    return(log(unlist(l2)))
     
   })
   colnames(dfVar) = rn
   dfVar = stack(as.data.frame(dfVar))
   dfVar$fac = factor(fac.1,levels = levels(fGroups)) 
-  bwplot(~values | fac+ind, data=dfVar, do.out=TRUE) 
+  bwplot(~values | ind+fac, data=dfVar, do.out=TRUE, xlab='Log Variance') 
 })
 
 # plot the expression of all members of the given cluster
