@@ -732,8 +732,8 @@ setMethod('plot.components', signature='CGraphClust', definition = function(obj,
 })
 
 # plot heatmap of cluster means
-setGeneric('plot.cluster.variance', def = function(obj, mCent, fGroups, iDrawCount=4, ...) standardGeneric('plot.cluster.variance'))
-setMethod('plot.cluster.variance', signature='CGraphClust', definition = function(obj, mCent, fGroups, iDrawCount=4, ...){
+setGeneric('plot.cluster.variance', def = function(obj, mCent, fGroups, log=TRUE, iDrawCount=4, ...) standardGeneric('plot.cluster.variance'))
+setMethod('plot.cluster.variance', signature='CGraphClust', definition = function(obj, mCent, fGroups, log=TRUE, iDrawCount=4, ...){
   if (!require(lattice)) stop('R package lattice needs to be installed.')
   # for each cluster calculate the posterior variance
   fac = sapply(seq_along(levels(fGroups)), function(x) {
@@ -758,7 +758,11 @@ setMethod('plot.cluster.variance', signature='CGraphClust', definition = functio
   colnames(dfVar) = rn
   dfVar = stack(as.data.frame(dfVar))
   dfVar$fac = factor(fac.1,levels = levels(fGroups)) 
-  bwplot(~values | ind+fac, data=dfVar, do.out=TRUE, xlab='Log Variance') 
+  # if plot on log scale or exp scale
+  if (log == TRUE){
+    bwplot(~values | ind+fac, data=dfVar, do.out=TRUE, xlab='Log Variance') } else {
+      bwplot(~ exp(values) | ind+fac, data=dfVar, do.out=TRUE, xlab='Variance')
+    }
 })
 
 # plot the expression of all members of the given cluster

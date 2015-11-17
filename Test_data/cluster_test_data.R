@@ -240,7 +240,7 @@ plot.cluster.variance(oGr, m[c('1280218', '1280215'),], fGroups)
 csClust = rownames(m)
 length(csClust)
 i = 1
-plot.cluster.variance(oGr, m[csClust[i:(i+2)],], fGroups); i = i+3
+plot.cluster.variance(oGr, m[csClust[i:(i+2)],], fGroups, log = FALSE); i = i+3
 
 
 # plot a cluster of choice as heatmap
