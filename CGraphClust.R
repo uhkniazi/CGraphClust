@@ -863,7 +863,8 @@ setMethod('getSignificantClusters', signature='CGraphClust', definition = functi
   #p.vals = na.omit(apply(mCent, 1, function(x) pairwise.t.test(x, fGroups, p.adjust.method = 'BH')$p.value))
   #fSig = apply(p.vals, 2, function(x) any(x < 0.01))
   p.val = apply(mCent, 1, function(x) anova(lm(x ~ fGroups))$Pr[1])
-  p.val = p.adjust(p.val, method = 'BH')
+  #p.val = apply(mCent, 1, function(x) oneway.test(x ~ fGroups)$p.value)
+  p.val = p.adjust(p.val, method = 'bonferroni')
   fSig = p.val < 0.01
   mCent = mCent[fSig,]
   p.val = p.val[fSig]

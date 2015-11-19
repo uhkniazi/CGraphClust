@@ -240,19 +240,46 @@ plot.cluster.variance(oGr, m[c('1280218', '1280215'),], fGroups)
 csClust = rownames(m)
 length(csClust)
 i = 1
-plot.cluster.variance(oGr, m[csClust[i:(i+2)],], fGroups, log = FALSE); i = i+3
+plot.cluster.variance(oGr, m[csClust[i:(i+1)],], fGroups, log = FALSE); i = i+2
 
+i = 1
+temp = t(as.matrix(m[csClust[i],]))
+rownames(temp) = csClust[i]
+plot.cluster.variance(oGr, temp, fGroups, log=FALSE); i = i+1
 
 # plot a cluster of choice as heatmap
-plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '109582')
-#### plot a graph of top clusters clusters 
-m = getSignificantClusters(oGr, t(mCounts), fGroups, bStabalize = T)
+plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '1280218')
+#### plot a graph of clusters 
+#m = getSignificantClusters(oGr, t(mCounts), fGroups, bStabalize = T)
 dfCluster = getClusterMapping(oGr)
 colnames(dfCluster) = c('gene', 'cluster')
 rownames(dfCluster) = dfCluster$gene
 # how many genes in each cluster
 sort(table(dfCluster$cluster))
-csClust = rownames(m$clusters)
+#csClust = rownames(m$clusters)
+csClust = as.character(unique(dfCluster$cluster))
+
+
+# plot the largest clique at each grouping contrast
+lev = levels(fGroups)[-1]
+m = mCounts
+#m = apply(m, 2, function(x) f_ivStabilizeData(x, fGroups))
+#rownames(m) = rownames(mCounts)
+par(mar=c(1,1,1,1)+0.1)
+for(i in 1:length(lev)){
+  ig = getClusterSubgraph(oGr, csClust)
+  fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
+  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=30)
+  n = V(ig)$name
+  lab = f_dfGetGeneAnnotation(n)
+  V(ig)$label = as.character(lab$SYMBOL)
+  set.seed(1)
+  plot(ig, vertex.label.cex=0.14, layout=layout_with_fr, vertex.frame.color='darkgrey', edge.color='lightgrey',
+       main=paste(lev[i], 'vs', levels(fGroups)[1]))
+  legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+}
+
+
 
 # plot these genes 
 par(mar=c(1,1,1,1)+0.1)
