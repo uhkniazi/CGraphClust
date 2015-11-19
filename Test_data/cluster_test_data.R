@@ -260,7 +260,7 @@ sort(table(dfCluster$cluster))
 csClust = as.character(unique(dfCluster$cluster))
 
 
-# plot the largest clique at each grouping contrast
+# plot the graphs at each contrast
 lev = levels(fGroups)[-1]
 m = mCounts
 #m = apply(m, 2, function(x) f_ivStabilizeData(x, fGroups))
@@ -280,49 +280,36 @@ for(i in 1:length(lev)){
 }
 
 
-
-# plot these genes 
-par(mar=c(1,1,1,1)+0.1)
-ig = getClusterSubgraph(oGr, csClust)
-ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T, iSize=30)
-n = V(ig)$name
-lab = f_dfGetGeneAnnotation(n)
-V(ig)$label = as.character(lab$SYMBOL)
-set.seed(1)
-plot(ig, vertex.label.cex=0.14, layout=layout_with_fr, vertex.frame.color='darkgrey', edge.color='lightgrey', main='12 vs 0')
-legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
-
-# switch the factor levels
-par(mar=c(1,1,1,1)+0.1)
-ig = getClusterSubgraph(oGr, csClust)
-fG = factor(fGroups, levels = c('0', '12', '2'))
-ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fG, bColor = T, iSize=30)
-n = V(ig)$name
-lab = f_dfGetGeneAnnotation(n)
-V(ig)$label = as.character(lab$SYMBOL)
-set.seed(1)
-plot(ig, vertex.label.cex=0.14, layout=layout_with_fr, vertex.frame.color='darkgrey', edge.color='lightgrey', main='2 vs 0')
-legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
-
-dfCluster = dfCluster[dfCluster$cluster %in% csClust,]
+#dfCluster = dfCluster[dfCluster$cluster %in% csClust,]
 df = f_dfGetGeneAnnotation(as.character(dfCluster$gene))
 dfCluster = cbind(dfCluster[as.character(df$ENTREZID),], SYMBOL=df$SYMBOL, GENENAME=df$GENENAME)
-write.csv(dfCluster, file='Results/Top_Clusters.csv')
+write.csv(dfCluster, file='Results/Clusters.csv')
 
 
-# plot one cluster of choice
+# Various plots for one cluster of choice
 csClust = '1280215'
-set.seed(1)
-ig.sub = getClusterSubgraph(oGr, csClustLabel = csClust)
-ig.sub = f_igCalculateVertexSizesAndColors(ig.sub, t(mCounts), fGroups, bColor = T, iSize = 20)
-n = f_dfGetGeneAnnotation(V(ig.sub)$name)
-V(ig.sub)[n$ENTREZID]$label = n$SYMBOL
-plot(ig.sub, vertex.label.cex=0.7, layout=layout_with_fr)
-# switch grouping levels
-ig.sub = f_igCalculateVertexSizesAndColors(ig.sub, t(mCounts), fG, bColor = T, iSize = 20)
-set.seed(1)
-plot(ig.sub, vertex.label.cex=0.7, layout=layout_with_fr)
 
+lev = levels(fGroups)[-1]
+m = mCounts
+#m = apply(m, 2, function(x) f_ivStabilizeData(x, fGroups))
+#rownames(m) = rownames(mCounts)
+par(mar=c(1,1,1,1)+0.1)
+for(i in 1:length(lev)){
+  ig = getClusterSubgraph(oGr, csClust)
+  fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
+  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=30)
+  n = V(ig)$name
+  lab = f_dfGetGeneAnnotation(n)
+  V(ig)$label = as.character(lab$SYMBOL)
+  set.seed(1)
+  plot(ig, vertex.label.cex=0.7, layout=layout_with_fr, vertex.frame.color='darkgrey', edge.color='lightgrey',
+       main=paste(lev[i], 'vs', levels(fGroups)[1]))
+  legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+}
+
+# heatmap of the genes
+ig.sub = getClusterSubgraph(oGr, csClustLabel = csClust)
+n = f_dfGetGeneAnnotation(V(ig.sub)$name)
 mC = t(mCounts)
 mC = mC[n$ENTREZID,]
 rownames(mC) = n$SYMBOL
@@ -336,9 +323,36 @@ aheatmap(mC, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc,
          annColors=NA, Colv=NA)
 
 
+# if we want to plot variance of one gene at a time
+n = f_dfGetGeneAnnotation(V(ig.sub)$name)
+mC = t(mCounts)
+mC = mC[n$ENTREZID,]
+rownames(mC) = n$SYMBOL
+rn = rownames(mC)
+length(rn)
+i = 1
+
+temp = t(as.matrix(mC[rn[i],]))
+rownames(temp) = rn[i]
+plot.cluster.variance(oGr, temp, fGroups, log=FALSE); i = i+1
+
+
 # saving graph object to visualize in cytoscape or other graph viewers
-ig = getFinalGraph(oGr)
-n = f_dfGetGeneAnnotation(V(ig)$name)
-V(ig)[n$ENTREZID]$label = n$SYMBOL
-ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T)
-write.graph(ig, file = 'Results/graph.graphml', format = 'graphml')
+csClust = as.character(unique(dfCluster$cluster))
+lev = levels(fGroups)[-1]
+m = mCounts
+for(i in 1:length(lev)){
+  ig = getClusterSubgraph(oGr, csClust)
+  fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
+  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=30)
+  n = V(ig)$name
+  lab = f_dfGetGeneAnnotation(n)
+  V(ig)$label = as.character(lab$SYMBOL)
+  nm = paste('Results/', lev[i], 'vs', levels(fGroups)[1], '.graphml', sep='')
+  write.graph(ig, file = nm, format = 'graphml')
+}
+# ig = getFinalGraph(oGr)
+# n = f_dfGetGeneAnnotation(V(ig)$name)
+# V(ig)[n$ENTREZID]$label = n$SYMBOL
+# ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T)
+# write.graph(ig, file = 'Results/graph.graphml', format = 'graphml')
