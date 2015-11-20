@@ -195,7 +195,7 @@ This can be useful for quickly getting a summary of genes and printing them out.
 the function will take the graph object, count matirx (rows are type 1 vertices e.g. genes), grouping factor (representing 
 columns).  
 ## DESC: 
-The function calculates the marginal for each cluster using getClusterMarginal function. Then performs an anova on each vector of cluster values grouping them on the fGroups factor. Multiple testing adjustment method used is 'bonferroni' and at a cutoff of 0.05 the significant clusters are selected. Each group mean for a cluster vector is used to calculate the group means 
+The function calculates the marginal for each cluster using getClusterMarginal function. Then performs an anova on each vector of cluster values grouping them on the fGroups factor. Multiple testing adjustment method used is 'BH' and at a cutoff of 0.05 the significant clusters are selected. Each group mean for a cluster vector is used to calculate the group means 
 and then the difference in the maximum and miminum mean to rank the clusters on that. The return value is the marginal matrix 
 sorted on the ranking of clusters and the p values.  
 ## RETS:
