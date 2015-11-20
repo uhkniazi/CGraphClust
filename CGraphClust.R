@@ -482,10 +482,10 @@ setMethod('getClusterMarginal', signature='CGraphClust', definition = function(o
     # expression matrix rows
     mRet = apply(el, 1, function(x){
       m = colSums(mCl[x,])
-      fac = E(g)[get.edge.ids(g, x)]$ob_to_ex
-#       # multiply the weight by the weight factor
-#       return(m * fac)
-        return(m)
+      fac = 10*log10(E(g)[get.edge.ids(g, x)]$ob_to_ex)
+      # multiply the weight by the weight factor
+      return(m * fac)
+#        return(m)
     })
     mRet = t(mRet)
     return(mRet)    

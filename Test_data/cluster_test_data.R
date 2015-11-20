@@ -222,7 +222,7 @@ for(i in 1:length(lev)){
 # some sample plots
 # mean expression of groups in every cluster
 par(p.old)
-plot.mean.expressions(oGr, t(mCounts), fGroups, legend.pos = 'bottomleft', main='Total Change in Each Cluster')
+plot.mean.expressions(oGr, t(mCounts), fGroups, legend.pos = 'bottomleft', main='Total Change in Each Cluster', cex.axis=0.7)
 # only significant clusters
 par(mar=c(7, 3, 2, 2)+0.1)
 plot.significant.expressions(oGr, t(mCounts), fGroups, main='Significant Clusters', lwd=1, bStabalize = T, cex.axis=0.7)
