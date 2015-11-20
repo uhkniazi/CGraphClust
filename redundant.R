@@ -1,3 +1,59 @@
+# plot the expression of all members of the given cluster
+setGeneric('plot.cluster.expressions', def = function(obj, mCounts, fGroups, csClustLabel, ...) standardGeneric('plot.cluster.expressions'))
+setMethod('plot.cluster.expressions', signature='CGraphClust', definition = function(obj, mCounts, fGroups, csClustLabel, ...){
+  n = V(getClusterSubgraph(obj, csClustLabel))$name
+  # sanity check
+  if (sum(rownames(mCounts) %in% n) == 0) stop('plot.cluster.expressions: Row names of count matrix do not match with genes')
+  mCounts = mCounts[rownames(mCounts) %in% n,]  
+  # scale before plotting
+  mPlot = scale(t(mCounts))
+  c = rainbow(ncol(mPlot))
+  # plot the matrix
+  matplot(mPlot, type='l', lty=1, pch=20, xaxt='n', col=c, ylab='Expression', ...)
+  axis(1, at=1:nrow(mPlot), labels = rownames(mPlot), las=2, cex.axis=0.5)
+})
+
+# f_mCalculateLikelihoodMatrix = function(ivDat, fGroups){
+#   # if fGroups is not a factor
+#   if (!is.factor(fGroups)) stop('f_mCalculateLikelihoodMatrix: Grouping variable not a factor')
+#   # get the parameters for the data of the data
+#   v.dat = var(ivDat)
+#   var.dat = tapply(ivDat, fGroups, var)
+#   l.dat = tapply(ivDat, fGroups, length)
+#   m.dat = tapply(ivDat, fGroups, mean)
+#   se.dat = sqrt(var.dat/l.dat)
+#   # sample possible values of the means from normal distribution
+#   theta.mean = rnorm(10000, m.dat, sqrt(v.dat))
+#   mLik = matrix(NA, nrow=length(theta.mean), ncol=length(levels(fGroups)))
+#   colnames(mLik) = levels(fGroups)
+#   
+#   for (i in 1:length(levels(fGroups))){
+#     # calculate likelihood function for this mean
+#     y = dnorm(theta.mean, m.dat[i], se.dat[i])
+#     # use rejection sampling to sample from posterior based on likelihood
+#     mLik[,i] = sample(theta.mean, 10000, replace = T, prob=y)
+#   }
+#   return(mLik)
+# }
+# 
+# f_ivStabilizeData = function(ivDat, fGroups){
+#   # set seed 
+#   set.seed(123)
+#   mNew = f_mCalculateLikelihoodMatrix(ivDat, fGroups)
+#   var.dat = tapply(ivDat, fGroups, var)
+#   l.dat = tapply(ivDat, fGroups, length)
+#   se.dat = sqrt(var.dat/l.dat)
+#   sd.dat = tapply(ivDat, fGroups, sd)
+#   ivDat.new = NULL
+#   for (i in 1:length(levels(fGroups))){
+#     # sample of means from the posterior means
+#     m = sample(mNew[,i], size = l.dat[i], replace = T)
+#     ivSam = sapply(seq_along(m), function(x) rnorm(1, m[x], se.dat[i]))
+#     ivDat.new = c(ivDat.new, ivSam)
+#   }
+#   return(ivDat.new)
+# }
+
 
 ## this function removes small communities, but affects how the heatmaps are made at the end
 # not very appropriate, add later if required.
