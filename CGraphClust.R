@@ -766,6 +766,39 @@ setMethod('plot.cluster.variance', signature='CGraphClust', definition = functio
 })
 
 
+setGeneric('boxplot.cluster.variance', def = function(obj, mCent, fGroups, log=TRUE, iDrawCount=4, ...) standardGeneric('boxplot.cluster.variance'))
+setMethod('boxplot.cluster.variance', signature='CGraphClust', definition = function(obj, mCent, fGroups, log=TRUE, iDrawCount=4, ...){
+  # for each cluster calculate the posterior variance
+  fac = sapply(seq_along(levels(fGroups)), function(x) {
+    rep(levels(fGroups)[x], times=1000)
+  })
+  fac.1 = as.vector(fac)
+  rn = rownames(mCent)
+  if (length(rn) > iDrawCount) rn = rn[1:iDrawCount]
+  # plot 4 clusters per panel
+  dfVar = sapply(seq_along(rn), function(x){
+    l2 = f_lpostVariance(mCent[rn[x],], fGroups)
+    #l2 = lapply(l, function(x) sample(x, 100, replace = F))
+    #     l2 = lapply(l, function(x){
+    #       # get the mean and se using central limit theorem and simulation
+    #       m = mean(x); se = sd(x)/sqrt(length(x))
+    #       return(rnorm(100, m, se))      
+    #     })
+    # return log of the variance
+    return(log(unlist(l2)))
+    
+  })
+  colnames(dfVar) = rn
+  fac = factor(fac.1,levels = levels(fGroups)) 
+  for (i in seq_along(rn)){
+    if (log == TRUE){
+      boxplot( dfVar[,i] ~  fac, do.out=TRUE, ylab='Log Variance', main=rn[i]) } else {
+        boxplot( exp(dfVar[,i]) ~  fac, do.out=TRUE, ylab='Variance', main=rn[i])
+      }
+  }
+})
+
+
 # extract subgraph for a given cluster
 setGeneric('getClusterSubgraph', def = function(obj, csClustLabel = NULL) standardGeneric('getClusterSubgraph'))
 setMethod('getClusterSubgraph', signature='CGraphClust', definition = function(obj, csClustLabel = NULL){

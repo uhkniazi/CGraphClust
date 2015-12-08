@@ -235,7 +235,8 @@ biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
 plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = F)
 # plot variance of cluster
 m = getSignificantClusters(oGr, t(mCounts), fGroups)$clusters
-plot.cluster.variance(oGr, m[c('1280218', '1280215'),], fGroups)
+m = getClusterMarginal(oGr, t(mCounts))
+plot.cluster.variance(oGr, m[c('1280218', '1280215'),], fGroups, log = F)
 
 csClust = rownames(m)
 length(csClust)
@@ -246,6 +247,8 @@ i = 1
 temp = t(as.matrix(m[csClust[i],]))
 rownames(temp) = csClust[i]
 plot.cluster.variance(oGr, temp, fGroups, log=FALSE); i = i+1
+
+boxplot.cluster.variance(oGr, m, fGroups, log=T, iDrawCount = length(csClust))
 
 # plot a cluster of choice as heatmap
 plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '1280218')
