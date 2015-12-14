@@ -792,8 +792,8 @@ setMethod('boxplot.cluster.variance', signature='CGraphClust', definition = func
   fac = factor(fac.1,levels = levels(fGroups)) 
   for (i in seq_along(rn)){
     if (log == TRUE){
-      boxplot( dfVar[,i] ~  fac, do.out=TRUE, ylab='Log Variance', main=rn[i]) } else {
-        boxplot( exp(dfVar[,i]) ~  fac, do.out=TRUE, ylab='Variance', main=rn[i])
+      boxplot( dfVar[,i] ~  fac, do.out=TRUE, ylab='Log Variance', main=rn[i], ...)} else {
+        boxplot( exp(dfVar[,i]) ~  fac, do.out=TRUE, ylab='Variance', main=rn[i], ...)
       }
   }
 })
