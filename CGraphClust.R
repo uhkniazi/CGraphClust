@@ -509,8 +509,10 @@ setMethod('getClusterMarginal', signature='CGraphClust', definition = function(o
   # loop and calculate marginal for each cluster
   for(a in 1:nrow(mCent)){
     i = rownames(mCent)[a]
-    # if cluster has only one member then remove from analysis
-    if (sum(memb == i) == 1) {
+    # if cluster has only one or two members then remove from analysis
+    # issue1 - if 2 members in cluster then only one edge, which crashes the 
+    # colSumns function in f_edge.score function, and a subgraph can have no edges
+    if (sum(memb == i) <= 2 || ecount(getClusterSubgraph(obj, i)) <= 1) {
       # mCent[i,] = mCounts[memb == i,]
       next;
     } else {

@@ -134,6 +134,7 @@ The function does some error checking first to see if the matrix row names match
 count matrix based on its order in the hclust object (using the type 1 vertex names). Each cluster was assigned a label earlier 
 which was the most common shared type 2 vertex in that cluster (e.g. the most common REACTOME term for a cluster of genes). If a cluster has only one member then remove it from calculation.  For each set of genes in the cluster based on the cluster label (we haven't seen it yet, but it may be possible that a cluster label may be assigned to more than one clusters?) - we use the internal function f_edge.score to calculate the score vector for each cluster and the column means of this matrix to make a vector, where the components of the vector are the number of columns in the matrix mCounts (i.e. samples). 
 ### f_edge.score (internal function)
+NOTE: before calling this function make sure that the graph has more than one edges
 Gets the subgraph of each cluster, gets the edge list of this subgraph, gets 2 expression vectors from mCounts for the 2 nodes connecting the edges, adds these together. (Considering weighting them by observed to expected probability ratio as well). Returns a matrix of scores where rows = number of edges and columns = number of samples   
 ## RETS:
 The expression in each cluster
