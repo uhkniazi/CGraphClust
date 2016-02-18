@@ -578,7 +578,7 @@ setMethod('plot.heatmap.significant.clusters', signature='CGraphClust', definiti
   #     colnames(mCounts) = fGroups
   #   }  
   # get significant clusters which also gives the marginals
-  mCent = getSignificantClusters(obj, mCounts, fGroups)$clusters
+  mCent = getSignificantClusters(obj, mCounts, fGroups, ...)$clusters
   mCounts = mCent  
   # stabalize the significant cluster marginals
   if (bStabalize){
@@ -660,7 +660,7 @@ setMethod('plot.significant.expressions', signature='CGraphClust', definition = 
   #     colnames(mCounts) = fGroups
   #   }  
   # get significant clusters
-  mCent = getSignificantClusters(obj, mCounts, fGroups)$clusters
+  mCent = getSignificantClusters(obj, mCounts, fGroups, ...)$clusters
   #   mCent = getClusterMarginal(obj, mCounts)
   #   # check which cluster shows significant p-values
   #   #p.vals = na.omit(apply(mCent, 1, function(x) pairwise.t.test(x, fGroups, p.adjust.method = 'BH')$p.value))
@@ -719,7 +719,7 @@ setMethod('plot.components', signature='CGraphClust', definition = function(obj,
 #   l = getSignificantClusters(obj, mCounts, fGroups)
 #   csClust = rownames(l$clusters)
 #   mCent = mCent[csClust,]  
-  mCent = getSignificantClusters(obj, mCounts, fGroups)$clusters
+  mCent = getSignificantClusters(obj, mCounts, fGroups, ...)$clusters
   # stabalize the significant clusters marginal
   if (bStabalize){
     mCent = t(apply(mCent, 1, function(x) f_ivStabilizeData(x, fGroups)))
@@ -897,7 +897,7 @@ setMethod('lGetTopVertices', signature = 'CGraphClust', definition = function(ob
 
 
 # get the significant clusters matrix and the p.values
-setGeneric('getSignificantClusters', def = function(obj, mCounts, fGroups, ...) standardGeneric('getSignificantClusters'))
+setGeneric('getSignificantClusters', def = function(obj, mCounts, fGroups, p.cut=0.001, ...) standardGeneric('getSignificantClusters'))
 setMethod('getSignificantClusters', signature='CGraphClust', definition = function(obj, mCounts, fGroups, ...){
   # get the marginal of each cluster
   mCent = getClusterMarginal(obj, mCounts, bScaled = F)
@@ -933,13 +933,15 @@ setMethod('getSignificantClusters', signature='CGraphClust', definition = functi
   }
   # check which cluster shows significant p-values
   p.vals = apply(dfMean, 2, function(x) get.prob(x, fac))
-  fSig = apply(p.vals, 2, function(x) any(x < 0.001))
+  fSig = apply(p.vals, 2, function(x) any(x < p.cut))
   mCent = mCent[fSig,]
   p.vals = p.vals[,fSig]
   # reorder the matrix based on range of mean
   rSort = apply(mCent, 1, function(x){ m = tapply(x, fGroups, mean); r = range(m); diff(r)}) 
   mCent = mCent[order(rSort, decreasing = T),]
   p.vals = p.vals[,order(rSort, decreasing = T)]
+  ## add an error check
+  if (nrow(mCent) == 0) stop('getSignificantClusters: no significant p-values')
   lRet = list(clusters=mCent, p.val=p.vals)  
   return(lRet)
 })

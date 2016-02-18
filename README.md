@@ -194,9 +194,9 @@ This can be useful for quickly getting a summary of genes and printing them out.
 # getSignificantClusters
 ## ARGS:
 the function will take the graph object, count matirx (rows are type 1 vertices e.g. genes), grouping factor (representing 
-columns).  
+columns), p.cut = 0.001 (default), the p-value to use as cutoff
 ## DESC: 
-The function calculates the marginal for each cluster using getClusterMarginal function. For each cluster and the groups in that cluster, using a non-informative prior distribution, 100000 samples are generated for each group (using f_lpostMean function). Using these simulated samples, a p-value is calculated by comparing the posterior distribution of the mean of the baseline group and a two sided test for means of the other groups. If a simulation p-value for any of the comparison is less than 0.001, than that cluster is marked as showing significant differences from the baseline. Each group mean for a cluster vector is used to calculate the group means and then the difference in the maximum and miminum mean to rank/sort the clusters on that. The return value is a list with the marginal matrix sorted on the ranking of clusters and the p values.  
+The function calculates the marginal for each cluster using getClusterMarginal function. For each cluster and the groups in that cluster, using a non-informative prior distribution, 100000 samples are generated for each group (using f_lpostMean function). Using these simulated samples, a p-value is calculated by comparing the posterior distribution of the mean of the baseline group and a two sided test for means of the other groups. If a simulation p-value for any of the comparison is less than p.cut, than that cluster is marked as showing significant differences from the baseline. Each group mean for a cluster vector is used to calculate the group means and then the difference in the maximum and miminum mean to rank/sort the clusters on that. The return value is a list with the marginal matrix sorted on the ranking of clusters and the p values.  
 ## RETS:
 list with significant clusters in matrix and p values
 
