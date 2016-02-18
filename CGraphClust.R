@@ -868,32 +868,83 @@ setMethod('lGetTopVertices', signature = 'CGraphClust', definition = function(ob
 })
 
 
+# # get the significant clusters matrix and the p.values
+# setGeneric('getSignificantClusters', def = function(obj, mCounts, fGroups, ...) standardGeneric('getSignificantClusters'))
+# setMethod('getSignificantClusters', signature='CGraphClust', definition = function(obj, mCounts, fGroups, ...){
+# #   # stabalize the data before performing DE
+# #   if (bStabalize){
+# #     mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
+# #     colnames(mCounts) = fGroups
+# #   }  
+#   # get the marginal of each cluster
+#   mCent = getClusterMarginal(obj, mCounts, bScaled = F)
+#   # check which cluster shows significant p-values
+#   #p.vals = na.omit(apply(mCent, 1, function(x) pairwise.t.test(x, fGroups, p.adjust.method = 'BH')$p.value))
+#   #fSig = apply(p.vals, 2, function(x) any(x < 0.01))
+#   p.val = apply(mCent, 1, function(x) anova(lm(x ~ fGroups))$Pr[1])
+#   #p.val = apply(mCent, 1, function(x) oneway.test(x ~ fGroups)$p.value)
+#   p.val = p.adjust(p.val, method = 'bonferroni')
+#   fSig = p.val < 0.01
+#   mCent = mCent[fSig,]
+#   p.val = p.val[fSig]
+#   # reorder the matrix based on range of mean
+#   rSort = apply(mCent, 1, function(x){ m = tapply(x, fGroups, mean); r = range(m); diff(r)}) 
+#   mCent = mCent[order(rSort, decreasing = T),]
+#   p.val = p.val[order(rSort, decreasing = T)]
+#   lRet = list(clusters=mCent, p.val=p.val)  
+#   return(lRet)
+# })
+
+
 # get the significant clusters matrix and the p.values
 setGeneric('getSignificantClusters', def = function(obj, mCounts, fGroups, ...) standardGeneric('getSignificantClusters'))
 setMethod('getSignificantClusters', signature='CGraphClust', definition = function(obj, mCounts, fGroups, ...){
-#   # stabalize the data before performing DE
-#   if (bStabalize){
-#     mCounts = t(apply(mCounts, 1, function(x) f_ivStabilizeData(x, fGroups)))
-#     colnames(mCounts) = fGroups
-#   }  
   # get the marginal of each cluster
   mCent = getClusterMarginal(obj, mCounts, bScaled = F)
+  # check if grouping variable a factor
+  if (!is.factor(fGroups)) stop('getSignificantClusters: Grouping variable not a factor')
+  # create a new factor to represent sampled groups
+  fac = sapply(seq_along(levels(fGroups)), function(x) {
+    rep(levels(fGroups)[x], times=100000)
+  })
+  fac.1 = as.vector(fac)
+  fac = factor(fac.1,levels = levels(fGroups)) 
+  # calculate the posterior mean for each of the groups for each row of matrix
+  rn = rownames(mCent)
+  dfMean = sapply(seq_along(rn), function(x){
+    l2 = f_lpostMean(mCent[rn[x],], fGroups)
+    return(unlist(l2))
+  })
+  colnames(dfMean) = rn
+  # get prob for comparison with base
+  get.prob = function(x, f){
+    # get the baseline
+    cBaseline = levels(f)[1]
+    ivBaseline = x[which(f == cBaseline)]
+    # remaining levels/groups to compare against
+    cvLevels = levels(f)[-1]
+    pret = sapply(cvLevels, function(l){
+      x.l = x[which(f == l)]
+      x.l.m = mean(x.l)
+      # calculate two sided p-value
+      return(min(c(sum(ivBaseline <= x.l.m)/length(ivBaseline), sum(ivBaseline >= x.l.m)/length(ivBaseline))) * 2)
+    })
+   return(pret) 
+  }
   # check which cluster shows significant p-values
-  #p.vals = na.omit(apply(mCent, 1, function(x) pairwise.t.test(x, fGroups, p.adjust.method = 'BH')$p.value))
-  #fSig = apply(p.vals, 2, function(x) any(x < 0.01))
-  p.val = apply(mCent, 1, function(x) anova(lm(x ~ fGroups))$Pr[1])
-  #p.val = apply(mCent, 1, function(x) oneway.test(x ~ fGroups)$p.value)
-  p.val = p.adjust(p.val, method = 'bonferroni')
-  fSig = p.val < 0.01
+  p.vals = apply(dfMean, 2, function(x) get.prob(x, fac))
+  fSig = apply(p.vals, 2, function(x) any(x < 0.001))
   mCent = mCent[fSig,]
-  p.val = p.val[fSig]
+  p.vals = p.vals[,fSig]
   # reorder the matrix based on range of mean
   rSort = apply(mCent, 1, function(x){ m = tapply(x, fGroups, mean); r = range(m); diff(r)}) 
   mCent = mCent[order(rSort, decreasing = T),]
-  p.val = p.val[order(rSort, decreasing = T)]
-  lRet = list(clusters=mCent, p.val=p.val)  
+  p.vals = p.vals[,order(rSort, decreasing = T)]
+  lRet = list(clusters=mCent, p.val=p.vals)  
   return(lRet)
 })
+
+
 
 
 # returns igraph object with largest clique in given cluster
@@ -1027,7 +1078,7 @@ f_ivStabilizeData = function(ivDat, fGroups){
 f_lpostVariance = function(ivDat, fGroups){
   #set.seed(123)
   # if fGroups is not a factor
-  if (!is.factor(fGroups)) stop('f_ivStabalizeData: Grouping variable not a factor')
+  if (!is.factor(fGroups)) stop('f_lpostVariance: Grouping variable not a factor')
   # calculate using non-informative prior parameters  
   sigma.0 = 0
   k.0 = 0
@@ -1053,6 +1104,37 @@ f_lpostVariance = function(ivDat, fGroups){
     
   # get a sample of the posterior variance for each group
   return(tapply(ivDat, fGroups, function(x) sim.post(x)$var))
+}
+
+f_lpostMean = function(ivDat, fGroups, sim.size=100000){
+  #set.seed(123)
+  # if fGroups is not a factor
+  if (!is.factor(fGroups)) stop('f_lpostMean: Grouping variable not a factor')
+  # calculate using non-informative prior parameters  
+  sigma.0 = 0
+  k.0 = 0
+  v.0 = k.0 - 1
+  mu.0 = 0
+  
+  ## look at page 68 of Bayesian Data Analysis (Gelman) for formula
+  sim.post = function(dat.grp){
+    # calculate conjugate posterior
+    n = length(dat.grp)
+    k.n = k.0 + n
+    v.n = v.0 + n
+    y.bar = mean(dat.grp)
+    s = sd(dat.grp)
+    mu.n = (k.0/k.n * mu.0) + (n/k.n * y.bar)
+    sigma.n = (( v.0*sigma.0 ) + ( (n-1)*(s^2) ) + ( (k.0*n/k.n)*((y.bar-mu.0)^2) )) / v.n
+    #post.scale = ((prior.dof * prior.scale) + (var(dat.grp) * (length(dat.grp) - 1))) / post.dof
+    ## simulate variance
+    sigma = (sigma.n * v.n)/rchisq(sim.size, v.n)
+    mu = rnorm(sim.size, mu.n, sqrt(sigma)/sqrt(k.n))
+    return(list(mu=mu, var=sigma))
+  }
+  
+  # get a sample of the posterior mean for each group
+  return(tapply(ivDat, fGroups, function(x) sim.post(x)$mu))
 }
 
 
