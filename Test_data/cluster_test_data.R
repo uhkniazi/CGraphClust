@@ -73,7 +73,8 @@ oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.7)
 ## we would like to see how does the graph look like, are the clusters connected or in subgraphs
 set.seed(1)
 plot.final.graph(oGr)
-
+ecount(getFinalGraph(oGr))
+vcount(getFinalGraph(oGr))
 
 ## community structure
 ## overview of how the commuinties look like
@@ -150,7 +151,7 @@ dfTopGenes.cent$Summary = n[cvSum.2]
 ####### Section ends
 
 dir.create('Results', showWarnings = F)
-write.csv(dfTopGenes.cent, file='Results/Top_Centrality_Genes.csv')
+write.csv(dfTopGenes.cent, file='Results/Top_Centrality_Genes_tb.csv')
 
 ## if we want to look at the expression profiles of the top genes
 # plot a heatmap of these top genes
@@ -235,8 +236,8 @@ biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
 plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = F)
 # plot variance of cluster
 m = getSignificantClusters(oGr, t(mCounts), fGroups)$clusters
-m = getClusterMarginal(oGr, t(mCounts))
-plot.cluster.variance(oGr, m[c('1280218', '1280215'),], fGroups, log = F)
+# m = getClusterMarginal(oGr, t(mCounts))
+# plot.cluster.variance(oGr, m[c('1280218', '1280215'),], fGroups, log = F)
 
 csClust = rownames(m)
 length(csClust)
@@ -248,17 +249,28 @@ temp = t(as.matrix(m[csClust[i],]))
 rownames(temp) = csClust[i]
 plot.cluster.variance(oGr, temp, fGroups, log=FALSE); i = i+1
 
-boxplot.cluster.variance(oGr, m, fGroups, log=T, iDrawCount = length(csClust))
+pdf('Results/cluster_variance_tb.pdf')
+par(mfrow=c(1,2))
+boxplot.cluster.variance(oGr, m, fGroups, log=T, iDrawCount = length(csClust), las=2)
+dev.off(dev.cur())
+#boxplot.cluster.variance(oGr, m, fGroups, log=T, iDrawCount = length(csClust))
+
+i = which(dfReactome.sub$V2 %in% csClust)
+dfCluster.name = dfReactome.sub[i,c('V2', 'V4')]
+dfCluster.name = dfCluster.name[!duplicated(dfCluster.name$V2),]
+rownames(dfCluster.name) = NULL
+dfCluster.name
+
 
 # plot a cluster of choice as heatmap
-plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '1280218')
+#plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '1280218')
 #### plot a graph of clusters 
 #m = getSignificantClusters(oGr, t(mCounts), fGroups, bStabalize = T)
 dfCluster = getClusterMapping(oGr)
 colnames(dfCluster) = c('gene', 'cluster')
 rownames(dfCluster) = dfCluster$gene
 # how many genes in each cluster
-sort(table(dfCluster$cluster))
+data.frame(sort(table(dfCluster$cluster)))
 #csClust = rownames(m$clusters)
 csClust = as.character(unique(dfCluster$cluster))
 
@@ -286,8 +298,11 @@ for(i in 1:length(lev)){
 #dfCluster = dfCluster[dfCluster$cluster %in% csClust,]
 df = f_dfGetGeneAnnotation(as.character(dfCluster$gene))
 dfCluster = cbind(dfCluster[as.character(df$ENTREZID),], SYMBOL=df$SYMBOL, GENENAME=df$GENENAME)
-write.csv(dfCluster, file='Results/Clusters.csv')
+write.csv(dfCluster, file='Results/Clusters_tb.csv')
 
+# save the graph and data objects
+tb_data = list(graph=oGr, matrix=mCounts, groups=fGroups)
+save(tb_data, file='Objects/tb_data.rds')
 
 # Various plots for one cluster of choice
 csClust = '1280215'
@@ -359,3 +374,6 @@ for(i in 1:length(lev)){
 # V(ig)[n$ENTREZID]$label = n$SYMBOL
 # ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T)
 # write.graph(ig, file = 'Results/graph.graphml', format = 'graphml')
+
+
+

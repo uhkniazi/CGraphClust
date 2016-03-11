@@ -67,20 +67,20 @@ hist(sample(mCor, 10000, replace = T), prob=T, main='Correlation of genes', xlab
 axis(1, at = seq(-1, 1, by=0.1), las=2)
 
 # stabalize the data and check correlation again
-mCounts.bk = mCounts
-# stabalize the data
-mCounts.st = apply(mCounts, 2, function(x) f_ivStabilizeData(x, fGroups))
-rownames(mCounts.st) = fGroups
+# mCounts.bk = mCounts
+# # stabalize the data
+# mCounts.st = apply(mCounts, 2, function(x) f_ivStabilizeData(x, fGroups))
+# rownames(mCounts.st) = fGroups
 
 # create a correlation matrix
-mCor = cor(mCounts.st)
-# check distribution 
-hist(mCor, prob=T, main='Correlation of genes', xlab='', family='Arial', breaks=20, xaxt='n')
-axis(1, at = seq(-1, 1, by=0.1), las=2)
+# mCor = cor(mCounts.st)
+# # check distribution 
+# hist(mCor, prob=T, main='Correlation of genes', xlab='', family='Arial', breaks=20, xaxt='n')
+# axis(1, at = seq(-1, 1, by=0.1), las=2)
 
 # create the graph cluster object
 # using absolute correlation to cluster positively and negatively correlated genes
-oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.7, bSuppressPlots = F)
+oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.4, bSuppressPlots = F)
 
 ## general graph structure
 ## we would like to see how does the graph look like, are the clusters connected or in subgraphs
@@ -221,7 +221,7 @@ par(mar=c(1,1,1,1)+0.1)
 for(i in 1:length(lev)){
   ig = induced_subgraph(getFinalGraph(oGr), vids = unlist(getLargestCliques(oGr)))
   fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
-  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=40)
+  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=80)
   n = V(ig)$name
   lab = f_dfGetGeneAnnotation(n)
   V(ig)$label = as.character(lab$SYMBOL)
@@ -262,7 +262,7 @@ temp = t(as.matrix(m[csClust[i],]))
 rownames(temp) = csClust[i]
 plot.cluster.variance(oGr, temp, fGroups, log=FALSE); i = i+1
 
-pdf('Temp/var.pdf')
+pdf('Results/cluster_variance_sepsis.pdf')
 par(mfrow=c(1,2))
 boxplot.cluster.variance(oGr, m, fGroups, log=T, iDrawCount = length(csClust), las=2)
 dev.off(dev.cur())
@@ -282,7 +282,7 @@ dfCluster = getClusterMapping(oGr)
 colnames(dfCluster) = c('gene', 'cluster')
 rownames(dfCluster) = dfCluster$gene
 # how many genes in each cluster
-sort(table(dfCluster$cluster))
+data.frame(sort(table(dfCluster$cluster)))
 #csClust = rownames(m$clusters)
 csClust = as.character(unique(dfCluster$cluster))
 
@@ -310,8 +310,11 @@ for(i in 1:length(lev)){
 #dfCluster = dfCluster[dfCluster$cluster %in% csClust,]
 df = f_dfGetGeneAnnotation(as.character(dfCluster$gene))
 dfCluster = cbind(dfCluster[as.character(df$ENTREZID),], SYMBOL=df$SYMBOL, GENENAME=df$GENENAME)
-write.csv(dfCluster, file='Results/Clusters.csv')
+write.csv(dfCluster, file='Results/Clusters_sepsis.csv')
 
+# save the graph and data objects
+sepsis_data = list(graph=oGr, matrix=mCounts, groups=fGroups)
+save(sepsis_data, file='Objects/sepsis_data.rds')
 
 # Various plots for one cluster of choice
 csClust = '1280218'

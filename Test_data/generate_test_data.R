@@ -94,6 +94,39 @@ library(lumiHumanIDMapping)
 library(annotate)
 library(limma)
 
+## internal function
+# Function: f_lGetPCAClusterCount
+# Desc: Takes first two components of the PCA and counts possible clusters. The function does this by 
+#       binning the vector of data into X bins, assigning a class label to each bin, counting how many
+#       observations in each bin, any total number of bins with at least one observations. This is calculated
+#       for both the components of the pca matrix, and the max number of bins with at least one observation, in
+#       first or second dimension is reported along with a data.frame with cluster labels.
+# Args: pr.out = principal component object returned by prcomp function
+# Rets: returns list with 2 elements: 
+#       1 - cluster.count = possible number of clusters in the data
+#       2 - cluster.label = data.frame with cluster labels
+f_lGetPCAClusterCount = function(pr.out){
+  # how many clusters in data, using first 2 components
+  x1 = pr.out$x[,1]
+  x2 = pr.out$x[,2]
+  # bin the data from the 2 components
+  h1 = hist(x1, plot=F)
+  # give a class label to each bin
+  c1 = cut(x1, h1$breaks, labels = 1:(length(h1$mids)))
+  h2 = hist(x2, plot=F)
+  c2 = cut(x2, h2$breaks, labels = 1:(length(h2$mids)))
+  # labels for vectors and the class labels
+  dfClust = data.frame(lab=names(x1), c1, c2)
+  # get contingency table
+  mClust = as.matrix(table(c1 = dfClust$c1, c2 = dfClust$c2))
+  # count the max of row and col sums that are not zero
+  ir = length(which(rowSums(mClust) != 0))
+  ic = length(which(colSums(mClust) != 0))
+  iClust.count = ifelse(ir > ic, ir, ic)
+  lRet = list(cluster.count=iClust.count, cluster.label=dfClust)
+  return(lRet)
+}
+
 # global variables
 p.old = par()
 
@@ -131,6 +164,12 @@ oExp.lumi$fBatch = fBatch
 # normalize the data
 lumi.n = lumiN(oExp.lumi, method = 'rsn')
 
+## add the combat step for batch covariate
+library(sva)
+modcombat = model.matrix(~1, data=pData(lumi.n))
+oCexp = ComBat(exprs(lumi.n), batch = lumi.n$fBatch, mod=modcombat)
+exprs(lumi.n) = oCexp
+
 # check quality
 m = exprs(lumi.n)
 # pca on samples i.e. covariance matrix of m
@@ -152,12 +191,48 @@ plot(pr.out$x[,c(1,3)], col=col, pch=19, xlab='Z1', ylab='Z3',
 plot(pr.out$x[,c(2,3)], col=col, pch=19, xlab='Z2', ylab='Z3',
      main='PCA comp 2 and 3')
 
+l = f_lGetPCAClusterCount(pr.out)
+l$cluster.count
+table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
+i = which(l$cluster.label$c1 %in% c('6', '7') | l$cluster.label$c2 %in% c('1', '2'))
 
-## add the combat step for batch covariate
-library(sva)
-modcombat = model.matrix(~1, data=pData(lumi.n))
-oCexp = ComBat(exprs(lumi.n), batch = lumi.n$fBatch, mod=modcombat)
-exprs(lumi.n) = oCexp
+# sanity check for the outlier
+c = col
+c[i] = 'black'
+par(mfrow=c(2,2))
+plot.new()
+legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+plot(pr.out$x[,1:2], col=c, pch=19, xlab='Z1', ylab='Z2',
+     main='PCA comp 1 and 2')
+plot(pr.out$x[,c(1,3)], col=c, pch=19, xlab='Z1', ylab='Z3',
+     main='PCA comp 1 and 3')
+plot(pr.out$x[,c(2,3)], col=c, pch=19, xlab='Z2', ylab='Z3',
+     main='PCA comp 2 and 3')
+par(p.old)
+
+# remove the outlier
+lumi.n = lumi.n[,-i]
+
+## check again after outlier removal
+m = exprs(lumi.n)
+# pca on samples i.e. covariance matrix of m
+pr.out = prcomp(t(m), scale=T)
+## choose appropriate factor
+fSamples = as.factor(lumi.n$fBatch)
+fSamples = as.factor(lumi.n$fDays)
+
+col.p = rainbow(length(unique(fSamples)))
+col = col.p[as.numeric(fSamples)]
+# plot the pca components
+par(mfrow=c(2,2))
+plot.new()
+legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+plot(pr.out$x[,1:2], col=col, pch=19, xlab='Z1', ylab='Z2',
+     main='PCA comp 1 and 2')
+plot(pr.out$x[,c(1,3)], col=col, pch=19, xlab='Z1', ylab='Z3',
+     main='PCA comp 1 and 3')
+plot(pr.out$x[,c(2,3)], col=col, pch=19, xlab='Z2', ylab='Z3',
+     main='PCA comp 2 and 3')
 
 oExp.lumi = lumi.n
 ## select grouping and data for DE analysis
