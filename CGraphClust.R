@@ -1014,7 +1014,7 @@ setMethod('getCentralityMatrix', signature='CGraphClust', definition = function(
 setGeneric('dfGetTopVertices', def = function(obj, iQuantile=0.95) standardGeneric('dfGetTopVertices'))
 setMethod('dfGetTopVertices', signature='CGraphClust', definition = function(obj, iQuantile=0.95){
   # get the top vertices
-  l = lGetTopVertices(oGr, iQuantile)
+  l = lGetTopVertices(obj, iQuantile)
   top.genes = unique(unlist(l))
   dfRet = data.frame(VertexID = as.character(top.genes))
   # create a true / false vector of matches

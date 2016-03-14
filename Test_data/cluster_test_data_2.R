@@ -68,19 +68,19 @@ axis(1, at = seq(-1, 1, by=0.1), las=2)
 
 # stabalize the data and check correlation again
 # mCounts.bk = mCounts
-# # stabalize the data
-# mCounts.st = apply(mCounts, 2, function(x) f_ivStabilizeData(x, fGroups))
-# rownames(mCounts.st) = fGroups
+# stabalize the data
+mCounts.st = apply(mCounts, 2, function(x) f_ivStabilizeData(x, fGroups))
+rownames(mCounts.st) = fGroups
 
 # create a correlation matrix
-# mCor = cor(mCounts.st)
-# # check distribution 
-# hist(mCor, prob=T, main='Correlation of genes', xlab='', family='Arial', breaks=20, xaxt='n')
-# axis(1, at = seq(-1, 1, by=0.1), las=2)
+mCor = cor(mCounts.st)
+# check distribution 
+hist(mCor, prob=T, main='Correlation of genes', xlab='', family='Arial', breaks=20, xaxt='n')
+axis(1, at = seq(-1, 1, by=0.1), las=2)
 
 # create the graph cluster object
 # using absolute correlation to cluster positively and negatively correlated genes
-oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.4, bSuppressPlots = F)
+oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.7, bSuppressPlots = F)
 
 ## general graph structure
 ## we would like to see how does the graph look like, are the clusters connected or in subgraphs
@@ -247,6 +247,7 @@ biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
 # plot summary heatmaps
 # marginal expression level in each cluster
 plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = F)
+plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = T)
 # plot variance of cluster
 m = getSignificantClusters(oGr, t(mCounts), fGroups)$clusters
 #m = getClusterMarginal(oGr, t(mCounts))
