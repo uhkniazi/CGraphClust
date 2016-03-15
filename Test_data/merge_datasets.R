@@ -17,6 +17,18 @@ load('Objects/sepsis_data.rds')
 ig.tb = getFinalGraph(tb_data$graph)
 ig.sep = getFinalGraph(sepsis_data$graph)
 
+# merge the 2 graphs
+ig.merge = CGraphClust.union(tb_data$graph, sepsis_data$graph)
+
+par(mar=c(7, 3, 2, 2)+0.1)
+plot.significant.expressions(ig.merge, t(tb_data$matrix), tb_data$groups, main='TB Significant Clusters', 
+                             lwd=1, bStabalize = T, cex.axis=0.7)
+
+par(mar=c(7, 3, 2, 2)+0.1)
+plot.significant.expressions(ig.merge, t(sepsis_data$matrix), sepsis_data$groups, main='Sepsis Significant Clusters', 
+                             lwd=1, bStabalize = T, cex.axis=0.7)
+
+
 ## create graphs with common genes
 iVertID.tb = which(V(ig.tb)$name %in% V(ig.sep)$name)
 iVertID.sep = which(V(ig.sep)$name %in% V(ig.tb)$name)
@@ -43,6 +55,9 @@ plot.significant.expressions(gr.sep, t(sepsis_data$matrix), sepsis_data$groups, 
 pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)
 par(mar=c(4,2,4,2))
 biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
+
+
+# union of the 2 graphs
 
 
 # intersec the 2 gaphs
