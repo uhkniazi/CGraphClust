@@ -32,6 +32,10 @@ if (!require(igraph)) stop('CGraphClust.R: library igraph required')
 #       doi:10.1007/s13278-011-0021-0
 
 # declaration
+# f = flag to identify type 1 or type 2 vertices
+# r = total number of type 2 vertices
+# ig = bipartite igraph object
+# ig.p = projected and weighted igraph object
 setClass('CGraph', slots=list(ig='ANY', r='numeric', f='logical', ig.p='ANY'))
 
 # object constructor
@@ -338,6 +342,84 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5, bSuppressPlots = T, iMinCompo
              ig.c = oIGcor, ig.i = ig.1, obj))  
   
 } # constructor
+
+
+#### constructor 2 to create a new CGraphClust object based on subset of vertices
+# constructor
+CGraphClust.recalibrate = function(obj, ivVertexID.keep, iMinComponentSize=6){
+  ig.1 = getFinalGraph(obj)
+  # only keep the desired vertices
+  ig.1 = induced.subgraph(ig.1, V(ig.1)[ivVertexID.keep])
+  d = degree(ig.1)
+  # delete any orphan edges
+  ig.1 = delete.vertices(ig.1, which(d == 0))  
+  
+  ## remove small components
+  cl = clusters(ig.1)
+  i = iMinComponentSize
+  i = which(cl$csize < i)
+  v = which(cl$membership %in% i)
+  # delete the components that are small
+  ig.1 = delete.vertices(ig.1, v = v)
+  
+  ## clean up the bipartite graph by removing type 2 nodes
+  ## that are now redundant, as the intersected final graph has less type 1
+  ## vertices than the original building of the bipartite graph. 
+  # recreate the bipartite graph but only with nodes that are in our final graph
+  oIGbp = getBipartiteGraph(obj)
+  # get the indices for the vertices of type 1
+  f = V(oIGbp)$type
+  n = V(oIGbp)[f]$name
+  # get names of genes present in last graph i.e. intersected graph
+  n2 = V(ig.1)$name
+  # intersect the names to select those not present in the bipartite graph
+  i = !(n %in% n2)
+  n = n[i]
+  # delete these type 1 vertices from the bipartite graph
+  oIGbp = delete.vertices(oIGbp, v = n)
+  d = degree(oIGbp)
+  # delete orphan nodes left behind (which will include some type 2 vertices)
+  oIGbp = delete.vertices(oIGbp, which(d == 0))
+  # reset the type flag
+  obj@f = V(oIGbp)$type
+  # create communities in the graph
+  # NOTE: if number of edges in the graph larger than 5000 or so then
+  # it may take too long or crash the system, so put in a safety check here
+  # and choose a different community finding algorithm
+  com = NULL
+  if (ecount(ig.1) > 5000) {
+    print('Too many edges in graph to use edge.betweenness communities')
+    com = walktrap.community(ig.1)
+  } else com = edge.betweenness.community(ig.1)
+  # get the hclust object 
+  hc = as.hclust(com)
+  memb = membership(com)
+  # variable to hold the type 2 vertex common between 
+  # members of a community
+  rv.g = rep(NA, length=vcount(ig.1))
+  rn = V(ig.1)$name
+  for (i in 1:length(unique(memb))){
+    # get the type 2 names names
+    nei = graph.neighborhood(oIGbp, order = 1, nodes = rn[memb == i])
+    # this neighbourhood graph is a list of graphs with each 
+    # graph consisting of type 2 vertices that are connected to the 
+    # corresponding type 1 vertex in condition rn[memb == i]
+    # go through list to get the names
+    pw = sapply(seq_along(nei), function(x) V(nei[[x]])$name)
+    pw = unlist(pw)
+    pw = as.data.frame(table(pw))
+    # assign the most frequent type 2 vertex
+    rv.g[memb == i] = as.character(pw[which.max(pw$Freq), 1])
+  }
+  # we are ready to create the object
+  return(new('CGraphClust', hc=hc, com=com, labels=rv.g, ig.p2=getProjectedGraph(obj),
+             ig.c = getCorrelationGraph(obj), ig.i = ig.1, ig=obj@ig, r=obj@r, f=obj@f, ig.p=obj@ig.p))  
+  
+} # constructor
+
+####
+
+
 
 # data acccessor functions
 

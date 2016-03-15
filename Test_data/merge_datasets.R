@@ -17,6 +17,34 @@ load('Objects/sepsis_data.rds')
 ig.tb = getFinalGraph(tb_data$graph)
 ig.sep = getFinalGraph(sepsis_data$graph)
 
+## create graphs with common genes
+iVertID.tb = which(V(ig.tb)$name %in% V(ig.sep)$name)
+iVertID.sep = which(V(ig.sep)$name %in% V(ig.tb)$name)
+
+gr.tb = CGraphClust.recalibrate(tb_data$graph, iVertID.tb)
+gr.sep = CGraphClust.recalibrate(sepsis_data$graph, iVertID.sep)
+
+set.seed(1)
+plot.final.graph(gr.tb)
+
+set.seed(1)
+plot.final.graph(gr.sep)
+
+par(mar=c(7, 3, 2, 2)+0.1)
+plot.significant.expressions(gr.tb, t(tb_data$matrix), tb_data$groups, main='TB Significant Clusters', 
+                             lwd=1, bStabalize = T, cex.axis=0.7)
+
+par(mar=c(7, 3, 2, 2)+0.1)
+plot.significant.expressions(gr.sep, t(sepsis_data$matrix), sepsis_data$groups, main='Sepsis Significant Clusters', 
+                             lwd=1, bStabalize = T, cex.axis=0.7)
+
+
+# principal component plots
+pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)
+par(mar=c(4,2,4,2))
+biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
+
+
 # intersec the 2 gaphs
 igi = graph.intersection(ig.tb, ig.sep)
 d = degree(igi)
