@@ -91,18 +91,18 @@ ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSiz
 plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr, 
      vertex.frame.color=NA, edge.color='darkgrey')
 
-# make a pdf output for publication
-dir.create('Results', showWarnings = F)
-pdf('Results/Graph_structure.pdf')
-par(mar=c(1,1,1,1)+0.1, family='Helvetica')
-ig = getFinalGraph(oGr)
-ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 30)
-set.seed(1)
-plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr, 
-     vertex.frame.color=NA, edge.color='darkgrey')
-set.seed(1)
-ig = plot.centrality.graph(oGr)
-dev.off(dev.cur())
+# # make a pdf output for publication
+# dir.create('Results', showWarnings = F)
+# pdf('Results/Graph_structure.pdf')
+# par(mar=c(1,1,1,1)+0.1, family='Helvetica')
+# ig = getFinalGraph(oGr)
+# ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 30)
+# set.seed(1)
+# plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr, 
+#      vertex.frame.color=NA, edge.color='darkgrey')
+# set.seed(1)
+# ig = plot.centrality.graph(oGr)
+# dev.off(dev.cur())
 
 ## centrality diagnostics
 ## centrality parameters should not be correlated significantly and the location of the central
