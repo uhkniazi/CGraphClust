@@ -158,6 +158,9 @@ table(rownames(dfTopGenes.sepsis) %in% rownames(dfTopGenes.tb))
 i = which(rownames(dfTopGenes.sepsis) %in% rownames(dfTopGenes.tb))
 dfTopGenes.sepsis[i,]
 
+com = compare(getCommunity(tb_data$graph), getCommunity(sepsis_data$graph))
+
+
 ### compare clusters
 csClust = '194315'
 m = tb_data$matrix
