@@ -420,7 +420,7 @@ CGraphClust.recalibrate = function(obj, ivVertexID.keep, iMinComponentSize=6){
 ####
 
 ####### constructor 3
-#### constructor 2 to create a new CGraphClust object based on subset of vertices
+#### constructor 3 to create a new CGraphClust object by combining two CGraphClust objects
 # constructor
 CGraphClust.union = function(obj1, obj2, iMinOverlap=10, iMinComponentSize=6){
   # create a union graph based on common vertices
