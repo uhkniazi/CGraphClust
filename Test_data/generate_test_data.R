@@ -416,3 +416,293 @@ dir.create('Test_data', showWarnings = F)
 
 write.csv(dfData, file='Test_data/test_data_GSE54514.csv')
 
+#################################################################################
+## generate 3rd dataset
+################################################################################
+## data loading
+# load the data, clean and create factors
+dir.create('Data_external', showWarnings = F)
+gse =  getGEO('GSE19491', GSEMatrix = T, destdir = 'Data_external/')
+oExp = gse$GSE19491_series_matrix.txt.gz
+
+# add lumi nuIDs 
+oExp = addNuID2lumi(oExp, lib.mapping = 'lumiHumanIDMapping' )
+# remove any NA data
+exprs(oExp) = na.omit(exprs(oExp))
+
+# print samples
+as.data.frame(table(oExp$source_name_ch1))
+
+# get the whole blood data
+i = grep('^Whole blood from healthy control$|^Whole Blood from patient with Active TB$|^Whole Blood from patient with Latent TB$', 
+         x = oExp$source_name_ch1, ignore.case = T, perl = T)
+oExp = oExp[,i]
+
+# sanity check
+as.data.frame(table(oExp$source_name_ch1))
+
+## data normalization
+# normalize and log2 transform the data using lumi
+oExp.lumi = lumiT(oExp, 'log2')
+fSamples = rep(NA, times=nrow(pData(oExp.lumi)))
+f = as.character(oExp$source_name_ch1)
+# create factors
+i = grep('healthy control', f)
+fSamples[i] = 'HC'
+
+i = grep('Active TB', f)
+fSamples[i] = 'ATB'
+
+i = grep('Latent TB', f)
+fSamples[i] = 'LTB'
+
+fSamples = factor(fSamples, levels = c('HC', 'LTB', 'ATB'))
+table(fSamples)
+levels(fSamples)
+
+oExp.lumi$fSamples = fSamples
+
+## data normalization
+oExp = lumiN(oExp.lumi, method='rsn')
+rm(oExp.lumi)
+gc()
+
+## check for outliers
+# check quality
+m = exprs(oExp)
+# pca on samples i.e. covariance matrix of m
+pr.out = prcomp(t(m), scale=T)
+## choose appropriate factor
+fSamples = oExp$fSamples
+
+col.p = rainbow(length(unique(fSamples)))
+col = col.p[as.numeric(fSamples)]
+# plot the pca components
+par(mfrow=c(2,2))
+plot.new()
+legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+plot(pr.out$x[,1:2], col=col, pch=19, xlab='Z1', ylab='Z2',
+     main='PCA comp 1 and 2')
+plot(pr.out$x[,c(1,3)], col=col, pch=19, xlab='Z1', ylab='Z3',
+     main='PCA comp 1 and 3')
+plot(pr.out$x[,c(2,3)], col=col, pch=19, xlab='Z2', ylab='Z3',
+     main='PCA comp 2 and 3')
+
+l = f_lGetPCAClusterCount(pr.out)
+l$cluster.count
+table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
+i = which(l$cluster.label$c1 %in% as.character(6:11))
+
+# sanity check for the outlier
+c = col
+c[i] = 'black'
+par(mfrow=c(2,2))
+plot.new()
+legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+plot(pr.out$x[,1:2], col=c, pch=19, xlab='Z1', ylab='Z2',
+     main='PCA comp 1 and 2')
+plot(pr.out$x[,c(1,3)], col=c, pch=19, xlab='Z1', ylab='Z3',
+     main='PCA comp 1 and 3')
+plot(pr.out$x[,c(2,3)], col=c, pch=19, xlab='Z2', ylab='Z3',
+     main='PCA comp 2 and 3')
+par(p.old)
+
+# # create a factor for this outlier
+# l = f_lGetPCAClusterCount(pr.out)
+# l$cluster.count
+# table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
+# i = (l$cluster.label$c1 %in% as.character(6:11))
+# fBatch = factor(as.numeric(i)) 
+# 
+# oExp$fBatch = fBatch
+# 
+# ## add the combat step for batch covariate
+# library(sva)
+# modcombat = model.matrix(~1, data=pData(oExp))
+# oCexp = ComBat(exprs(oExp), batch = oExp$fBatch, mod=modcombat)
+# exprs(oExp) = oCexp
+
+# remove the outlier
+oExp = oExp[,-i]
+
+## test quality again
+## check for outliers
+m = exprs(oExp)
+# pca on samples i.e. covariance matrix of m
+pr.out = prcomp(t(m), scale=T)
+## choose appropriate factor
+fSamples = oExp$fSamples
+
+col.p = rainbow(length(unique(fSamples)))
+col = col.p[as.numeric(fSamples)]
+# plot the pca components
+par(mfrow=c(2,2))
+plot.new()
+legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+plot(pr.out$x[,1:2], col=col, pch=19, xlab='Z1', ylab='Z2',
+     main='PCA comp 1 and 2')
+plot(pr.out$x[,c(1,3)], col=col, pch=19, xlab='Z1', ylab='Z3',
+     main='PCA comp 1 and 3')
+plot(pr.out$x[,c(2,3)], col=col, pch=19, xlab='Z2', ylab='Z3',
+     main='PCA comp 2 and 3')
+
+l = f_lGetPCAClusterCount(pr.out)
+l$cluster.count
+table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
+i = which(l$cluster.label$c1 %in% as.character(6:11))
+
+# sanity check for the outlier
+c = col
+c[i] = 'black'
+par(mfrow=c(2,2))
+plot.new()
+legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+plot(pr.out$x[,1:2], col=c, pch=19, xlab='Z1', ylab='Z2',
+     main='PCA comp 1 and 2')
+plot(pr.out$x[,c(1,3)], col=c, pch=19, xlab='Z1', ylab='Z3',
+     main='PCA comp 1 and 3')
+plot(pr.out$x[,c(2,3)], col=c, pch=19, xlab='Z2', ylab='Z3',
+     main='PCA comp 2 and 3')
+par(p.old)
+
+# remove the outlier
+oExp = oExp[,-i]
+
+m = exprs(oExp)
+# pca on samples i.e. covariance matrix of m
+pr.out = prcomp(t(m), scale=T)
+## choose appropriate factor
+fSamples = oExp$fSamples
+
+col.p = rainbow(length(unique(fSamples)))
+col = col.p[as.numeric(fSamples)]
+# plot the pca components
+par(mfrow=c(2,2))
+plot.new()
+legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+plot(pr.out$x[,1:2], col=col, pch=19, xlab='Z1', ylab='Z2',
+     main='PCA comp 1 and 2')
+plot(pr.out$x[,c(1,3)], col=col, pch=19, xlab='Z1', ylab='Z3',
+     main='PCA comp 1 and 3')
+plot(pr.out$x[,c(2,3)], col=col, pch=19, xlab='Z2', ylab='Z3',
+     main='PCA comp 2 and 3')
+
+l = f_lGetPCAClusterCount(pr.out)
+l$cluster.count
+table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
+i = which(l$cluster.label$c1 %in% as.character(5:6))
+
+# sanity check for the outlier
+c = col
+c[i] = 'black'
+par(mfrow=c(2,2))
+plot.new()
+legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+plot(pr.out$x[,1:2], col=c, pch=19, xlab='Z1', ylab='Z2',
+     main='PCA comp 1 and 2')
+plot(pr.out$x[,c(1,3)], col=c, pch=19, xlab='Z1', ylab='Z3',
+     main='PCA comp 1 and 3')
+plot(pr.out$x[,c(2,3)], col=c, pch=19, xlab='Z2', ylab='Z3',
+     main='PCA comp 2 and 3')
+par(p.old)
+
+# remove the outlier
+oExp = oExp[,-i]
+
+m = exprs(oExp)
+# pca on samples i.e. covariance matrix of m
+pr.out = prcomp(t(m), scale=T)
+## choose appropriate factor
+fSamples = oExp$fSamples
+
+col.p = rainbow(length(unique(fSamples)))
+col = col.p[as.numeric(fSamples)]
+# plot the pca components
+par(mfrow=c(2,2))
+plot.new()
+legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+plot(pr.out$x[,1:2], col=col, pch=19, xlab='Z1', ylab='Z2',
+     main='PCA comp 1 and 2')
+plot(pr.out$x[,c(1,3)], col=col, pch=19, xlab='Z1', ylab='Z3',
+     main='PCA comp 1 and 3')
+plot(pr.out$x[,c(2,3)], col=col, pch=19, xlab='Z2', ylab='Z3',
+     main='PCA comp 2 and 3')
+
+l = f_lGetPCAClusterCount(pr.out)
+l$cluster.count
+table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
+
+### perform DE analysis
+mDat = exprs(oExp)
+# map the nuID to human symbols
+cvSym = getSYMBOL(rownames(mDat), 'lumiHumanAll.db')
+# number of genes not annotated
+table(is.na(cvSym))
+# remove unannotated genes
+mDat = mDat[!is.na(cvSym),]
+
+design = model.matrix(~fSamples)
+colnames(design) = levels(fSamples)
+head(design)
+
+fit = lmFit(mDat, design)
+fit = eBayes(fit)
+
+# get annotation
+df = select(lumiHumanAll.db, keys = rownames(mDat), columns = c('ENTREZID', 'SYMBOL', 'GENENAME'), keytype = 'PROBEID')
+# sanity check
+nrow(mDat) == nrow(df)
+# add annotation to limma object
+fit$genes = df
+topTable(fit, adjust='BH')
+
+# look at top tables for each comparison
+for (i in 2:length(levels(fSamples))){
+  print(paste(levels(fSamples)[i], i))
+  print(topTable(fit, coef=i, adjust='BH'))
+}
+
+# get the list of genes for each comparison i.e. each coefficient compared to base line
+lSigGenes.adj = vector('list', length = length(levels(fSamples))-1)
+names(lSigGenes.adj) = levels(fSamples)[2:length(levels(fSamples))]
+
+for (i in 2:length(levels(fSamples))){
+  p.adj = p.adjust(fit$p.value[,i], method = 'BH')
+  lSigGenes.adj[[i-1]] = names(p.adj)[p.adj < 0.1]
+}
+
+#cvSigGenes.adj = unique(cvSigGenes.adj)
+sapply(lSigGenes.adj, length)
+
+######### Volcano plots
+# plot volcano plots
+par(p.old)
+n = (which(sapply(lSigGenes.adj, length) >= 10)) + 1
+
+for (i in seq_along(n)) {
+  dfGenes = topTable(fit, coef = n[i], number = Inf)
+  f_plotVolcano(dfGenes, paste(names(n[i])), fc.lim = c(-2, 2))
+}
+
+# get the common genes
+dfRes = topTable(fit, adjust='BH', number=Inf, p.value=0.1)
+n = (which(sapply(lSigGenes.adj, length) >= 10)) + 1
+cvCommonGenes = NULL
+for (i in seq_along(n)) {
+  cvCommonGenes = append(cvCommonGenes, lSigGenes.adj[[names(n[i])]])
+}
+cvCommonGenes = unique(cvCommonGenes)
+
+## export the result for cluster analysis
+dfData = t(mDat[cvCommonGenes,])
+cn = select(lumiHumanAll.db, keys = colnames(dfData), columns = c('ENTREZID'), keytype = 'PROBEID')
+colnames(dfData) = cn$ENTREZID
+# remove duplicate probes
+f = !duplicated(colnames(dfData))
+dfData = dfData[,f]
+dfData = data.frame(dfData)
+dfData$fSamples = fSamples
+
+dir.create('Test_data', showWarnings = F)
+
+write.csv(dfData, file='Test_data/test_data_GSE19491_atb_ltb.csv')
