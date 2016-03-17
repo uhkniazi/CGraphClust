@@ -330,8 +330,8 @@ dfCluster = cbind(dfCluster[as.character(df$ENTREZID),], SYMBOL=df$SYMBOL, GENEN
 write.csv(dfCluster, file='Results/Clusters_ltb_atb.csv')
 
 # save the graph and data objects
-sepsis_data = list(graph=oGr, matrix=mCounts, groups=fGroups)
-save(sepsis_data, file='Objects/ltb_atb_data.rds')
+ltb_atb_data = list(graph=oGr, matrix=mCounts, groups=fGroups)
+save(ltb_atb_data, file='Objects/ltb_atb_data.rds')
 
 # Various plots for one cluster of choice
 csClust = '388396'
