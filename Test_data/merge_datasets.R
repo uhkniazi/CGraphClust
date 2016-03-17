@@ -9,24 +9,76 @@ source('CGraphClust.R')
 # plotting parameters
 p.old = par()
 
+## load reactome data
+### load the uniprot2reactome mapping obtained from
+# http://www.reactome.org/download/current/UniProt2Reactome_All_Levels.txt
+# get reactome data
+url = 'http://www.reactome.org/download/current/UniProt2Reactome_All_Levels.txt'
+dir.create('Data_external', showWarnings = F)
+csReactomeFile = 'Data_external/UniProt2Reactome_All_Levels.txt'
+# download the reactome file if it doesnt exist
+if (!file.exists(csReactomeFile)) download(url, csReactomeFile)
+dfReactome = read.csv(csReactomeFile, header = F, stringsAsFactors=F, sep='\t')
+x = gsub('\\w+-\\w+-(\\d+)', replacement = '\\1', x = dfReactome$V2, perl = T)
+dfReactome$V2 = x
+# convert enterez ids to uniprot as Reactome database file uses UNIPROT ids
+dfMap = AnnotationDbi::select(org.Hs.eg.db, dfReactome$V1, 'ENTREZID', 'UNIPROT')
+dfMap = na.omit(dfMap)
+
+## map reactome ids to uniprot ids
+dfReactome.sub = dfReactome[dfReactome$V1 %in% dfMap$UNIPROT,]
+rm(dfReactome, dfMap)
+gc()
+###
+
+get.reactome.name = function(csNames){
+  i = which(dfReactome.sub$V2 %in% csNames)
+  dfCluster.name = dfReactome.sub[i,c('V2', 'V4')]
+  dfCluster.name = dfCluster.name[!duplicated(dfCluster.name$V2),]
+  rownames(dfCluster.name) = NULL
+  return(dfCluster.name)
+}
 
 # load the tb and sepsis datasets
 load('Objects/tb_data.rds')
 load('Objects/sepsis_data.rds')
+load('Objects/ltb_atb_data.rds')
 
 ig.tb = getFinalGraph(tb_data$graph)
 ig.sep = getFinalGraph(sepsis_data$graph)
+ig.lt = getFinalGraph(ltb_atb_data$graph)
 
-# merge the 2 graphs
-ig.merge = CGraphClust.union(tb_data$graph, sepsis_data$graph)
+# merge the 3 graphs
+ig.merge = CGraphClust.union(sepsis_data$graph, ltb_atb_data$graph)
+ig.merge = CGraphClust.union(ig.merge, sepsis_data$graph)
+plot.final.graph(ig.merge)
 
 par(mar=c(7, 3, 2, 2)+0.1)
 plot.significant.expressions(ig.merge, t(tb_data$matrix), tb_data$groups, main='TB Significant Clusters', 
                              lwd=1, bStabalize = T, cex.axis=0.7)
 
 par(mar=c(7, 3, 2, 2)+0.1)
+plot.significant.expressions(ig.merge, t(ltb_atb_data$matrix), ltb_atb_data$groups, main='TB LTBI Significant Clusters', 
+                             lwd=1, bStabalize = T, cex.axis=0.7)
+
+par(mar=c(7, 3, 2, 2)+0.1)
 plot.significant.expressions(ig.merge, t(sepsis_data$matrix), sepsis_data$groups, main='Sepsis Significant Clusters', 
                              lwd=1, bStabalize = T, cex.axis=0.7)
+
+
+# principal component plots
+pr.out = plot.components(ig.merge, t(tb_data$matrix), tb_data$groups, bStabalize = T)
+par(mar=c(4,2,4,2))
+biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0, main='TB')# principal component plots
+
+pr.out = plot.components(ig.merge, t(ltb_atb_data$matrix), ltb_atb_data$groups, bStabalize = T)
+par(mar=c(4,2,4,2))
+biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0, main='LTB')# principal component plots
+
+pr.out = plot.components(ig.merge, t(sepsis_data$matrix), sepsis_data$groups, bStabalize = T)
+par(mar=c(4,2,4,2))
+biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0, main='sepsis')
+
 
 
 ## create graphs with common genes
@@ -58,32 +110,70 @@ biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
 
 
 # create graphs with different genes
-## create graphs with common genes
-iVertID.tb = which(!(V(ig.tb)$name %in% V(ig.sep)$name))
-iVertID.sep = which(!(V(ig.sep)$name %in% V(ig.tb)$name))
+#iVertID.tb = which(!(V(ig.tb)$name %in% V(ig.sep)$name))
+ig.merge = CGraphClust.union(ltb_atb_data$graph, tb_data$graph)
+ig.lt = getFinalGraph(ig.merge)
+ig.sep = getFinalGraph(sepsis_data$graph)
+iVertID.lt = which(!(V(ig.lt)$name %in% V(ig.sep)$name))
+iVertID.sep = which(!(V(ig.sep)$name %in% V(ig.lt)$name))
 
-gr.tb = CGraphClust.recalibrate(tb_data$graph, iVertID.tb)
+#gr.tb = CGraphClust.recalibrate(tb_data$graph, iVertID.tb)
+#gr.lt = CGraphClust.recalibrate(ltb_atb_data$graph, iVertID.lt)
+gr.lt = CGraphClust.recalibrate(ig.merge, iVertID.lt)
 gr.sep = CGraphClust.recalibrate(sepsis_data$graph, iVertID.sep)
 
 set.seed(1)
-plot.final.graph(gr.tb)
+plot.final.graph(gr.lt)
 
 set.seed(1)
 plot.final.graph(gr.sep)
-
 par(mar=c(7, 3, 2, 2)+0.1)
-plot.significant.expressions(gr.tb, t(tb_data$matrix), tb_data$groups, main='TB Significant Clusters', 
+m = plot.significant.expressions(gr.lt, t(ltb_atb_data$matrix), ltb_atb_data$groups, main='LTB difference sepsis', 
                              lwd=1, bStabalize = T, cex.axis=0.7)
+m2 = getSignificantClusters(gr.lt, t(ltb_atb_data$matrix), ltb_atb_data$groups)$clusters
+get.reactome.name(rownames(m$means))
+pr.out = plot.components(gr.lt, t(ltb_atb_data$matrix), ltb_atb_data$groups, bStabalize = T)
+par(mar=c(4,2,4,2))
+biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0, main='LTB difference sepsis')# principal component plots
+par(mfrow=c(2,2))
+boxplot.cluster.variance(gr.lt, m2, ltb_atb_data$groups, log=T, iDrawCount = nrow(m2), las=2)
+par(p.old)
+i = 1
+temp = t(as.matrix(m2[rownames(m2)[i],]))
+rownames(temp) = rownames(m2)[i]
+plot.cluster.variance(gr.lt, temp, ltb_atb_data$groups, log=FALSE); i = i+1
 
+par(p.old)
 par(mar=c(7, 3, 2, 2)+0.1)
-plot.significant.expressions(gr.sep, t(sepsis_data$matrix), sepsis_data$groups, main='Sepsis Significant Clusters', 
+m = plot.significant.expressions(gr.sep, t(sepsis_data$matrix), sepsis_data$groups, main='Sepsis difference ltb', 
                              lwd=1, bStabalize = T, cex.axis=0.7)
+m2 = getSignificantClusters(gr.sep, t(sepsis_data$matrix), sepsis_data$groups)$clusters
+get.reactome.name(rownames(m$means))
+pr.out = plot.components(gr.sep, t(sepsis_data$matrix), sepsis_data$groups, bStabalize = T)
+par(mar=c(4,2,4,2))
+biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0, main='sepsis difference ltb')# principal component plots
+par(mfrow=c(2,2))
+boxplot.cluster.variance(gr.sep, m2, sepsis_data$groups, log=T, iDrawCount = nrow(m2), las=2)
+par(p.old)
+i = 1
+temp = t(as.matrix(m2[rownames(m2)[i],]))
+rownames(temp) = rownames(m2)[i]
+plot.cluster.variance(gr.sep, temp, sepsis_data$groups, log=FALSE); i = i+1
+
+
+
+
+
 
 # intersec the 2 gaphs
-igi = graph.intersection(ig.tb, ig.sep)
+ig.merge = CGraphClust.union(ltb_atb_data$graph, tb_data$graph)
+ig.sep = getFinalGraph(sepsis_data$graph)
+#ig.lt = getFinalGraph(ltb_atb_data$graph)
+
+igi = graph.intersection(getFinalGraph(ig.merge), ig.sep)
 d = degree(igi)
 igi = delete.vertices(igi, which(d == 0))
-
+par(p.old)
 ## plotting the intersected graphs
 # plot the graph for tb and sepsis
 m = tb_data$matrix
@@ -190,11 +280,11 @@ plot(ig, vertex.label.cex=0.8, layout=layout_with_fr, vertex.frame.color='darkgr
 #legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
 
 #### compare top centrality genes
-## tb
-dfTopGenes.cent = dfGetTopVertices(tb_data$graph, iQuantile = 0.80)
+## tb merge
+dfTopGenes.cent = dfGetTopVertices(ig.merge, iQuantile = 0.90)
 rownames(dfTopGenes.cent) = dfTopGenes.cent$VertexID
 # assign metadata annotation to these genes and clusters
-dfCluster = getClusterMapping(tb_data$graph)
+dfCluster = getClusterMapping(ig.merge)
 colnames(dfCluster) = c('gene', 'cluster')
 rownames(dfCluster) = dfCluster$gene
 df = f_dfGetGeneAnnotation(as.character(dfTopGenes.cent$VertexID))
@@ -204,7 +294,7 @@ dfTopGenes.tb = cbind(dfTopGenes.cent, Cluster=dfCluster$cluster)
 rm(dfTopGenes.cent)
 
 ## sepsis
-dfTopGenes.cent = dfGetTopVertices(sepsis_data$graph, iQuantile = 0.80)
+dfTopGenes.cent = dfGetTopVertices(sepsis_data$graph, iQuantile = 0.90)
 rownames(dfTopGenes.cent) = dfTopGenes.cent$VertexID
 # assign metadata annotation to these genes and clusters
 dfCluster = getClusterMapping(sepsis_data$graph)
