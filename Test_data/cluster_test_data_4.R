@@ -104,6 +104,19 @@ ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSiz
 plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr, 
      vertex.frame.color=NA, edge.color='darkgrey')
 
+# get community sizes
+dfCluster = getClusterMapping(oGr)
+colnames(dfCluster) = c('gene', 'cluster')
+rownames(dfCluster) = dfCluster$gene
+# how many genes in each cluster
+iSizes = sort(table(dfCluster$cluster))
+# remove communities smaller than 5 members
+i = which(iSizes <= 5)
+cVertRem = as.character(dfCluster[dfCluster$cluster %in% names(i),'gene'])
+iVertKeep = which(!(V(getFinalGraph(oGr))$name %in% cVertRem))
+oGr = CGraphClust.recalibrate(oGr, iVertKeep)
+
+
 # # make a pdf output for publication
 # dir.create('Results', showWarnings = F)
 # pdf('Results/Graph_structure.pdf')
@@ -250,25 +263,21 @@ plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = F)
 plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = T)
 # plot variance of cluster
 m = getSignificantClusters(oGr, t(mCounts), fGroups)$clusters
-#m = getClusterMarginal(oGr, t(mCounts))
-#plot.cluster.variance(oGr, m[c('1280218', '1280215'),], fGroups, log = F)
 
 csClust = rownames(m)
 length(csClust)
-i = 1
-plot.cluster.variance(oGr, m[csClust[i:(i+1)],], fGroups, log = FALSE); i = i+2
-
-i = 1
-temp = t(as.matrix(m[csClust[i],]))
-rownames(temp) = csClust[i]
-plot.cluster.variance(oGr, temp, fGroups, log=FALSE); i = i+1
-
 pdf('Results/cluster_variance_sepsis_nonsurvivors.pdf')
 par(mfrow=c(1,2))
 boxplot.cluster.variance(oGr, m, fGroups, log=T, iDrawCount = length(csClust), las=2)
+for (i in seq_along(csClust)){
+  temp = t(as.matrix(m[csClust[i],]))
+  rownames(temp) = csClust[i]
+  plot.cluster.variance(oGr, temp, fGroups, log=FALSE);
+}
 dev.off(dev.cur())
 #boxplot.cluster.variance(oGr, m, fGroups, log=T, iDrawCount = length(csClust))
 
+# print the labels of the clusters from reactome table
 i = which(dfReactome.sub$V2 %in% csClust)
 dfCluster.name = dfReactome.sub[i,c('V2', 'V4')]
 dfCluster.name = dfCluster.name[!duplicated(dfCluster.name$V2),]
@@ -278,7 +287,6 @@ dfCluster.name
 # # plot a cluster of choice as heatmap
 # plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '1280218')
 #### plot a graph of clusters 
-#m = getSignificantClusters(oGr, t(mCounts), fGroups, bStabalize = T)
 dfCluster = getClusterMapping(oGr)
 colnames(dfCluster) = c('gene', 'cluster')
 rownames(dfCluster) = dfCluster$gene
@@ -320,6 +328,24 @@ write.csv(dfCluster, file='Results/Clusters_sepsis_nonsurvivors.csv')
 # save the graph and data objects
 sepsis_ns_data = list(graph=oGr, matrix=mCounts, groups=fGroups)
 save(sepsis_ns_data, file='Objects/sepsis_ns_data.rds')
+
+# saving graph object to visualize in cytoscape or other graph viewers
+lev = levels(fGroups)[-1]
+m = mCounts
+for(i in 1:length(lev)){
+  ig = getClusterSubgraph(oGr, csClust)
+  fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
+  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=30)
+  n = V(ig)$name
+  lab = f_dfGetGeneAnnotation(n)
+  V(ig)$label = as.character(lab$SYMBOL)
+  nm = paste('Results/sepsis_ns', lev[i], 'vs', levels(fGroups)[1], '.graphml', sep='')
+  write.graph(ig, file = nm, format = 'graphml')
+}
+
+#######################################################################################
+### selection of plots for various clusters
+#######################################################################################
 
 # Various plots for one cluster of choice
 csClust = '1280218'
@@ -371,23 +397,3 @@ temp = t(as.matrix(mC[rn[i],]))
 rownames(temp) = rn[i]
 plot.cluster.variance(oGr, temp, fGroups, log=FALSE); i = i+1
 
-
-# saving graph object to visualize in cytoscape or other graph viewers
-csClust = as.character(unique(dfCluster$cluster))
-lev = levels(fGroups)[-1]
-m = mCounts
-for(i in 1:length(lev)){
-  ig = getClusterSubgraph(oGr, csClust)
-  fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
-  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=30)
-  n = V(ig)$name
-  lab = f_dfGetGeneAnnotation(n)
-  V(ig)$label = as.character(lab$SYMBOL)
-  nm = paste('Results/', lev[i], 'vs', levels(fGroups)[1], '.graphml', sep='')
-  write.graph(ig, file = nm, format = 'graphml')
-}
-# ig = getFinalGraph(oGr)
-# n = f_dfGetGeneAnnotation(V(ig)$name)
-# V(ig)[n$ENTREZID]$label = n$SYMBOL
-# ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T)
-# write.graph(ig, file = 'Results/graph.graphml', format = 'graphml')

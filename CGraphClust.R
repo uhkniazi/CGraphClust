@@ -953,9 +953,10 @@ setMethod('plot.cluster.variance', signature='CGraphClust', definition = functio
   dfVar$fac = factor(fac.1,levels = levels(fGroups)) 
   # if plot on log scale or exp scale
   if (log == TRUE){
-    bwplot(~values | ind+fac, data=dfVar, do.out=TRUE, xlab='Log Variance') } else {
-      bwplot(~ exp(values) | ind+fac, data=dfVar, do.out=TRUE, xlab='Variance')
+    p = bwplot(~values | ind+fac, data=dfVar, do.out=TRUE, xlab='Log Variance') } else {
+      p = bwplot(~ exp(values) | ind+fac, data=dfVar, do.out=TRUE, xlab='Variance')
     }
+  print(p)
 })
 
 
