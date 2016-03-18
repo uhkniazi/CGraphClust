@@ -205,10 +205,32 @@ f_plot.cluster.diagnostics = function(oGr, mCounts, fGroups, csClust){
 load('Objects/tb_data.rds')
 load('Objects/sepsis_data.rds')
 load('Objects/ltb_atb_data.rds')
-
+load('Objects/sepsis_ns_data.rds')
 # ig.tb = getFinalGraph(tb_data$graph)
 # ig.sep = getFinalGraph(sepsis_data$graph)
 # ig.lt = getFinalGraph(ltb_atb_data$graph)
+
+# merge the sepsis datasets
+ig.merge = CGraphClust.intersect.union(sepsis_data$graph, sepsis_ns_data$graph)
+
+f_plot.diagnostics(ig.merge, sepsis_ns_data$matrix, sepsis_ns_data$groups)
+f_plot.diagnostics(ig.merge, sepsis_data$matrix, sepsis_data$groups)
+
+# remove genes common between sepsis ns and sepsis
+ig.ns = getFinalGraph(sepsis_ns_data$graph)
+ig.sur = getFinalGraph(sepsis_data$graph)
+# get vertices not common in ltbi graph
+iVertID.ns = which(!(V(ig.ns)$name %in% V(ig.sur)$name))
+# get the graph
+ig.ns.unique = CGraphClust.recalibrate(sepsis_ns_data$graph, iVertID.ns)
+f_plot.diagnostics(ig.ns.unique, sepsis_ns_data$matrix, sepsis_ns_data$groups)
+
+
+# merge sepsis ns and ltbi data
+ig.merge = CGraphClust.intersect.union(ltb_atb_data$graph, sepsis_ns_data$graph)
+f_plot.diagnostics(ig.merge, sepsis_ns_data$matrix, sepsis_ns_data$groups)
+f_plot.diagnostics(ig.merge, ltb_atb_data$matrix, ltb_atb_data$groups)
+
 
 # merge the 3 graphs
 ig.merge = CGraphClust.intersect.union(tb_data$graph, ltb_atb_data$graph)

@@ -297,9 +297,9 @@ par(mar=c(1,1,1,1)+0.1)
 for(i in 1:length(lev)){
   ig = getClusterSubgraph(oGr, csClust)
   # plot the largest compoenent only
-  com = components(ig)
-  com.lar = which.max(com$csize)
-  ig = induced_subgraph(ig, vids = V(ig)[which(com$membership == com.lar)])
+#   com = components(ig)
+#   com.lar = which.max(com$csize)
+#   ig = induced_subgraph(ig, vids = V(ig)[which(com$membership == com.lar)])
   fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
   ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=80)
   n = V(ig)$name
