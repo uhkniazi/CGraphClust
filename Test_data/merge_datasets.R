@@ -31,6 +31,7 @@ rm(dfReactome, dfMap)
 gc()
 ###
 
+########### utility functions
 get.reactome.name = function(csNames){
   i = which(dfReactome.sub$V2 %in% csNames)
   dfCluster.name = dfReactome.sub[i,c('V2', 'V4')]
@@ -39,45 +40,231 @@ get.reactome.name = function(csNames){
   return(dfCluster.name)
 }
 
+## collection of steps to plot some graph diagnostics
+f_plot.diagnostics = function(oGr, mCounts, fGroups, ...){
+  set.seed(1)
+  plot.final.graph(oGr)
+  ecount(getFinalGraph(oGr))
+  vcount(getFinalGraph(oGr))
+  set.seed(1)
+  ig = plot.centrality.graph(oGr)
+  par(p.old)
+  plot.centrality.diagnostics(oGr)
+  dfTopGenes.cent = dfGetTopVertices(oGr, iQuantile = 0.90)
+  rownames(dfTopGenes.cent) = dfTopGenes.cent$VertexID
+  # assign metadata annotation to these genes and clusters
+  dfCluster = getClusterMapping(oGr)
+  colnames(dfCluster) = c('gene', 'cluster')
+  rownames(dfCluster) = dfCluster$gene
+  df = f_dfGetGeneAnnotation(as.character(dfTopGenes.cent$VertexID))
+  dfTopGenes.cent = cbind(dfTopGenes.cent[as.character(df$ENTREZID),], SYMBOL=df$SYMBOL, GENENAME=df$GENENAME)
+  dfCluster = dfCluster[as.character(dfTopGenes.cent$VertexID),]
+  dfTopGenes.cent = cbind(dfTopGenes.cent, Cluster=dfCluster$cluster)
+  library(NMF)
+  m1 = mCounts[,as.character(dfTopGenes.cent$VertexID)]
+  m1 = scale(m1)
+  m1 = t(m1)
+  # threshhold the values
+  m1[m1 < -3] = -3
+  m1[m1 > 3] = 3
+  rownames(m1) = as.character(dfTopGenes.cent$SYMBOL)
+  # draw the heatmap  color='-RdBu:50'
+  aheatmap(m1, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = TRUE, 
+           annColors=NA, Colv=NA)
+  
+  m1 = mCounts[,as.character(dfTopGenes.cent$VertexID)]
+  m1 = apply(m1, 2, f_ivStabilizeData, fGroups)
+  rownames(m1) = fGroups
+  m1 = scale(m1)
+  m1 = t(m1)
+  # threshhold the values
+  m1[m1 < -3] = -3
+  m1[m1 > 3] = 3
+  rownames(m1) = as.character(dfTopGenes.cent$SYMBOL)
+  # draw the heatmap  color='-RdBu:50'
+  aheatmap(m1, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = TRUE, 
+           annColors=NA, Colv=NA)
+  lev = levels(fGroups)[-1]
+  m = mCounts
+  m = apply(m, 2, function(x) f_ivStabilizeData(x, fGroups))
+  rownames(m) = rownames(mCounts)
+  par(mar=c(1,1,1,1)+0.1)
+  for(i in 1:length(lev)){
+    ig = induced_subgraph(getFinalGraph(oGr), vids = as.character(dfTopGenes.cent$VertexID))
+    fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
+    ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=50)
+    n = V(ig)$name
+    lab = f_dfGetGeneAnnotation(n)
+    V(ig)$label = as.character(lab$SYMBOL)
+    set.seed(1)
+    plot(ig, vertex.label.cex=0.2, layout=layout_with_fr, vertex.frame.color='darkgrey', edge.color='lightgrey', 
+         main=paste(lev[i], 'vs', levels(fGroups)[1]))
+    legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+  }
+  set.seed(1)
+  ig = plot.graph.clique(oGr)
+  lev = levels(fGroups)[-1]
+  m = mCounts
+  #m = apply(m, 2, function(x) f_ivStabilizeData(x, fGroups))
+  #rownames(m) = rownames(mCounts)
+  par(mar=c(1,1,1,1)+0.1)
+  for(i in 1:length(lev)){
+    ig = induced_subgraph(getFinalGraph(oGr), vids = unlist(getLargestCliques(oGr)))
+    fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
+    ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=50)
+    n = V(ig)$name
+    lab = f_dfGetGeneAnnotation(n)
+    V(ig)$label = as.character(lab$SYMBOL)
+    set.seed(1)
+    plot(ig, layout=layout_with_fr, main=paste(lev[i], 'vs', levels(fGroups)[1]))
+    legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+  }
+  par(p.old)
+  plot.mean.expressions(oGr, t(mCounts), fGroups, legend.pos = 'bottomleft', main='Total Change in Each Cluster', cex.axis=0.7)
+  # only significant clusters
+  par(mar=c(7, 3, 2, 2)+0.1)
+  plot.significant.expressions(oGr, t(mCounts), fGroups, main='Significant Clusters', lwd=1, bStabalize = T, cex.axis=0.7)
+  # principal component plots
+  pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)
+  par(mar=c(4,2,4,2))
+  biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
+  # plot summary heatmaps
+  # marginal expression level in each cluster
+  plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = F)
+  plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = T)
+  m = getSignificantClusters(oGr, t(mCounts), fGroups)$clusters
+  csClust = rownames(m)
+  print(paste('number of significant clusters', length(csClust)))
+  print(get.reactome.name(csClust))
+  # make graph of clusters
+  dfCluster = getClusterMapping(oGr)
+  colnames(dfCluster) = c('gene', 'cluster')
+  rownames(dfCluster) = dfCluster$gene
+  # how many genes in each cluster
+  print(data.frame(sort(table(dfCluster$cluster))))
+  #csClust = rownames(m$clusters)
+  csClust = as.character(unique(dfCluster$cluster))
+  # plot the graphs at each contrast
+  lev = levels(fGroups)[-1]
+  m = mCounts
+  #m = apply(m, 2, function(x) f_ivStabilizeData(x, fGroups))
+  #rownames(m) = rownames(mCounts)
+  par(mar=c(1,1,1,1)+0.1)
+  for(i in 1:length(lev)){
+    ig = getClusterSubgraph(oGr, csClust)
+#     # plot the largest compoenent only
+#     com = components(ig)
+#     com.lar = which.max(com$csize)
+#     ig = induced_subgraph(ig, vids = V(ig)[which(com$membership == com.lar)])
+    fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
+    ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=50)
+    n = V(ig)$name
+    lab = f_dfGetGeneAnnotation(n)
+    V(ig)$label = as.character(lab$SYMBOL)
+    set.seed(1)
+    plot(ig, vertex.label.cex=0.14, layout=layout_with_fr, vertex.frame.color='darkgrey', edge.color='lightgrey',
+         main=paste(lev[i], 'vs', levels(fGroups)[1]))
+    legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+  }
+}
+f_plot.cluster.diagnostics = function(oGr, mCounts, fGroups, csClust){
+  lev = levels(fGroups)[-1]
+  m = mCounts
+  #m = apply(m, 2, function(x) f_ivStabilizeData(x, fGroups))
+  #rownames(m) = rownames(mCounts)
+  par(mar=c(1,1,1,1)+0.1)
+  for(i in 1:length(lev)){
+    ig = getClusterSubgraph(oGr, csClust)
+    fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
+    ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=60)
+    n = V(ig)$name
+    lab = f_dfGetGeneAnnotation(n)
+    V(ig)$label = as.character(lab$SYMBOL)
+    set.seed(1)
+    plot(ig, vertex.label.cex=0.7, layout=layout_with_fr, vertex.frame.color='darkgrey', edge.color='lightgrey',
+         main=paste(lev[i], 'vs', levels(fGroups)[1]))
+    legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+  }
+  # heatmap of the genes
+  ig.sub = getClusterSubgraph(oGr, csClustLabel = csClust)
+  n = f_dfGetGeneAnnotation(V(ig.sub)$name)
+  mC = t(mCounts)
+  mC = mC[n$ENTREZID,]
+  rownames(mC) = n$SYMBOL
+  mC = t(scale(t(mC)))
+  # threshhold the values
+  mC[mC < -3] = -3
+  mC[mC > +3] = +3
+  # draw the heatmap
+  hc = hclust(dist(mC))
+  aheatmap(mC, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=NA, 
+           annColors=NA, Colv=NA)
+}
+
 # load the tb and sepsis datasets
 load('Objects/tb_data.rds')
 load('Objects/sepsis_data.rds')
 load('Objects/ltb_atb_data.rds')
 
-ig.tb = getFinalGraph(tb_data$graph)
-ig.sep = getFinalGraph(sepsis_data$graph)
-ig.lt = getFinalGraph(ltb_atb_data$graph)
+# ig.tb = getFinalGraph(tb_data$graph)
+# ig.sep = getFinalGraph(sepsis_data$graph)
+# ig.lt = getFinalGraph(ltb_atb_data$graph)
 
 # merge the 3 graphs
-ig.merge = CGraphClust.union(sepsis_data$graph, ltb_atb_data$graph)
-ig.merge = CGraphClust.union(ig.merge, sepsis_data$graph)
-plot.final.graph(ig.merge)
+ig.merge = CGraphClust.intersect.union(tb_data$graph, ltb_atb_data$graph)
+f_plot.diagnostics(ig.merge, ltb_atb_data$matrix, ltb_atb_data$groups, main='LTBI merged')
+f_plot.diagnostics(ig.merge, tb_data$matrix, tb_data$groups, main='long tb and LTBI merged')
+# remove genes common between tb longitudinal and ltbi dataset 
+ig.ltbi = getFinalGraph(ltb_atb_data$graph)
+ig.tblong = getFinalGraph(tb_data$graph)
+# get vertices not common in ltbi graph
+iVertID.ltbi = which(!(V(ig.ltbi)$name %in% V(ig.tblong)$name))
+# get the graph
+ig.ltbi.unique = CGraphClust.recalibrate(ltb_atb_data$graph, iVertID.ltbi)
+f_plot.diagnostics(ig.ltbi.unique, ltb_atb_data$matrix, ltb_atb_data$groups, main='LTBI unique')
+# remove vertices common between ltb and sepsis groups
+ig.ltbi = getFinalGraph(ltb_atb_data$graph)
+ig.sep = getFinalGraph(sepsis_data$graph)
+# get vertices not common in sepsis graph
+iVertID.sep = which(!(V(ig.sep)$name %in% V(ig.ltbi)$name))
+# get the graph
+ig.sep.unique = CGraphClust.recalibrate(sepsis_data$graph, iVertID.sep)
+f_plot.diagnostics(ig.sep.unique, sepsis_data$matrix, sepsis_data$groups, main='sepsis unique')
 
-par(mar=c(7, 3, 2, 2)+0.1)
-plot.significant.expressions(ig.merge, t(tb_data$matrix), tb_data$groups, main='TB Significant Clusters', 
-                             lwd=1, bStabalize = T, cex.axis=0.7)
-
-par(mar=c(7, 3, 2, 2)+0.1)
-plot.significant.expressions(ig.merge, t(ltb_atb_data$matrix), ltb_atb_data$groups, main='TB LTBI Significant Clusters', 
-                             lwd=1, bStabalize = T, cex.axis=0.7)
-
-par(mar=c(7, 3, 2, 2)+0.1)
-plot.significant.expressions(ig.merge, t(sepsis_data$matrix), sepsis_data$groups, main='Sepsis Significant Clusters', 
-                             lwd=1, bStabalize = T, cex.axis=0.7)
 
 
-# principal component plots
-pr.out = plot.components(ig.merge, t(tb_data$matrix), tb_data$groups, bStabalize = T)
-par(mar=c(4,2,4,2))
-biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0, main='TB')# principal component plots
+ig.merge.sep = CGraphClust.intersect.union(ig.merge, sepsis_data$graph)
+f_plot.diagnostics(ig.merge.sep, ltb_atb_data$matrix, ltb_atb_data$groups, main='LTBI sepsis merged')
+f_plot.diagnostics(ig.merge.sep, tb_data$matrix, tb_data$groups, main='TB long sepsis merged')
+f_plot.diagnostics(ig.merge.sep, sepsis_data$matrix, sepsis_data$groups, main='Sepsis TB merged')
 
-pr.out = plot.components(ig.merge, t(ltb_atb_data$matrix), ltb_atb_data$groups, bStabalize = T)
-par(mar=c(4,2,4,2))
-biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0, main='LTB')# principal component plots
-
-pr.out = plot.components(ig.merge, t(sepsis_data$matrix), sepsis_data$groups, bStabalize = T)
-par(mar=c(4,2,4,2))
-biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0, main='sepsis')
+# plot.final.graph(ig.merge)
+# 
+# par(mar=c(7, 3, 2, 2)+0.1)
+# plot.significant.expressions(ig.merge, t(tb_data$matrix), tb_data$groups, main='TB Significant Clusters', 
+#                              lwd=1, bStabalize = T, cex.axis=0.7)
+# 
+# par(mar=c(7, 3, 2, 2)+0.1)
+# plot.significant.expressions(ig.merge, t(ltb_atb_data$matrix), ltb_atb_data$groups, main='TB LTBI Significant Clusters', 
+#                              lwd=1, bStabalize = T, cex.axis=0.7)
+# 
+# par(mar=c(7, 3, 2, 2)+0.1)
+# plot.significant.expressions(ig.merge, t(sepsis_data$matrix), sepsis_data$groups, main='Sepsis Significant Clusters', 
+#                              lwd=1, bStabalize = T, cex.axis=0.7)
+# 
+# 
+# # principal component plots
+# pr.out = plot.components(ig.merge, t(tb_data$matrix), tb_data$groups, bStabalize = T)
+# par(mar=c(4,2,4,2))
+# biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0, main='TB')# principal component plots
+# 
+# pr.out = plot.components(ig.merge, t(ltb_atb_data$matrix), ltb_atb_data$groups, bStabalize = T)
+# par(mar=c(4,2,4,2))
+# biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0, main='LTB')# principal component plots
+# 
+# pr.out = plot.components(ig.merge, t(sepsis_data$matrix), sepsis_data$groups, bStabalize = T)
+# par(mar=c(4,2,4,2))
+# biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0, main='sepsis')
 
 
 

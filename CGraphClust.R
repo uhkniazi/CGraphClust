@@ -422,7 +422,7 @@ CGraphClust.recalibrate = function(obj, ivVertexID.keep, iMinComponentSize=6){
 ####### constructor 3
 #### constructor 3 to create a new CGraphClust object by combining two CGraphClust objects
 # constructor
-CGraphClust.union = function(obj1, obj2, iMinOverlap=10, iMinComponentSize=6){
+CGraphClust.intersect.union = function(obj1, obj2, iMinOverlap=10, iMinComponentSize=6){
   # create a union graph based on common vertices
   iVertID.obj1 = which(V(getFinalGraph(obj1))$name %in% V(getFinalGraph(obj2))$name)
   iVertID.obj2 = which(V(getFinalGraph(obj2))$name %in% V(getFinalGraph(obj1))$name)
