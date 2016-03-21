@@ -98,8 +98,8 @@ fSamples[i] = '2'
 i = grep('12 months', f)
 fSamples[i] = '12'
 
-fSamples = factor(fSamples)
-
+fSamples = factor(fSamples, levels = c('12', '2', '0'))
+levels(fSamples)
 oExp.lumi$fSamples = fSamples
 
 ## data normalization
@@ -164,7 +164,7 @@ n = (which(sapply(lSigGenes.adj, length) >= 10)) + 1
 
 for (i in seq_along(n)) {
   dfGenes = topTable(fit, coef = n[i], number = Inf)
-  f_plotVolcano(dfGenes, paste(names(n[i])), fc.lim = c(-2, 2))
+  f_plotVolcano(dfGenes, paste(names(n[i])), fc.lim = c(-3, 3))
 }
 
 # get the common genes
@@ -187,34 +187,6 @@ dfData = data.frame(dfData)
 dfData$fSamples = fSamples
 
 
-# ## extract data for significant genes
-# fSamples = oExp$fSamples
-# pano = apply(exprs(oExp), 1, function(x) anova(lm(x~fSamples))$Pr[1])
-# pano.adj = p.adjust(pano, method = 'BH')
-# n = which(pano.adj < 0.1)
-# n = names(n)
-# # count matrix
-# dfData = data.frame(t(exprs(oExp)[n,]))
-# n = colnames(dfData)
-# dfAnnotation = fData(oExp)
-# # replace names by enterez ids
-# dfAnnotation = dfAnnotation[n,c('ID', 'Entrez_Gene_ID')]
-# # remove empty enterez ids and NAs
-# i = as.numeric(dfAnnotation$Entrez_Gene_ID)
-# i = which(is.na(i))
-# dfAnnotation = dfAnnotation[-i,]
-# # remove duplicated enterez ids
-# i = duplicated(dfAnnotation$Entrez_Gene_ID)
-# dfAnnotation = dfAnnotation[!i,]
-# # get the names of these annotation ids
-# n = as.character(dfAnnotation$ID)
-# dfData = dfData[,n]
-# # replace names by enterez ids
-# n = as.character(dfAnnotation$Entrez_Gene_ID)
-# colnames(dfData) = n
-# # assign sample ids
-# fSamples = oExp$fSamples
-# dfData$fSamples = fSamples
 dir.create('Test_data', showWarnings = F)
 
 write.csv(dfData, file='Test_data/test_data_GSE19491.csv')
