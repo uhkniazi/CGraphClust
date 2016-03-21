@@ -1,7 +1,7 @@
 # File: cluster_test_data.R
 # Auth: Umar Niazi u.niazi@imperial.ac.uk
 # Date: 24/06/2015
-# Desc: generate clusters for data
+# Desc: generate clusters for data for the tb longitudinal dataset
 
 
 ######### load libraries and set global variables
@@ -19,7 +19,7 @@ n = gsub('X(\\d+)', replacement = '\\1', x = colnames(dfData))
 colnames(dfData) = n
 
 # separate the factor and the count matrix
-fGroups = factor(dfData$fSamples)
+fGroups = factor(dfData$fSamples, levels = c('12', '2', '0'))
 mCounts = as.matrix(dfData[,1:(ncol(dfData)-1)])
 
 # convert enterez ids to uniprot as Reactome database file uses UNIPROT ids
@@ -99,9 +99,11 @@ rownames(dfCluster) = dfCluster$gene
 iSizes = sort(table(dfCluster$cluster))
 # remove communities smaller than 5 members
 i = which(iSizes <= 5)
-cVertRem = as.character(dfCluster[dfCluster$cluster %in% names(i),'gene'])
-iVertKeep = which(!(V(getFinalGraph(oGr))$name %in% cVertRem))
-oGr = CGraphClust.recalibrate(oGr, iVertKeep)
+if (length(i) > 0) {
+  cVertRem = as.character(dfCluster[dfCluster$cluster %in% names(i),'gene'])
+  iVertKeep = which(!(V(getFinalGraph(oGr))$name %in% cVertRem))
+  oGr = CGraphClust.recalibrate(oGr, iVertKeep)
+}
 
 # # make a pdf output for publication
 # dir.create('Results', showWarnings = F)
@@ -246,6 +248,7 @@ biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
 # plot summary heatmaps
 # marginal expression level in each cluster
 plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = F)
+plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = T)
 # plot variance of cluster
 m = getSignificantClusters(oGr, t(mCounts), fGroups)$clusters
 
@@ -303,7 +306,6 @@ for(i in 1:length(lev)){
 }
 
 
-#dfCluster = dfCluster[dfCluster$cluster %in% csClust,]
 df = f_dfGetGeneAnnotation(as.character(dfCluster$gene))
 dfCluster = cbind(dfCluster[as.character(df$ENTREZID),], SYMBOL=df$SYMBOL, GENENAME=df$GENENAME)
 write.csv(dfCluster, file='Results/Clusters_tb.csv')
