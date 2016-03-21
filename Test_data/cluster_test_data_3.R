@@ -66,9 +66,7 @@ mCor = cor(mCounts)
 hist(sample(mCor, 10000, replace = T), prob=T, main='Correlation of genes', xlab='', family='Arial', breaks=20, xaxt='n')
 axis(1, at = seq(-1, 1, by=0.1), las=2)
 
-# stabalize the data and check correlation again
-# mCounts.bk = mCounts
-# stabalize the data
+# stabalize the data and check correlation again i.e. calculated bayes adjusted posterior means
 mCounts.st = apply(mCounts, 2, function(x) f_ivStabilizeData(x, fGroups))
 rownames(mCounts.st) = fGroups
 
@@ -103,6 +101,20 @@ ig = getFinalGraph(oGr)
 ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 30)
 plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr, 
      vertex.frame.color=NA, edge.color='darkgrey')
+
+# get community sizes
+dfCluster = getClusterMapping(oGr)
+colnames(dfCluster) = c('gene', 'cluster')
+rownames(dfCluster) = dfCluster$gene
+# how many genes in each cluster
+iSizes = sort(table(dfCluster$cluster))
+# remove communities smaller than 5 members or choose a size of your liking
+i = which(iSizes <= 5)
+if (length(i) > 0) {
+  cVertRem = as.character(dfCluster[dfCluster$cluster %in% names(i),'gene'])
+  iVertKeep = which(!(V(getFinalGraph(oGr))$name %in% cVertRem))
+  oGr = CGraphClust.recalibrate(oGr, iVertKeep)
+}
 
 # # make a pdf output for publication
 # dir.create('Results', showWarnings = F)
@@ -262,25 +274,21 @@ plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = F)
 plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = T)
 # plot variance of cluster
 m = getSignificantClusters(oGr, t(mCounts), fGroups)$clusters
-#m = getClusterMarginal(oGr, t(mCounts))
-#plot.cluster.variance(oGr, m[c('1280218', '1280215'),], fGroups, log = F)
 
 csClust = rownames(m)
 length(csClust)
-i = 1
-plot.cluster.variance(oGr, m[csClust[i:(i+1)],], fGroups, log = FALSE); i = i+2
-
-i = 1
-temp = t(as.matrix(m[csClust[i],]))
-rownames(temp) = csClust[i]
-plot.cluster.variance(oGr, temp, fGroups, log=FALSE); i = i+1
-
-pdf('Results/cluster_variance_ltb_atb.pdf')
+pdf('Results/cluster_variance_ltb_tb.pdf')
 par(mfrow=c(1,2))
 boxplot.cluster.variance(oGr, m, fGroups, log=T, iDrawCount = length(csClust), las=2)
+for (i in seq_along(csClust)){
+  temp = t(as.matrix(m[csClust[i],]))
+  rownames(temp) = csClust[i]
+  plot.cluster.variance(oGr, temp, fGroups, log=FALSE);
+}
 dev.off(dev.cur())
 #boxplot.cluster.variance(oGr, m, fGroups, log=T, iDrawCount = length(csClust))
 
+# print the labels of the clusters from reactome table
 i = which(dfReactome.sub$V2 %in% csClust)
 dfCluster.name = dfReactome.sub[i,c('V2', 'V4')]
 dfCluster.name = dfCluster.name[!duplicated(dfCluster.name$V2),]
@@ -332,6 +340,25 @@ write.csv(dfCluster, file='Results/Clusters_ltb_atb.csv')
 # save the graph and data objects
 ltb_atb_data = list(graph=oGr, matrix=mCounts, groups=fGroups)
 save(ltb_atb_data, file='Objects/ltb_atb_data.rds')
+
+# saving graph object to visualize in cytoscape or other graph viewers
+lev = levels(fGroups)[-1]
+m = mCounts
+for(i in 1:length(lev)){
+  ig = getClusterSubgraph(oGr, csClust)
+  fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
+  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=30)
+  n = V(ig)$name
+  lab = f_dfGetGeneAnnotation(n)
+  V(ig)$label = as.character(lab$SYMBOL)
+  nm = paste('Results/ltb_atb_data', lev[i], 'vs', levels(fGroups)[1], '.graphml', sep='')
+  write.graph(ig, file = nm, format = 'graphml')
+}
+
+#######################################################################################
+### selection of plots for various clusters
+#######################################################################################
+
 
 # Various plots for one cluster of choice
 csClust = '388396'
