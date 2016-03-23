@@ -1125,13 +1125,29 @@ setMethod('getSignificantClusters', signature='CGraphClust', definition = functi
   }
   # check which cluster shows significant p-values
   p.vals = apply(dfMean, 2, function(x) get.prob(x, fac))
-  fSig = apply(p.vals, 2, function(x) any(x < p.cut))
+  # error checking, if there were only two levels in the factor 
+  # then p.vals will be a vector instead of a matrix and the apply method will not work
+  # check if its matrix or vector
+  fSig = NULL
+  if (is.matrix(p.vals)) {
+    fSig = apply(p.vals, 2, function(x) any(x < p.cut))
+    p.vals = p.vals[,fSig]
+  } else {
+    fSig = p.vals < p.cut
+    p.vals = p.vals[fSig]
+  }
   mCent = mCent[fSig,]
-  p.vals = p.vals[,fSig]
+  #p.vals = p.vals[,fSig]
   # reorder the matrix based on range of mean
   rSort = apply(mCent, 1, function(x){ m = tapply(x, fGroups, mean); r = range(m); diff(r)}) 
   mCent = mCent[order(rSort, decreasing = T),]
-  p.vals = p.vals[,order(rSort, decreasing = T)]
+  # do another check for p.val being matrix or vector
+  if (is.matrix(p.vals)) {
+    p.vals = p.vals[,order(rSort, decreasing = T)]
+  } else {
+    p.vals = p.vals[order(rSort, decreasing = T)]
+  }
+  #p.vals = p.vals[,order(rSort, decreasing = T)]
   ## add an error check
   if (nrow(mCent) == 0) stop('getSignificantClusters: no significant p-values')
   lRet = list(clusters=mCent, p.val=p.vals)  
