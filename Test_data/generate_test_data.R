@@ -895,7 +895,7 @@ m = exprs(lumi.n)
 pr.out = prcomp(t(m), scale=T)
 ## choose appropriate factor
 fSamples = as.factor(lumi.n$fBatch)
-fSamples = as.factor(lumi.n$fDays)
+fSamples = as.factor(lumi.n$fDisease)
 
 col.p = rainbow(length(unique(fSamples)))
 col = col.p[as.numeric(fSamples)]
@@ -913,55 +913,15 @@ plot(pr.out$x[,c(2,3)], col=col, pch=19, xlab='Z2', ylab='Z3',
 l = f_lGetPCAClusterCount(pr.out)
 l$cluster.count
 table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
-i = which(l$cluster.label$c1 %in% c('6', '7') | l$cluster.label$c2 %in% c('1', '2'))
-
-# sanity check for the outlier
-c = col
-c[i] = 'black'
-par(mfrow=c(2,2))
-plot.new()
-legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
-plot(pr.out$x[,1:2], col=c, pch=19, xlab='Z1', ylab='Z2',
-     main='PCA comp 1 and 2')
-plot(pr.out$x[,c(1,3)], col=c, pch=19, xlab='Z1', ylab='Z3',
-     main='PCA comp 1 and 3')
-plot(pr.out$x[,c(2,3)], col=c, pch=19, xlab='Z2', ylab='Z3',
-     main='PCA comp 2 and 3')
-par(p.old)
-
-# remove the outlier
-lumi.n = lumi.n[,-i]
-
-## check again after outlier removal
-m = exprs(lumi.n)
-# pca on samples i.e. covariance matrix of m
-pr.out = prcomp(t(m), scale=T)
-## choose appropriate factor
-fSamples = as.factor(lumi.n$fBatch)
-fSamples = as.factor(lumi.n$fDays)
-
-col.p = rainbow(length(unique(fSamples)))
-col = col.p[as.numeric(fSamples)]
-# plot the pca components
-par(mfrow=c(2,2))
-plot.new()
-legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
-plot(pr.out$x[,1:2], col=col, pch=19, xlab='Z1', ylab='Z2',
-     main='PCA comp 1 and 2')
-plot(pr.out$x[,c(1,3)], col=col, pch=19, xlab='Z1', ylab='Z3',
-     main='PCA comp 1 and 3')
-plot(pr.out$x[,c(2,3)], col=col, pch=19, xlab='Z2', ylab='Z3',
-     main='PCA comp 2 and 3')
 
 oExp.lumi = lumi.n
 ## select grouping and data for DE analysis
 dfSamples = pData(oExp.lumi)
 
 ## create grouping factors by data
-fSamples = factor(paste0('D', dfSamples$fDays))
-#fSamples = factor(dfSamples$fBatch)
+fSamples = dfSamples$fDisease
 table(fSamples)
-
+levels(fSamples)
 ### perform DE analysis
 mDat = exprs(oExp.lumi)
 # map the nuID to human symbols
@@ -998,7 +958,7 @@ names(lSigGenes.adj) = levels(fSamples)[2:length(levels(fSamples))]
 
 for (i in 2:length(levels(fSamples))){
   p.adj = p.adjust(fit$p.value[,i], method = 'BH')
-  lSigGenes.adj[[i-1]] = names(p.adj)[p.adj < 0.05]
+  lSigGenes.adj[[i-1]] = names(p.adj)[p.adj < 0.01]
 }
 
 #cvSigGenes.adj = unique(cvSigGenes.adj)
@@ -1012,7 +972,7 @@ n = (which(sapply(lSigGenes.adj, length) >= 10)) + 1
 
 for (i in seq_along(n)) {
   dfGenes = topTable(fit, coef = n[i], number = Inf)
-  f_plotVolcano(dfGenes, paste(names(n[i])), fc.lim = c(-2, 2))
+  f_plotVolcano(dfGenes, paste(names(n[i])), fc.lim = c(-2.5, 2.5), p.adj.cut = 0.01)
 }
 
 # get the common genes
@@ -1037,5 +997,5 @@ dfData$fSamples = fSamples
 ## save the data
 dir.create('Test_data', showWarnings = F)
 
-write.csv(dfData, file='Test_data/test_data_GSE54514.csv')
+write.csv(dfData, file='Test_data/test_data_GSE42834_sarcoid.csv')
 
