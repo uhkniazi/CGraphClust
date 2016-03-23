@@ -68,6 +68,9 @@ f_plotVolcano = function(dfGenes, main, p.adj.cut = 0.1, fc.lim = c(-3, 3)){
 # global variables
 p.old = par()
 
+###############################################################################
+#### dataset 1 TB longitudinal
+###############################################################################
 ## data loading
 # load the data, clean and create factors
 dir.create('Data_external', showWarnings = F)
@@ -193,11 +196,8 @@ write.csv(dfData, file='Test_data/test_data_GSE19491.csv')
 
 
 ############################################################################
-## generate second dataset
+## dataset 2 sepsis survivors
 ############################################################################
-
-
-
 ## data loading
 # load the data, clean and create factors
 dir.create('Data_external', showWarnings = F)
@@ -389,7 +389,7 @@ dir.create('Test_data', showWarnings = F)
 write.csv(dfData, file='Test_data/test_data_GSE54514.csv')
 
 #################################################################################
-## generate 3rd dataset
+## dataset 3, atb, ptb and hc
 ################################################################################
 ## data loading
 # load the data, clean and create factors
@@ -681,7 +681,7 @@ write.csv(dfData, file='Test_data/test_data_GSE19491_atb_ltb.csv')
 
 
 ############################################################################
-## generate fourth dataset - sepsis non-survivors
+## dataset 4, sepsis non-survivors
 ############################################################################
 
 ## data loading
@@ -837,65 +837,51 @@ write.csv(dfData, file='Test_data/test_data_GSE54514_nonsurvivors.csv')
 
 
 ############################################################################
-## generate sarcoidosis dataset
+## generate 5, sarcoidosis dataset
 ############################################################################
 
 ## data loading
 # load the data, clean and create factors
 dir.create('Data_external', showWarnings = F)
-gse =  getGEO('GSE42834', GSEMatrix = T, destdir = 'Data_external/', AnnotGPL = T, getGPL = T)
-oExp = gse$GSE42834_series_matrix.txt.gz
+gse =  getGEO('GSE42832', GSEMatrix = T, destdir = 'Data_external/', AnnotGPL = T, getGPL = T)
+oExp = gse$GSE42832_series_matrix.txt.gz
 
 # add lumi nuIDs 
 oExp.lumi = addNuID2lumi(oExp, lib.mapping = 'lumiHumanIDMapping' )
 # remove any NA data
 exprs(oExp.lumi) = na.omit(exprs(oExp.lumi))
+# m = exprs(oExp.lumi)
+# m = exp(m)
+# # add a constant to remove negative values
+# c = abs(min(m)+1)
+# m = m+c
+# exprs(oExp.lumi) = m
+# oExp.lumi = lumiT(oExp.lumi, 'log2')
+
+# # separate the wholeblood sample
+# i = grep('Whole blood', oExp.lumi$source_name_ch1, ignore.case = T)
+# i = grep('PBMC', oExp.lumi$source_name_ch1, ignore.case = T)
+# # sanity check
+# table(oExp.lumi$source_name_ch1[i])
+# oExp.lumi = oExp.lumi[,i]
 
 # get the grouping factor
-fSamples = as.character(pData(oExp.lumi)$characteristics_ch1.2)
-# keep control and active sarcoid
-i = grep('Control|Active Sarcoid', fSamples, ignore.case = T)
-oExp.lumi = oExp.lumi[,i]
-fSamples = as.character(pData(oExp.lumi)$characteristics_ch1.2)
-i = grepl('non-active', fSamples, ignore.case = T)
-oExp.lumi = oExp.lumi[,!i]
+fSamples = as.character(pData(oExp.lumi)$characteristics_ch1)
+fSamples = gsub('disease state: (\\w\\w)\\w*', '\\1', fSamples)
+fSamples = factor(fSamples, levels = c('Co', 'Sa', 'TB'))
 # sanity check
-fSamples = as.character(pData(oExp.lumi)$characteristics_ch1.2)
 table(fSamples)
-
-dfSamples = pData(oExp.lumi)
-# get the covariates and create main grouping factor for disease state
-fGender = gsub('gender: (\\w)', '\\1', x = as.character(dfSamples$characteristics_ch1), perl = T)
-fEthnic = gsub('ethnicity: (\\w+)', '\\1', x = as.character(dfSamples$characteristics_ch1.1), perl = T)
-
-fBatch = paste0(fGender, fEthnic)
-cvDisease = gsub('disease state: (\\w+)', '\\1', x = as.character(dfSamples$characteristics_ch1.2), perl = T)
-fDisease = rep(NA, length.out=length(cvDisease))
-i = grep('Control', cvDisease, ignore.case = T)
-fDisease[i] = 'Cont'
-fDisease[-i] = 'Sarc'
-fDisease = factor(fDisease, levels = c('Cont', 'Sarc'))
-fBatch = factor(fBatch)
-
-oExp.lumi$fDisease = fDisease
-oExp.lumi$fBatch = fBatch
-
+levels(fSamples)
+oExp.lumi$fSamples = fSamples
 # normalize the data
 lumi.n = lumiN(oExp.lumi, method = 'rsn')
-
-## add the combat step for batch covariate
-library(sva)
-modcombat = model.matrix(~1, data=pData(lumi.n))
-oCexp = ComBat(exprs(lumi.n), batch = lumi.n$fBatch, mod=modcombat)
-exprs(lumi.n) = oCexp
-
+rm(oExp, oExp.lumi)
 # check quality
 m = exprs(lumi.n)
 # pca on samples i.e. covariance matrix of m
 pr.out = prcomp(t(m), scale=T)
 ## choose appropriate factor
-fSamples = as.factor(lumi.n$fBatch)
-fSamples = as.factor(lumi.n$fDisease)
+fSamples = lumi.n$fSamples
 
 col.p = rainbow(length(unique(fSamples)))
 col = col.p[as.numeric(fSamples)]
@@ -913,13 +899,96 @@ plot(pr.out$x[,c(2,3)], col=col, pch=19, xlab='Z2', ylab='Z3',
 l = f_lGetPCAClusterCount(pr.out)
 l$cluster.count
 table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
+#i = which((l$cluster.label$c1 %in% c('1', '6', '7')) | (l$cluster.label$c2 %in% c('6')))
+i = which((l$cluster.label$c1 %in% as.character(c(1, 8, 9, 10))))
+# sanity check for the outlier
+c = col
+c[i] = 'black'
+par(mfrow=c(2,2))
+plot.new()
+legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+plot(pr.out$x[,1:2], col=c, pch=19, xlab='Z1', ylab='Z2',
+     main='PCA comp 1 and 2')
+plot(pr.out$x[,c(1,3)], col=c, pch=19, xlab='Z1', ylab='Z3',
+     main='PCA comp 1 and 3')
+plot(pr.out$x[,c(2,3)], col=c, pch=19, xlab='Z2', ylab='Z3',
+     main='PCA comp 2 and 3')
+par(p.old)
 
+# remove these outliers
+lumi.n = lumi.n[,-i]
+
+# create a factor for the various sample locations
+fBatch = lumi.n$source_name_ch1
+# l = f_lGetPCAClusterCount(pr.out)
+# l$cluster.count
+# table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
+# i = (l$cluster.label$c1 %in% c('1', '6', '7')) | (l$cluster.label$c2 %in% c('6'))
+# fBatch = factor(as.numeric(i)) 
+
+lumi.n$fBatch = fBatch
+
+## add the combat step for batch covariate
+library(sva)
+modcombat = model.matrix(~1, data=pData(lumi.n))
+oCexp = ComBat(exprs(lumi.n), batch = lumi.n$fBatch, mod=modcombat)
+exprs(lumi.n) = oCexp
+
+# # remove the outlier
+# lumi.n = lumi.n[,-i]
+
+## test quality again
+## check for outliers
+m = exprs(lumi.n)
+# pca on samples i.e. covariance matrix of m
+pr.out = prcomp(t(m), scale=T)
+## choose appropriate factor
+fSamples = lumi.n$fSamples
+fSamples = lumi.n$fBatch
+col.p = rainbow(length(unique(fSamples)))
+col = col.p[as.numeric(fSamples)]
+# plot the pca components
+par(mfrow=c(2,2))
+plot.new()
+legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+plot(pr.out$x[,1:2], col=col, pch=19, xlab='Z1', ylab='Z2',
+     main='PCA comp 1 and 2')
+plot(pr.out$x[,c(1,3)], col=col, pch=19, xlab='Z1', ylab='Z3',
+     main='PCA comp 1 and 3')
+plot(pr.out$x[,c(2,3)], col=col, pch=19, xlab='Z2', ylab='Z3',
+     main='PCA comp 2 and 3')
+
+# l = f_lGetPCAClusterCount(pr.out)
+# l$cluster.count
+# table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
+# i = which(l$cluster.label$c2 %in% as.character(c(1)))
+# 
+# # sanity check for the outlier
+# c = col
+# c[i] = 'black'
+# par(mfrow=c(2,2))
+# plot.new()
+# legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+# plot(pr.out$x[,1:2], col=c, pch=19, xlab='Z1', ylab='Z2',
+#      main='PCA comp 1 and 2')
+# plot(pr.out$x[,c(1,3)], col=c, pch=19, xlab='Z1', ylab='Z3',
+#      main='PCA comp 1 and 3')
+# plot(pr.out$x[,c(2,3)], col=c, pch=19, xlab='Z2', ylab='Z3',
+#      main='PCA comp 2 and 3')
+par(p.old)
+# 
+# # remove these outliers
+# lumi.n = lumi.n[,-i]
+# # # reset the grouping factor
+fSamples = lumi.n$fSamples
+# fSamples = factor(as.character(fSamples), levels=c('TB', 'Sa'))
+# sanity check
+table(fSamples); levels(fSamples)
+#lumi.n$fSamples = fSamples
 oExp.lumi = lumi.n
-## select grouping and data for DE analysis
-dfSamples = pData(oExp.lumi)
 
-## create grouping factors by data
-fSamples = dfSamples$fDisease
+## select grouping factor for DE analysis
+fSamples = oExp.lumi$fSamples
 table(fSamples)
 levels(fSamples)
 ### perform DE analysis
