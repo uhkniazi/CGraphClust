@@ -42,11 +42,14 @@ get.reactome.name = function(csNames){
   return(dfCluster.name)
 }
 
-## load the merged dataset
-load('Objects/ltb_atb_unique.rds')
-oGr = ltb_atb_unique$graph
-mCounts = ltb_atb_unique$matrix
-fGroups = ltb_atb_unique$groups
+## load the two tb datasets to merge
+load('Objects/ltb_atb_data.rds')
+load('Objects/tb_data.rds')
+ig.merge = CGraphClust.intersect.union(ltb_atb_data$graph, tb_data$graph)
+
+oGr = ig.merge
+mCounts = ltb_atb_data$matrix
+fGroups = ltb_atb_data$groups
 
 ## general graph structure
 ## we would like to see how does the graph look like, are the clusters connected or in subgraphs
@@ -56,7 +59,7 @@ ecount(getFinalGraph(oGr))
 vcount(getFinalGraph(oGr))
 
 # get the expression matrix for the clusters
-mMarginal = getClusterMarginal(oGr, t(mCounts))
+mMarginal = getSignificantClusters(oGr, t(mCounts), fGroups)$clusters
 
 csClust = rownames(mMarginal)
 length(csClust)
@@ -81,6 +84,10 @@ m1[m1 > 3] = 3
 aheatmap(m1, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = TRUE, 
          annColors=NA, Colv=NA)
 
+# plot pca biplot for this
+pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)
+par(mar=c(4,2,4,2))
+biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
 
 ## subcluster the ltb group into two subgroups
 ivLtb = which(fGroups == 'LTB')
@@ -98,10 +105,6 @@ fGroups = factor(fGroups, levels = c('HC', 'LTB2', 'LTB1', 'ATB'))
 pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)
 par(mar=c(4,2,4,2))
 biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
-# with old groupings
-pr.out = plot.components(oGr, t(mCounts), ltb_atb_unique$groups, bStabalize = T)
-par(mar=c(4,2,4,2))
-biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
 
 # reorder the groups and the matrix
 mCounts = mCounts[order(fGroups),]
@@ -115,6 +118,21 @@ plot.significant.expressions(oGr, t(mCounts), fGroups, main='Significant Cluster
 # marginal expression level in each cluster
 plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = F)
 plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = T)
+
+mMarginal = getSignificantClusters(oGr, t(mCounts), fGroups)$clusters
+
+csClust = rownames(mMarginal)
+length(csClust)
+pdf('Temp/var_sub.pdf')
+par(mfrow=c(1,2))
+boxplot.cluster.variance(oGr, mMarginal, fGroups, log=T, iDrawCount = length(csClust), las=2)
+for (i in seq_along(csClust)){
+  temp = t(as.matrix(mMarginal[csClust[i],]))
+  rownames(temp) = csClust[i]
+  plot.cluster.variance(oGr, temp, fGroups, log=FALSE);
+}
+dev.off(dev.cur())
+
 
 #boxplot.cluster.variance(oGr, m, fGroups, log=T, iDrawCount = length(csClust))
 
