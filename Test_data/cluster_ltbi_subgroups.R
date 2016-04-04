@@ -45,9 +45,16 @@ get.reactome.name = function(csNames){
 ## load the two tb datasets to merge
 load('Objects/ltb_atb_data.rds')
 load('Objects/tb_data.rds')
-ig.merge = CGraphClust.intersect.union(ltb_atb_data$graph, tb_data$graph)
 
-oGr = ig.merge
+# intersect the 2 graphs and recalibrate the graph object with the common vertices
+igi = graph.intersection(getFinalGraph(ltb_atb_data$graph), getFinalGraph(tb_data$graph))
+d = degree(igi)
+igi = delete.vertices(igi, which(d == 0))
+ecount(igi)
+vcount(igi)
+cVertID = V(igi)$name
+oGr = CGraphClust.recalibrate(ltb_atb_data$graph, cVertID)
+
 mCounts = ltb_atb_data$matrix
 fGroups = ltb_atb_data$groups
 
@@ -99,7 +106,7 @@ km.out
 table(km.out$cluster)
 fGroups = as.character(fGroups)
 fGroups[ivLtb] = paste0(fGroups[ivLtb], km.out$cluster)
-fGroups = factor(fGroups, levels = c('HC', 'LTB2', 'LTB1', 'ATB'))
+fGroups = factor(fGroups, levels = c('HC', 'LTB1', 'LTB2', 'ATB'))
 
 # pca with new groupings
 pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)
@@ -112,7 +119,7 @@ fGroups = fGroups[order(fGroups)]
 rownames(mCounts) = fGroups
 # plot the heatmaps and expressions
 par(mar=c(7, 3, 2, 2)+0.1)
-plot.significant.expressions(oGr, t(mCounts), fGroups, main='Significant Clusters', lwd=1, bStabalize = T, cex.axis=0.7)
+plot.significant.expressions(oGr, t(mCounts), fGroups, main='Significant Clusters', lwd=2, bStabalize = T, cex.axis=0.7)
 
 # plot summary heatmaps
 # marginal expression level in each cluster
@@ -134,81 +141,15 @@ for (i in seq_along(csClust)){
 dev.off(dev.cur())
 
 
-#boxplot.cluster.variance(oGr, m, fGroups, log=T, iDrawCount = length(csClust))
-
-# print the labels of the clusters from reactome table
-i = which(dfReactome.sub$V2 %in% csClust)
-dfCluster.name = dfReactome.sub[i,c('V2', 'V4')]
-dfCluster.name = dfCluster.name[!duplicated(dfCluster.name$V2),]
-rownames(dfCluster.name) = NULL
-dfCluster.name
-
-# # plot a cluster of choice as heatmap
-# plot.heatmap.cluster(oGr, t(mCounts), csClustLabel = '1280218')
-#### plot a graph of clusters 
-#m = getSignificantClusters(oGr, t(mCounts), fGroups, bStabalize = T)
-dfCluster = getClusterMapping(oGr)
-colnames(dfCluster) = c('gene', 'cluster')
-rownames(dfCluster) = dfCluster$gene
-# how many genes in each cluster
-data.frame(sort(table(dfCluster$cluster)))
-#csClust = rownames(m$clusters)
-csClust = as.character(unique(dfCluster$cluster))
-
-
-# plot the graphs at each contrast
-lev = levels(fGroups)[-1]
-m = mCounts
-#m = apply(m, 2, function(x) f_ivStabilizeData(x, fGroups))
-#rownames(m) = rownames(mCounts)
-par(mar=c(1,1,1,1)+0.1)
-for(i in 1:length(lev)){
-  ig = getClusterSubgraph(oGr, csClust)
-#   # plot the largest compoenent only
-#   com = components(ig)
-#   com.lar = which.max(com$csize)
-#   ig = induced_subgraph(ig, vids = V(ig)[which(com$membership == com.lar)])
-  fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
-  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=50)
-  n = V(ig)$name
-  lab = f_dfGetGeneAnnotation(n)
-  V(ig)$label = as.character(lab$SYMBOL)
-  set.seed(1)
-  plot(ig, vertex.label.cex=0.14, layout=layout_with_fr, vertex.frame.color='darkgrey', edge.color='lightgrey',
-       main=paste(lev[i], 'vs', levels(fGroups)[1]))
-  legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
-}
-
-
-df = f_dfGetGeneAnnotation(as.character(dfCluster$gene))
-dfCluster = cbind(dfCluster[as.character(df$ENTREZID),], SYMBOL=df$SYMBOL, GENENAME=df$GENENAME)
-write.csv(dfCluster, file='Results/Clusters_ltb_unique.csv')
-
-# # save the graph and data objects
-# ltb_atb_data = list(graph=oGr, matrix=mCounts, groups=fGroups)
-# save(ltb_atb_data, file='Objects/ltb_atb_data.rds')
-
-# saving graph object to visualize in cytoscape or other graph viewers
-lev = levels(fGroups)[-1]
-m = mCounts
-for(i in 1:length(lev)){
-  ig = getClusterSubgraph(oGr, csClust)
-  fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
-  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=30)
-  n = V(ig)$name
-  lab = f_dfGetGeneAnnotation(n)
-  V(ig)$label = as.character(lab$SYMBOL)
-  nm = paste('Results/ltb_unique_', lev[i], 'vs', levels(fGroups)[1], '.graphml', sep='')
-  write.graph(ig, file = nm, format = 'graphml')
-}
-
 #######################################################################################
 ### selection of plots for various clusters
 #######################################################################################
 
 
 # Various plots for one cluster of choice
-csClust = '212436'
+csClust.all = csClust
+get.reactome.name(csClust.all)
+csClust = '913531'
 
 lev = levels(fGroups)[-1]
 m = mCounts
@@ -242,6 +183,26 @@ mC[mC > +3] = +3
 hc = hclust(dist(mC))
 aheatmap(mC, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=NA, 
          annColors=NA, Colv=NA)
+
+
+# with smoothing
+ig.sub = getClusterSubgraph(oGr, csClustLabel = csClust)
+n = f_dfGetGeneAnnotation(V(ig.sub)$name)
+mC = t(mCounts)
+mC = mC[n$ENTREZID,]
+rownames(mC) = n$SYMBOL
+cn = colnames(mC)
+mC = t(apply(mC, 1, f_ivStabilizeData, fGroups))
+colnames(mC) = cn
+mC = t(scale(t(mC)))
+# threshhold the values
+mC[mC < -3] = -3
+mC[mC > +3] = +3
+# draw the heatmap
+hc = hclust(dist(mC))
+aheatmap(mC, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=NA, 
+         annColors=NA, Colv=NA)
+
 
 
 # if we want to plot variance of one gene at a time

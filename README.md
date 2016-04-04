@@ -10,9 +10,11 @@ i.e. with value TRUE using the igraph library
 Zweig, K. A., & Kaufmann, M. (2011). A systematic approach to the one-mode projection of bipartite graphs. 
 Social Network Analysis and Mining (Vol. 1, pp. 187–218). doi:10.1007/s13278-011-0021-0
 
-# Constructor - CGraph 
+# Constructor
+##CGraph 
 Arguments - bipartite graph object of igraph library, with vertices of the first kind assigned id TRUE and of second type
 assigned a FALSE. 
+
 # Internal Functions
 # CGraph.assign.marginal.probabilities
 vertices of the first kind are assigned probabilities
@@ -34,30 +36,68 @@ iCorCut = 0.5 DEFAULT, a cutoff value of correlations (default is 0.5) - i.e. an
 bSuppressPlots = TRUE DEFAULT, should the plots be drawn while building graph.  
 iMinComponentSize = 6 DEFAULT, Before finding the communities, the smallest strongly connected components less than the this size 
 are removed, this can be adjusted, if a graph has many small communities.
-# step 1
+### step 1
 bipartite graph is created and some cleaning performed, i.e. those type 2 vertices with too many connections (degree) with type 1
 vertices are removed. this is done by looking at the distribution of the degrees on a log scale and approximating a negative
 binomial and poisson distributions on top. the cutoff is by default 0.95 quantile under a negative binomial model, anything over that
 is removed. The idea is that type vertices that have a lot of connections, are not very interesting and they tend to hide the
 more interesting connections.
-# step 2
+### step 2
 graph is projected on to one dimension (type 1 vertices) and connections between type 1 vertices are assigned interestingness or 
 observed to expected probability ratios as weights. the weights on a square root scale follow a negative binomial distribution
 and only the highest weights are chosen, as they are the most interesting. So anything over 0.95 quantile under a neg bin model
 are chosen and the other connections are discarded.
-# step 3
+### step 3
 a correlation matrix is converted to an adjacency matrix with a 0 diagonal and converted to a graph. Only those edges greater than
 or equal to the cutoff value (default 0.5) are chosen.
-# step 4
+### step 4
 the 2 graphs are intersected and only those connections are remaining that are positively correlated and have a very high observed 
 to expected ratios. We remove small clusters by plotting the distribution of log cluster sizes and keep only the large sized clusters.
 edge betweeness community finding algorithm is used to detect clusters in this graph. NOTE: if the number of edges is over 3000 a 
 simpler community finding algorithm is used and a message is written out.
 
-# step 5
+### step 5
 the community is converted to a hclust object which can be used for plotting and heatmaps. each cluster is also assigned a 
 label based on which is the most common type 2 vertex (e.g. pathway) in that cluster and can be accessed via the
 getClusterLabels function.
+
+
+# Constructor - CGraphClust.recalibrate
+##ARGS
+obj = object of CGraphClust class  
+ivVertexID.keep = integer vector of vertex IDs that will not be removed from the obj  
+iMinComponentSize=6 If any components are smaller than this, those will be removed, used to remove small sized subgraphs not connected to the main graph  
+
+##DESC
+This constructor is not called directly first time when creating a new CGraph object. It will create a new CGraph object that only contains the subset of the vertices. It works in the following steps:  
+1- get the subgraph (igraph object) and delete any orphan vertices i.e. with degree 0.  
+2- remove any small components.  
+3- get communities in the new graph, assign type 2 vertex names to each cluster and create a new CGraph object.  
+Typically this function can be used to remove those communities which have a small number of members, or to create a new graph after intersecting two graphs from different datasets (used in data integration).  
+
+##RETS
+CGraph object.
+
+# Constructor - CGraphClust.intersect.union
+##ARGS
+obj1 = object of CGraphClust class  
+obj2 = object of CGraphClust class  
+iMinOverlap=10 minimum overlap between nodes of obj1 and obj2
+iMinComponentSize=6 If any components are smaller than this, those will be removed, used to remove small sized subgraphs not connected to the main graph  
+
+##DESC
+A direct union using the igraph library function will produce a union of two graphs and even if the vertices are not common, they still be included in the final graph. This constructor is useful typically in situations where a direct intersection and CGraphClust.recalibrate does not have many nodes remaining in the graph. In that case, this function may be useful, however it should be used with care and the results not over interpreted. It however allows to compare two very different datasets, e.g. a tuberculosis and sepsis datasets.  
+1- Get vertices common between the two graphs.  
+2- create two induced subgraphs.  
+3- create a union of the two graphs.  
+4- recalculate the edge weights (observed to expected) as the mean of the weights provided by each graph. however some edges may not be present in one graph and that will contribute NA edge weight.  
+5- Recreate the bipartite graph using the steps from the original constructor.  
+NOTE: most of the components of this new CGraph object are meaningless, and only the following components are used:  
+hc = hclust community object  
+com = community object  
+labels = the community labels (most common type 2 vertex) assigned to each vertex  
+ig.i = the graph after the union, use getFinalGraph function to get this.  
+
 
 # data accessor functions
 getProjectedGraph, getCorrelationGraph, getBipartiteGraph, getFinalGraph (to get the intersected graph), 
