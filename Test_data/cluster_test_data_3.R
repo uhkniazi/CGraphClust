@@ -20,6 +20,7 @@ colnames(dfData) = n
 
 # separate the factor and the count matrix
 fGroups = factor(dfData$fSamples, levels = c('HC', 'LTB', 'ATB'))
+names(fGroups) = rownames(dfData)
 mCounts = as.matrix(dfData[,1:(ncol(dfData)-1)])
 
 # convert enterez ids to uniprot as Reactome database file uses UNIPROT ids
@@ -78,7 +79,7 @@ axis(1, at = seq(-1, 1, by=0.1), las=2)
 
 # create the graph cluster object
 # using absolute correlation to cluster positively and negatively correlated genes
-oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.8, bSuppressPlots = F)
+oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.5, bSuppressPlots = F)
 
 ## general graph structure
 ## we would like to see how does the graph look like, are the clusters connected or in subgraphs
