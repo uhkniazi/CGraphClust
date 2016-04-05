@@ -141,8 +141,10 @@ for (i in seq_along(csClust)){
 dev.off(dev.cur())
 
 # save the new grouping
-ltb_atb_data$groups = fGroups
-ltb2_atb_data = ltb_atb_data
+n = V(getFinalGraph(oGr))$name
+head(n)
+mCounts = mCounts[,n]
+ltb2_atb_data = list(graph=oGr, groups=fGroups, matrix=mCounts)
 save(ltb2_atb_data, file='Objects/ltb2_atb_data.rds')
 #######################################################################################
 ### selection of plots for various clusters

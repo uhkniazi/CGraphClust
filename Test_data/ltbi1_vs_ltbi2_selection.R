@@ -1,0 +1,172 @@
+# Name: ltbi1_vs_ltbi2_selection.R
+# Auth: Umar Niazi u.niazi@imperial.ac.uk
+# Date: 05/04/2016
+# Desc: script for variable selection
+
+if(!require(downloader) || !require(methods)) stop('Library downloader and methods required')
+
+url = 'https://raw.githubusercontent.com/uhkniazi/CCrossValidation/master/CCrossValidation.R'
+download(url, 'CCrossValidation.R')
+
+# load the required packages
+source('CCrossValidation.R')
+# delete the file after source
+unlink('CCrossValidation.R')
+
+
+# utility function to load object
+f_LoadObject = function(r.obj.file)
+{
+  # temp environment to load object
+  env <- new.env()
+  # read object
+  nm <- load(r.obj.file, env)[1]
+  return(env[[nm]])
+}
+
+f_dfGetGeneAnnotation = function(cvEnterezID = NULL) {
+  if (!require(org.Hs.eg.db)) stop('org.Hs.eg.db annotation library required')
+  return(AnnotationDbi::select(org.Hs.eg.db, cvEnterezID, columns = c('SYMBOL', 'GENENAME'), keytype = 'ENTREZID'))  
+}
+
+
+## load the test data
+lData = f_LoadObject('Objects/ltb2_atb_data.rds')
+# it is a list with various components
+names(lData)
+# setup data for variable selection
+dfDat = data.frame(lData$matrix)
+fSamples = lData$groups
+i = grep('LTB', fSamples)
+dfDat = dfDat[i,]
+rownames(dfDat) = names(fSamples[i])
+fSamples = as.character(fSamples[i])
+fSamples = factor(fSamples, levels = c('LTB1', 'LTB2'))
+
+
+oRan = CVariableSelection.RandomForest(dfDat, fSamples, 100, big.warn = F)
+plot.var.selection(oRan)
+
+par(p.old)
+dfRF = CVariableSelection.RandomForest.getVariables(oRan)
+hist(dfRF$ivMean)
+
+# get the top 30 variables
+cvTopGenes = rownames(dfRF)[1:30]
+f_dfGetGeneAnnotation(gsub('^X(\\d+)', '\\1', cvTopGenes))
+## variable combinations
+dfDat.top = dfDat[,cvTopGenes]
+
+oVar = CVariableSelection.ReduceModel(dfDat.top, fSamples, 100)
+plot.var.selection(oVar)
+
+
+## get the combination that produces the best result
+set.seed(1234)
+test = sample(1:nrow(dfDat), size = nrow(dfDat) * 0.2)
+table(fSamples[test])
+
+## 10 fold nested cross validation with various variable combinations
+#par(mfrow=c(2,2))
+# try models of various sizes with CV
+for (i in 1:5){
+  cvTopGenes.sub = CVariableSelection.ReduceModel.getMinModel(oVar, i)
+  dfData.train = as.data.frame(dfDat[-test, cvTopGenes.sub])
+  colnames(dfData.train) = cvTopGenes.sub
+  dfData.test = data.frame(dfDat[test, cvTopGenes.sub])
+  colnames(dfData.test) = cvTopGenes.sub
+  
+  oCV = CCrossValidation.LDA(test.dat = (dfData.test), train.dat = (dfData.train), test.groups = fSamples[test],
+                             train.groups = fSamples[-test], level.predict = 'LTB2', boot.num = 100)
+  
+  plot.cv.performance(oCV)
+  # print variable names and 95% confidence interval for AUC
+  temp = oCV@oAuc.cv
+  x = as.numeric(temp@y.values)
+  print(paste('Variable Count', i))
+  print(cvTopGenes.sub)
+  print(signif(quantile(x, probs = c(0.025, 0.975)), 2))
+}
+
+sapply(1:5, function(x) {cvTopGenes.sub = CVariableSelection.ReduceModel.getMinModel(oVar, x)
+    print(f_dfGetGeneAnnotation(gsub('^X(\\d+)', '\\1', cvTopGenes.sub)))})
+
+mCounts = mDat[cvTopGenes.sub,]
+
+par(mfrow=c(1,2))
+sapply(seq_along(cvTopGenes.sub), function(x) boxplot(mCounts[x,] ~ fSamples, main=cvTopGenes.sub[x]))
+boxplot.cluster.variance(oGr, mCounts, fSamples, log=T, iDrawCount = length(cvTopGenes.sub), las=2)
+
+
+i = 1
+temp = t(as.matrix(mCounts[i,]))
+rownames(temp) = cvTopGenes.sub[i]
+plot.cluster.variance(oGr, temp, fSamples, log=FALSE); i = i+1
+
+dfNames.map[dfNames.map$SYMBOL %in% cvTopGenes.sub,]
+
+## get the components from the list
+# test set index
+test = lData$test
+# sample annotation
+dfSamples = lData$sample
+# expression matrix
+mDat = lData$expression
+# annotation data
+dfAnnotation = lData$annotation
+
+# set variables
+dfSamples.train = dfSamples[-test,]
+dfSamples.test = dfSamples[test,]
+mDat.train = mDat[-test,]
+mDat.test = mDat[test,]
+
+## perform nested random forest on test set
+## adjust boot.num as desired
+dfData = as.data.frame(mDat.train)
+oVar.r = CVariableSelection.RandomForest(dfData, dfSamples.train$fGroups.2, boot.num = 100)
+# plot the top 20 genes based on importance scort with 95% confidence interval for standard error
+plot.var.selection(oVar.r)
+# get the variables
+dfRF = CVariableSelection.RandomForest.getVariables(oVar.r)
+# select the top 30 variables
+cvTopGenes = rownames(dfRF)[1:30]
+
+# use the top 30 genes to find top combinations of genes
+dfData = as.data.frame(mDat.train)
+dfData = dfData[,colnames(dfData) %in% cvTopGenes]
+oVar.sub = CVariableSelection.ReduceModel(dfData, dfSamples.train$fGroups.2, boot.num = 100)
+
+# plot the number of variables vs average error rate
+plot.var.selection(oVar.sub)
+
+# print variable combinations
+for (i in 2:6){
+  cvTopGenes.sub = CVariableSelection.ReduceModel.getMinModel(oVar.sub, i)
+  print(paste('Variable Count', i))
+  print(dfAnnotation[cvTopGenes.sub,])
+}
+
+## 10 fold nested cross validation with various variable combinations
+par(mfrow=c(2,2))
+# try models of various sizes with CV
+for (i in 2:6){
+  cvTopGenes.sub = CVariableSelection.ReduceModel.getMinModel(oVar.sub, i)
+  dfData.train = as.data.frame(mDat.train)
+  dfData.train = dfData.train[,colnames(dfData.train) %in% cvTopGenes.sub]
+  
+  dfData.test = as.data.frame(mDat.test)
+  dfData.test = dfData.test[,colnames(dfData.test) %in% cvTopGenes.sub]
+  
+  oCV = CCrossValidation.LDA(test.dat = dfData.test, train.dat = dfData.train, test.groups = dfSamples.test$fGroups.2,
+                             train.groups = dfSamples.train$fGroups.2, level.predict = 'ATB', boot.num = 500)
+  
+  plot.cv.performance(oCV)
+  # print variable names and 95% confidence interval for AUC
+  temp = oCV@oAuc.cv
+  x = as.numeric(temp@y.values)
+  print(paste('Variable Count', i))
+  print(dfAnnotation[cvTopGenes.sub,])
+  print(signif(quantile(x, probs = c(0.025, 0.975)), 2))
+}
+
