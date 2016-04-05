@@ -107,7 +107,7 @@ table(km.out$cluster)
 fGroups = as.character(fGroups)
 fGroups[ivLtb] = paste0(fGroups[ivLtb], km.out$cluster)
 fGroups = factor(fGroups, levels = c('HC', 'LTB1', 'LTB2', 'ATB'))
-
+names(fGroups) = names(ltb_atb_data$groups)
 # pca with new groupings
 pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)
 par(mar=c(4,2,4,2))
@@ -140,7 +140,10 @@ for (i in seq_along(csClust)){
 }
 dev.off(dev.cur())
 
-
+# save the new grouping
+ltb_atb_data$groups = fGroups
+ltb2_atb_data = ltb_atb_data
+save(ltb2_atb_data, file='Objects/ltb2_atb_data.rds')
 #######################################################################################
 ### selection of plots for various clusters
 #######################################################################################
@@ -149,7 +152,7 @@ dev.off(dev.cur())
 # Various plots for one cluster of choice
 csClust.all = csClust
 get.reactome.name(csClust.all)
-csClust = '913531'
+csClust = '372790'
 
 lev = levels(fGroups)[-1]
 m = mCounts
