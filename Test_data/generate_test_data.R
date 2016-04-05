@@ -404,6 +404,7 @@ exprs(oExp) = na.omit(exprs(oExp))
 
 # print samples
 as.data.frame(table(oExp$source_name_ch1))
+as.data.frame(table(oExp$characteristics_ch1.3))
 
 # get the whole blood data
 i = grep('^Whole blood from healthy control$|^Whole Blood from patient with Active TB$|^Whole Blood from patient with Latent TB$', 
@@ -412,9 +413,12 @@ oExp = oExp[,i]
 
 # sanity check
 as.data.frame(table(oExp$source_name_ch1))
+as.data.frame(table(oExp$characteristics_ch1.3))
 
 ## data normalization
 # normalize and log2 transform the data using lumi
+# remove negative values first and set minimum value to 1
+exprs(oExp) = exprs(oExp) + abs(min(exprs(oExp))) + 1
 oExp.lumi = lumiT(oExp, 'log2')
 fSamples = rep(NA, times=nrow(pData(oExp.lumi)))
 f = as.character(oExp$source_name_ch1)
@@ -479,23 +483,40 @@ plot(pr.out$x[,c(2,3)], col=c, pch=19, xlab='Z2', ylab='Z3',
      main='PCA comp 2 and 3')
 par(p.old)
 
-# # create a factor for this outlier
-# l = f_lGetPCAClusterCount(pr.out)
-# l$cluster.count
-# table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
-# i = (l$cluster.label$c1 %in% as.character(6:11))
-# fBatch = factor(as.numeric(i)) 
-# 
-# oExp$fBatch = fBatch
-# 
-# ## add the combat step for batch covariate
-# library(sva)
-# modcombat = model.matrix(~1, data=pData(oExp))
-# oCexp = ComBat(exprs(oExp), batch = oExp$fBatch, mod=modcombat)
-# exprs(oExp) = oCexp
+# create a factor for this outlier
+l = f_lGetPCAClusterCount(pr.out)
+l$cluster.count
+table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
+i = (l$cluster.label$c1 %in% as.character(6:11))
+fBatch = factor(as.numeric(i)) 
 
-# remove the outlier
-oExp = oExp[,-i]
+# check what are these batches
+temp = pData(oExp)
+xtabs(~ (temp$characteristics_ch1.4) + fBatch + fSamples)
+
+i = grep('London|South Africa', oExp$characteristics_ch1.4)
+oExp = oExp[,i]
+temp = pData(oExp)
+xtabs(~ (temp$characteristics_ch1.4) + temp$fSamples)
+
+fBatch.1 = as.character(oExp$characteristics_ch1.4)
+fBatch.1 = gsub('[\\w ]*:[ ]?(\\w+)', replacement = '\\1', fBatch.1, perl = T)
+
+fBatch.2 = as.character(oExp$title)
+fBatch.2 = (gsub('^[A-Z]{2,}_(\\w+)', '\\1', fBatch.2, perl = T))
+fBatch.2 = gsub('^(LON|SA)[-_]([A-Za-z]+)\\d+', '\\1.\\2', fBatch.2, perl=T)
+
+fBatch = paste0(fBatch.1, fBatch.2)
+oExp$fBatch = factor(fBatch)
+
+## add the combat step for batch covariate
+library(sva)
+modcombat = model.matrix(~1, data=pData(oExp))
+oCexp = ComBat(exprs(oExp), batch = oExp$fBatch, mod=modcombat)
+exprs(oExp) = oCexp
+
+# # remove the outlier
+# oExp = oExp[,-i]
 
 ## test quality again
 ## check for outliers
@@ -504,7 +525,7 @@ m = exprs(oExp)
 pr.out = prcomp(t(m), scale=T)
 ## choose appropriate factor
 fSamples = oExp$fSamples
-
+fSamples = oExp$fBatch
 col.p = rainbow(length(unique(fSamples)))
 col = col.p[as.numeric(fSamples)]
 # plot the pca components
@@ -559,50 +580,50 @@ plot(pr.out$x[,c(1,3)], col=col, pch=19, xlab='Z1', ylab='Z3',
 plot(pr.out$x[,c(2,3)], col=col, pch=19, xlab='Z2', ylab='Z3',
      main='PCA comp 2 and 3')
 
-l = f_lGetPCAClusterCount(pr.out)
-l$cluster.count
-table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
-i = which(l$cluster.label$c1 %in% as.character(5:6))
-
-# sanity check for the outlier
-c = col
-c[i] = 'black'
-par(mfrow=c(2,2))
-plot.new()
-legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
-plot(pr.out$x[,1:2], col=c, pch=19, xlab='Z1', ylab='Z2',
-     main='PCA comp 1 and 2')
-plot(pr.out$x[,c(1,3)], col=c, pch=19, xlab='Z1', ylab='Z3',
-     main='PCA comp 1 and 3')
-plot(pr.out$x[,c(2,3)], col=c, pch=19, xlab='Z2', ylab='Z3',
-     main='PCA comp 2 and 3')
-par(p.old)
-
-# remove the outlier
-oExp = oExp[,-i]
-
-m = exprs(oExp)
-# pca on samples i.e. covariance matrix of m
-pr.out = prcomp(t(m), scale=T)
-## choose appropriate factor
-fSamples = oExp$fSamples
-
-col.p = rainbow(length(unique(fSamples)))
-col = col.p[as.numeric(fSamples)]
-# plot the pca components
-par(mfrow=c(2,2))
-plot.new()
-legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
-plot(pr.out$x[,1:2], col=col, pch=19, xlab='Z1', ylab='Z2',
-     main='PCA comp 1 and 2')
-plot(pr.out$x[,c(1,3)], col=col, pch=19, xlab='Z1', ylab='Z3',
-     main='PCA comp 1 and 3')
-plot(pr.out$x[,c(2,3)], col=col, pch=19, xlab='Z2', ylab='Z3',
-     main='PCA comp 2 and 3')
-
-l = f_lGetPCAClusterCount(pr.out)
-l$cluster.count
-table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
+# l = f_lGetPCAClusterCount(pr.out)
+# l$cluster.count
+# table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
+# i = which(l$cluster.label$c1 %in% as.character(5:6))
+# 
+# # sanity check for the outlier
+# c = col
+# c[i] = 'black'
+# par(mfrow=c(2,2))
+# plot.new()
+# legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+# plot(pr.out$x[,1:2], col=c, pch=19, xlab='Z1', ylab='Z2',
+#      main='PCA comp 1 and 2')
+# plot(pr.out$x[,c(1,3)], col=c, pch=19, xlab='Z1', ylab='Z3',
+#      main='PCA comp 1 and 3')
+# plot(pr.out$x[,c(2,3)], col=c, pch=19, xlab='Z2', ylab='Z3',
+#      main='PCA comp 2 and 3')
+# par(p.old)
+# 
+# # remove the outlier
+# oExp = oExp[,-i]
+# 
+# m = exprs(oExp)
+# # pca on samples i.e. covariance matrix of m
+# pr.out = prcomp(t(m), scale=T)
+# ## choose appropriate factor
+# fSamples = oExp$fSamples
+# 
+# col.p = rainbow(length(unique(fSamples)))
+# col = col.p[as.numeric(fSamples)]
+# # plot the pca components
+# par(mfrow=c(2,2))
+# plot.new()
+# legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+# plot(pr.out$x[,1:2], col=col, pch=19, xlab='Z1', ylab='Z2',
+#      main='PCA comp 1 and 2')
+# plot(pr.out$x[,c(1,3)], col=col, pch=19, xlab='Z1', ylab='Z3',
+#      main='PCA comp 1 and 3')
+# plot(pr.out$x[,c(2,3)], col=col, pch=19, xlab='Z2', ylab='Z3',
+#      main='PCA comp 2 and 3')
+# 
+# l = f_lGetPCAClusterCount(pr.out)
+# l$cluster.count
+# table(c1 = l$cluster.label$c1, c2 = l$cluster.label$c2)
 
 ### perform DE analysis
 mDat = exprs(oExp)
@@ -612,7 +633,7 @@ cvSym = getSYMBOL(rownames(mDat), 'lumiHumanAll.db')
 table(is.na(cvSym))
 # remove unannotated genes
 mDat = mDat[!is.na(cvSym),]
-
+fSamples = oExp$fSamples
 design = model.matrix(~fSamples)
 colnames(design) = levels(fSamples)
 head(design)
@@ -640,7 +661,7 @@ names(lSigGenes.adj) = levels(fSamples)[2:length(levels(fSamples))]
 
 for (i in 2:length(levels(fSamples))){
   p.adj = p.adjust(fit$p.value[,i], method = 'BH')
-  lSigGenes.adj[[i-1]] = names(p.adj)[p.adj < 0.1]
+  lSigGenes.adj[[i-1]] = names(p.adj)[p.adj < 0.01]
 }
 
 #cvSigGenes.adj = unique(cvSigGenes.adj)
