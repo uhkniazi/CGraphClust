@@ -67,15 +67,15 @@ mCor = cor(mCounts)
 hist(sample(mCor, 10000, replace = T), prob=T, main='Correlation of genes', xlab='', family='Arial', breaks=20, xaxt='n')
 axis(1, at = seq(-1, 1, by=0.1), las=2)
 
-# stabalize the data and check correlation again i.e. calculated bayes adjusted posterior means
-mCounts.st = apply(mCounts, 2, function(x) f_ivStabilizeData(x, fGroups))
-rownames(mCounts.st) = fGroups
-
-# create a correlation matrix
-mCor = cor(mCounts.st)
-# check distribution 
-hist(mCor, prob=T, main='Correlation of genes', xlab='', family='Arial', breaks=20, xaxt='n')
-axis(1, at = seq(-1, 1, by=0.1), las=2)
+# # stabalize the data and check correlation again i.e. calculated bayes adjusted posterior means
+# mCounts.st = apply(mCounts, 2, function(x) f_ivStabilizeData(x, fGroups))
+# rownames(mCounts.st) = fGroups
+# 
+# # create a correlation matrix
+# mCor = cor(mCounts.st)
+# # check distribution 
+# hist(mCor, prob=T, main='Correlation of genes', xlab='', family='Arial', breaks=20, xaxt='n')
+# axis(1, at = seq(-1, 1, by=0.1), las=2)
 
 # create the graph cluster object
 # using absolute correlation to cluster positively and negatively correlated genes
@@ -362,7 +362,7 @@ for(i in 1:length(lev)){
 
 
 # Various plots for one cluster of choice
-csClust = '388396'
+csClust = '109582'
 
 lev = levels(fGroups)[-1]
 m = mCounts
@@ -405,11 +405,12 @@ mC = mC[n$ENTREZID,]
 rownames(mC) = n$SYMBOL
 rn = rownames(mC)
 length(rn)
-i = 1
 
-temp = t(as.matrix(mC[rn[i],]))
-rownames(temp) = rn[i]
-plot.cluster.variance(oGr, temp, fGroups, log=FALSE); i = i+1
+for (i in seq_along(rn)){
+  temp = t(as.matrix(mC[rn[i],]))
+  rownames(temp) = rn[i]
+  plot.cluster.variance(oGr, temp, fGroups, log=FALSE);
+}
 
 
 # saving graph object to visualize in cytoscape or other graph viewers

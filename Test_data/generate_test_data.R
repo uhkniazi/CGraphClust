@@ -154,7 +154,7 @@ names(lSigGenes.adj) = levels(fSamples)[2:length(levels(fSamples))]
 
 for (i in 2:length(levels(fSamples))){
   p.adj = p.adjust(fit$p.value[,i], method = 'BH')
-  lSigGenes.adj[[i-1]] = names(p.adj)[p.adj < 0.1]
+  lSigGenes.adj[[i-1]] = names(p.adj)[p.adj < 0.01]
 }
 
 #cvSigGenes.adj = unique(cvSigGenes.adj)
