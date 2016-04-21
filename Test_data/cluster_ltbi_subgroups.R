@@ -106,7 +106,7 @@ km.out
 table(km.out$cluster)
 fGroups = as.character(fGroups)
 fGroups[ivLtb] = paste0(fGroups[ivLtb], km.out$cluster)
-fGroups = factor(fGroups, levels = c('HC', 'LTB1', 'LTB2', 'ATB'))
+fGroups = factor(fGroups, levels = c('HC', 'LTB2', 'LTB1', 'ATB'))
 names(fGroups) = names(ltb_atb_data$groups)
 # pca with new groupings
 pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)
@@ -146,15 +146,19 @@ head(n)
 mCounts = mCounts[,n]
 ltb2_atb_data = list(graph=oGr, groups=fGroups, matrix=mCounts)
 save(ltb2_atb_data, file='Objects/ltb2_atb_data.rds')
+
+dfCluster = getClusterMapping(oGr)
+colnames(dfCluster) = c('gene', 'cluster')
+rownames(dfCluster) = dfCluster$gene
+# how many genes in each cluster
+data.frame(sort(table(dfCluster$cluster)))
+
 #######################################################################################
 ### selection of plots for various clusters
 #######################################################################################
 
-
 # Various plots for one cluster of choice
-csClust.all = csClust
-get.reactome.name(csClust.all)
-csClust = '372790'
+csClust = '1280218'
 
 lev = levels(fGroups)[-1]
 m = mCounts
@@ -190,26 +194,6 @@ aheatmap(mC, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc,
          annColors=NA, Colv=NA)
 
 
-# with smoothing
-ig.sub = getClusterSubgraph(oGr, csClustLabel = csClust)
-n = f_dfGetGeneAnnotation(V(ig.sub)$name)
-mC = t(mCounts)
-mC = mC[n$ENTREZID,]
-rownames(mC) = n$SYMBOL
-cn = colnames(mC)
-mC = t(apply(mC, 1, f_ivStabilizeData, fGroups))
-colnames(mC) = cn
-mC = t(scale(t(mC)))
-# threshhold the values
-mC[mC < -3] = -3
-mC[mC > +3] = +3
-# draw the heatmap
-hc = hclust(dist(mC))
-aheatmap(mC, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=NA, 
-         annColors=NA, Colv=NA)
-
-
-
 # if we want to plot variance of one gene at a time
 n = f_dfGetGeneAnnotation(V(ig.sub)$name)
 mC = t(mCounts)
@@ -217,11 +201,13 @@ mC = mC[n$ENTREZID,]
 rownames(mC) = n$SYMBOL
 rn = rownames(mC)
 length(rn)
+
 for (i in seq_along(rn)){
   temp = t(as.matrix(mC[rn[i],]))
   rownames(temp) = rn[i]
-  plot.cluster.variance(oGr, temp, fGroups, log=FALSE)
+  plot.cluster.variance(oGr, temp, fGroups, log=FALSE);
 }
+
 
 # saving graph object to visualize in cytoscape or other graph viewers
 csClust = as.character(unique(dfCluster$cluster))
@@ -237,8 +223,3 @@ for(i in 1:length(lev)){
   nm = paste('Results/', lev[i], 'vs', levels(fGroups)[1], '.graphml', sep='')
   write.graph(ig, file = nm, format = 'graphml')
 }
-# ig = getFinalGraph(oGr)
-# n = f_dfGetGeneAnnotation(V(ig)$name)
-# V(ig)[n$ENTREZID]$label = n$SYMBOL
-# ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T)
-# write.graph(ig, file = 'Results/graph.graphml', format = 'graphml')
