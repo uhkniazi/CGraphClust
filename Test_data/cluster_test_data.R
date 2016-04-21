@@ -20,6 +20,7 @@ colnames(dfData) = n
 
 # separate the factor and the count matrix
 fGroups = factor(dfData$fSamples, levels = c('12', '2', '0'))
+names(fGroups) = rownames(dfData)
 mCounts = as.matrix(dfData[,1:(ncol(dfData)-1)])
 
 # convert enterez ids to uniprot as Reactome database file uses UNIPROT ids
@@ -334,7 +335,7 @@ for(i in 1:length(lev)){
 
 
 # Various plots for one cluster of choice
-csClust = '1280215'
+csClust = '109582'
 
 lev = levels(fGroups)[-1]
 m = mCounts
@@ -377,12 +378,12 @@ mC = mC[n$ENTREZID,]
 rownames(mC) = n$SYMBOL
 rn = rownames(mC)
 length(rn)
-i = 1
 
-temp = t(as.matrix(mC[rn[i],]))
-rownames(temp) = rn[i]
-plot.cluster.variance(oGr, temp, fGroups, log=FALSE); i = i+1
-
+for (i in seq_along(rn)){
+  temp = t(as.matrix(mC[rn[i],]))
+  rownames(temp) = rn[i]
+  plot.cluster.variance(oGr, temp, fGroups, log=FALSE);
+}
 
 # saving graph object to visualize in cytoscape or other graph viewers
 csClust = as.character(unique(dfCluster$cluster))
