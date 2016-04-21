@@ -41,7 +41,7 @@ i = grep('LTB', fSamples)
 dfDat = dfDat[i,]
 rownames(dfDat) = names(fSamples[i])
 fSamples = as.character(fSamples[i])
-fSamples = factor(fSamples, levels = c('LTB1', 'LTB2'))
+fSamples = factor(fSamples, levels = c('LTB2', 'LTB1'))
 
 
 oRan = CVariableSelection.RandomForest(dfDat, fSamples, 100, big.warn = F)
@@ -77,7 +77,7 @@ for (i in 1:5){
   colnames(dfData.test) = cvTopGenes.sub
   
   oCV = CCrossValidation.LDA(test.dat = (dfData.test), train.dat = (dfData.train), test.groups = fSamples[test],
-                             train.groups = fSamples[-test], level.predict = 'LTB2', boot.num = 100)
+                             train.groups = fSamples[-test], level.predict = 'LTB1', boot.num = 100)
   
   plot.cv.performance(oCV)
   # print variable names and 95% confidence interval for AUC
@@ -91,82 +91,29 @@ for (i in 1:5){
 sapply(1:5, function(x) {cvTopGenes.sub = CVariableSelection.ReduceModel.getMinModel(oVar, x)
     print(f_dfGetGeneAnnotation(gsub('^X(\\d+)', '\\1', cvTopGenes.sub)))})
 
-mCounts = mDat[cvTopGenes.sub,]
+
+## make plots for the top genes
+cvTopGenes.sub = gsub('^X(\\d+)', '\\1', cvTopGenes)
+mCounts = lData$matrix
+mCounts = mCounts[,cvTopGenes.sub]
+df = f_dfGetGeneAnnotation(cvTopGenes.sub)
+colnames(mCounts) = df$SYMBOL
+fSamples = lData$groups
 
 par(mfrow=c(1,2))
-sapply(seq_along(cvTopGenes.sub), function(x) boxplot(mCounts[x,] ~ fSamples, main=cvTopGenes.sub[x]))
-boxplot.cluster.variance(oGr, mCounts, fSamples, log=T, iDrawCount = length(cvTopGenes.sub), las=2)
+sapply(seq_along(1:ncol(mCounts)), function(x) boxplot(mCounts[,x] ~ fSamples, main=colnames(mCounts)[x]))
+
+library(NMF)
+m1 = mCounts
+m1 = scale(m1)
+m1 = t(m1)
+# threshhold the values
+m1[m1 < -3] = -3
+m1[m1 > 3] = 3
+rownames(m1) = colnames(mCounts)
+# draw the heatmap  color='-RdBu:50'
+aheatmap(m1, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = TRUE, 
+         annColors=NA, Colv=NA)
 
 
-i = 1
-temp = t(as.matrix(mCounts[i,]))
-rownames(temp) = cvTopGenes.sub[i]
-plot.cluster.variance(oGr, temp, fSamples, log=FALSE); i = i+1
-
-dfNames.map[dfNames.map$SYMBOL %in% cvTopGenes.sub,]
-
-## get the components from the list
-# test set index
-test = lData$test
-# sample annotation
-dfSamples = lData$sample
-# expression matrix
-mDat = lData$expression
-# annotation data
-dfAnnotation = lData$annotation
-
-# set variables
-dfSamples.train = dfSamples[-test,]
-dfSamples.test = dfSamples[test,]
-mDat.train = mDat[-test,]
-mDat.test = mDat[test,]
-
-## perform nested random forest on test set
-## adjust boot.num as desired
-dfData = as.data.frame(mDat.train)
-oVar.r = CVariableSelection.RandomForest(dfData, dfSamples.train$fGroups.2, boot.num = 100)
-# plot the top 20 genes based on importance scort with 95% confidence interval for standard error
-plot.var.selection(oVar.r)
-# get the variables
-dfRF = CVariableSelection.RandomForest.getVariables(oVar.r)
-# select the top 30 variables
-cvTopGenes = rownames(dfRF)[1:30]
-
-# use the top 30 genes to find top combinations of genes
-dfData = as.data.frame(mDat.train)
-dfData = dfData[,colnames(dfData) %in% cvTopGenes]
-oVar.sub = CVariableSelection.ReduceModel(dfData, dfSamples.train$fGroups.2, boot.num = 100)
-
-# plot the number of variables vs average error rate
-plot.var.selection(oVar.sub)
-
-# print variable combinations
-for (i in 2:6){
-  cvTopGenes.sub = CVariableSelection.ReduceModel.getMinModel(oVar.sub, i)
-  print(paste('Variable Count', i))
-  print(dfAnnotation[cvTopGenes.sub,])
-}
-
-## 10 fold nested cross validation with various variable combinations
-par(mfrow=c(2,2))
-# try models of various sizes with CV
-for (i in 2:6){
-  cvTopGenes.sub = CVariableSelection.ReduceModel.getMinModel(oVar.sub, i)
-  dfData.train = as.data.frame(mDat.train)
-  dfData.train = dfData.train[,colnames(dfData.train) %in% cvTopGenes.sub]
-  
-  dfData.test = as.data.frame(mDat.test)
-  dfData.test = dfData.test[,colnames(dfData.test) %in% cvTopGenes.sub]
-  
-  oCV = CCrossValidation.LDA(test.dat = dfData.test, train.dat = dfData.train, test.groups = dfSamples.test$fGroups.2,
-                             train.groups = dfSamples.train$fGroups.2, level.predict = 'ATB', boot.num = 500)
-  
-  plot.cv.performance(oCV)
-  # print variable names and 95% confidence interval for AUC
-  temp = oCV@oAuc.cv
-  x = as.numeric(temp@y.values)
-  print(paste('Variable Count', i))
-  print(dfAnnotation[cvTopGenes.sub,])
-  print(signif(quantile(x, probs = c(0.025, 0.975)), 2))
-}
 
