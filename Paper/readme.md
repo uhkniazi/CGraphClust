@@ -8,6 +8,8 @@ Clustering and integrating differentially expressed and co-expressed genes to st
   * Clustering of Longitudinal dataset using CGraphClust class.  
 3. cluster_dataset_2.R  
   * Clustering of Cross-sectional dataset using CGraphClust class.  
+4. merge_graphs_subcluster_ltbi.R  
+  * Merge the two graphs for the two datasets, selecting genes that are co-expressed in both experiments. Used unsupervised clustering like kmeans to look for 2 sub-groups within the LTB groups using the reduced dimension cluster profile matrix.
   
 
 
