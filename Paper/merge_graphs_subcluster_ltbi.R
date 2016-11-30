@@ -69,6 +69,25 @@ plot.final.graph(oGr)
 ecount(getFinalGraph(oGr))
 vcount(getFinalGraph(oGr))
 
+## look at the top centrality genes
+set.seed(1)
+ig = plot.centrality.graph(oGr)
+
+dfTopGenes.cent = dfGetTopVertices(oGr, iQuantile = 0.90)
+rownames(dfTopGenes.cent) = dfTopGenes.cent$VertexID
+# assign metadata annotation to these genes and clusters
+dfCluster = getClusterMapping(oGr)
+colnames(dfCluster) = c('gene', 'cluster')
+rownames(dfCluster) = dfCluster$gene
+df = f_dfGetGeneAnnotation(as.character(dfTopGenes.cent$VertexID))
+dfTopGenes.cent = cbind(dfTopGenes.cent[as.character(df$ENTREZID),], SYMBOL=df$SYMBOL, GENENAME=df$GENENAME)
+dfCluster = dfCluster[as.character(dfTopGenes.cent$VertexID),]
+dfTopGenes.cent = cbind(dfTopGenes.cent, Cluster=dfCluster$cluster)
+
+dir.create('Paper/Results', showWarnings = F)
+write.csv(dfTopGenes.cent, file='Paper/Results/Top_Centrality_Genes_tb_combined.csv')
+
+
 # get the expression matrix for the clusters
 mMarginal = getSignificantClusters(oGr, t(mCounts), fGroups)$clusters
 
@@ -84,14 +103,26 @@ for (i in seq_along(csClust)){
 }
 dev.off(dev.cur())
 
+## interestingly 1280215 has a larger variance in LTB group
+## compared to ATB and HC groups, and the genes from this group
+## also form the largest clique and have highest degrees
+## see table for dfTopGenes.cent
+## get the list of these genes
+l = getLargestCliqueInCluster(oGr, '1280215')
+cvTopGenes = names(V(l))
+# #
+# 
+# 
+# 
+# # plot pca biplot for this data using posterior mean
+# set.seed(1)
+# pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)
+# pdf('Paper/Results/pca_clusters_merged_dataset.pdf')
+# par(mar=c(4,2,4,2))
+# biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
+# dev.off(dev.cur())
 
-# plot pca biplot for this data using posterior mean
-set.seed(1)
-pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)
-pdf('Paper/Results/pca_clusters_merged_dataset.pdf')
-par(mar=c(4,2,4,2))
-biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
-dev.off(dev.cur())
+
 
 ## as we have reduced dimensions we try and cluster ltbi into 2 groups
 ## this is based on biological knowledge that LTBI can be Recently exposed and remotely exposed
@@ -100,8 +131,8 @@ dev.off(dev.cur())
 ## have a higher posterior variance when compared with Healthy and active tb groups.
 ## subcluster the ltb group into two subgroups
 ivLtb = which(fGroups == 'LTB')
-mLtb = mMarginal[,ivLtb]
-mLtb = t(mLtb)
+mLtb = mCounts[ivLtb, cvTopGenes]
+#mLtb = t(mLtb)
 set.seed(123)
 # cluster along the row vectors
 km.out = kmeans(mLtb, centers = 2, nstart = 20)
@@ -113,7 +144,7 @@ fGroups = factor(fGroups, levels = c('HC', 'LTB1', 'LTB2', 'ATB'))
 names(fGroups) = names(ltb_atb_data$groups)
 # pca with new groupings
 set.seed(1)
-pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = F)
+pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)
 # make a plot with randomized grouping to show that giving the group
 # labels makes a sensible hierarchical structure
 set.seed(1)
