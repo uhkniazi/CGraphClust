@@ -1,5 +1,5 @@
 # Title
-Clustering and integrating differentially expressed and co-expressed genes to stratify Latent TB into Recents and Remotes
+Clustering and integrating differentially expressed and co-expressed genes to select genes with high association with the disease.
 
 ## Scripts to Generate Data and Results  
 1. generate_test_data.R  
@@ -8,8 +8,10 @@ Clustering and integrating differentially expressed and co-expressed genes to st
   * Clustering of Longitudinal dataset using CGraphClust class.  
 3. cluster_dataset_2.R  
   * Clustering of Cross-sectional dataset using CGraphClust class.  
-4. merge_graphs_subcluster_ltbi.R  
-  * Merge the two graphs for the two datasets, selecting genes that are co-expressed in both experiments. Used unsupervised clustering like kmeans to look for 2 sub-groups within the LTB groups using the reduced dimension cluster profile matrix.
+4. merge_graphs_select_biomarker.R
+  * Merge the two graphs for the two datasets, selecting genes that are co-expressed in both experiments. Select genes with high hub and degree scores from two clusters, perform variable steps to show these are also good biomarkers.  
+  
+
   
 
 
