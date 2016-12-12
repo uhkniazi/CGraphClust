@@ -101,6 +101,13 @@ cvTopGenes = c(cvTopGenes, names(V(l)))
 # select only 30 genes for this test, as exhaustive selection doesnt work well with more than 30 genes
 cvTopGenes = cvTopGenes[1:30]
 
+## load the independent data set
+dfIndependent = read.csv('Paper/Test_data/GSE37250_ind_test_set.csv', row.names = 1)
+cn = gsub('^X(\\d+)', replacement = '\\1', colnames(dfIndependent))
+colnames(dfIndependent) = cn
+
+mCounts = as.matrix(dfIndependent[,cvTopGenes])
+fSamples = dfIndependent$fSamples
 ## are any of these diagnostic/biomarkers
 if(!require(downloader) || !require(methods)) stop('Library downloader and methods required')
 
@@ -112,19 +119,18 @@ source('CCrossValidation.R')
 # delete the file after source
 unlink('CCrossValidation.R')
 
-dfDat = data.frame(mCounts[,cvTopGenes])
-fSamples = fGroups
+dfDat = data.frame(mCounts)
 colnames(dfDat) = f_dfGetGeneAnnotation(cvTopGenes)$SYMBOL
 head(dfDat)
 
 # merge the LTB and HC together as Healthy and ATB as disease
 i = grep('LTB|HC', fSamples)
-#dfDat = dfDat[i,]
-rownames(dfDat) = names(fSamples)
 fSamples = as.character(fSamples)
 fSamples[i] = 'Healthy'
 fSamples[-i] = 'Disease'
 fSamples = factor(fSamples, levels = c('Healthy', 'Disease'))
+table(fSamples)
+levels(fSamples)
 
 par(p.old)
 ## variable combinations

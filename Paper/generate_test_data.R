@@ -466,3 +466,121 @@ dir.create('Test_data', showWarnings = F)
 
 write.csv(dfData, file='Test_data/test_data_GSE19491_atb_ltb.csv')
 
+##############################################################################################
+### third dataset
+##############################################################################################
+## data loading
+# load the data, clean and create factors
+dir.create('Data_external', showWarnings = F)
+gse =  getGEO('GSE37250', GSEMatrix = T, destdir = 'Data_external/')
+oExp = gse$GSE37250_series_matrix.txt.gz
+
+# add lumi nuIDs 
+oExp = addNuID2lumi(oExp, lib.mapping = 'lumiHumanIDMapping' )
+
+df = pData(oExp)
+xtabs(~ df$characteristics_ch1 + df$characteristics_ch1.1)
+
+## data normalization
+# normalize and log2 transform the data using lumi
+# remove negative values first and set minimum value to 1
+exprs(oExp) = exprs(oExp) + abs(min(exprs(oExp))) + 1
+oExp.lumi = lumiT(oExp, 'log2')
+
+# create 3 groups + 2 groups based on disease and hiv status
+fSamples = rep(NA, times=nrow(pData(oExp.lumi)))
+f = as.character(oExp$characteristics_ch1)
+# create factors
+i = grep('active tuberculosis', f)
+fSamples[i] = 'ATB'
+
+i = grep('latent TB', f)
+fSamples[i] = 'LTB'
+
+i = grep('other', f)
+fSamples[i] = 'HC'
+
+fSamples = factor(fSamples, levels = c('HC', 'LTB', 'ATB'))
+table(fSamples)
+levels(fSamples)
+
+oExp.lumi$fSamples = fSamples
+
+## second factor for hiv status
+fSamples = rep(NA, times=nrow(pData(oExp.lumi)))
+f = as.character(oExp$characteristics_ch1.1)
+
+# create factors
+i = grep('HIV positive', f)
+fSamples[i] = 'HIV+'
+
+i = grep('HIV negative', f)
+fSamples[i] = 'HIV-'
+
+fSamples = factor(fSamples, levels = c('HIV-', 'HIV+'))
+table(fSamples)
+levels(fSamples)
+
+oExp.lumi$fHIV = fSamples
+
+
+## data normalization
+oExp = lumiN(oExp.lumi, method='rsn')
+rm(oExp.lumi)
+gc()
+
+## check for outliers
+# check quality
+m = exprs(oExp)
+# pca on samples i.e. covariance matrix of m
+pr.out = prcomp(t(m), scale=T)
+## choose appropriate factor
+fSamples = oExp$fSamples
+
+col.p = rainbow(length(unique(fSamples)))
+col = col.p[as.numeric(fSamples)]
+# plot the pca components
+par(mfrow=c(2,2))
+plot.new()
+legend('center', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))])
+plot(pr.out$x[,1:2], col=col, pch=19, xlab='Z1', ylab='Z2',
+     main='PCA comp 1 and 2')
+plot(pr.out$x[,c(1,3)], col=col, pch=19, xlab='Z1', ylab='Z3',
+     main='PCA comp 1 and 3')
+plot(pr.out$x[,c(2,3)], col=col, pch=19, xlab='Z2', ylab='Z3',
+     main='PCA comp 2 and 3')
+
+### perform DE analysis
+mDat = exprs(oExp)
+# map the nuID to human symbols
+cvSym = getSYMBOL(rownames(mDat), 'lumiHumanAll.db')
+# number of genes not annotated
+table(is.na(cvSym))
+# remove unannotated genes
+mDat = mDat[!is.na(cvSym),]
+fSamples = oExp$fSamples
+fHIV = oExp$fHIV
+
+# get annotation
+df = select(lumiHumanAll.db, keys = rownames(mDat), columns = c('ENTREZID', 'SYMBOL', 'GENENAME'), keytype = 'PROBEID')
+# sanity check
+nrow(mDat) == nrow(df)
+rownames(mDat) = df$ENTREZID
+
+## export the result as an independent test set 
+dfData = t(mDat)
+cn = select(lumiHumanAll.db, keys = colnames(dfData), columns = c('ENTREZID'), keytype = 'PROBEID')
+colnames(dfData) = cn$ENTREZID
+# remove duplicate probes
+f = !duplicated(colnames(dfData))
+table(f)
+dfData = dfData[,f]
+dfData = data.frame(dfData)
+dfData$fSamples = fSamples
+dfData$fHIV = fHIV
+
+dir.create('Test_data', showWarnings = F)
+
+write.csv(dfData, file='Test_data/GSE37250_ind_test_set.csv')
+
+
