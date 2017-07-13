@@ -7,7 +7,7 @@ The following are required to be present on the system:
 + *igraph* package in R  
 + *downloader* package in R (if downloading annotation files required)  
 + Bioconductor, (version 3.0 or higher) with packages  
-..* org.Hs.eg.db (if annotations for human genes is required)  
+  * org.Hs.eg.db (if annotations for human genes is required)  
  
  
 ## Running Example  
