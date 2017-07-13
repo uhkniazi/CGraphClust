@@ -1,6 +1,20 @@
 # CGraphClust
-Class to create a Hclust object based on shared properties (e.g. pathways) and positive correlation
+R Class to create graphs from Omics data, e.g. Gene expression matrix and a Table of Genes and Associated pathway terms.  
 
+# Quick Start Guide  
+The following are required to be present on the system:  
++ R version 3.4.0 or higher  
++ *igraph* package in R  
++ *downloader* package in R (if downloading annotation files required)  
++ Bioconductor, (version 3.0 or higher) with packages  
+..+ org.Hs.eg.db (if annotations for human genes is required)
+
+
+
+
+
+
+***
 # Inheritence Structure
 CGraph - Parent Class --> CGraphClust - Child Class
 
