@@ -7,11 +7,137 @@ The following are required to be present on the system:
 + *igraph* package in R  
 + *downloader* package in R (if downloading annotation files required)  
 + Bioconductor, (version 3.0 or higher) with packages  
-..+ org.Hs.eg.db (if annotations for human genes is required)
+..* org.Hs.eg.db (if annotations for human genes is required)  
+ 
+ 
+## Running Example  
+The usage is explained via an example.  
+### Data Preparation
+The data matrix consists of 21 samples and 1362 genes, while the grouping factor shows 7 samples in each group.
 
+```R
+> dim(mCounts)
+[1]   21 1362
+> table(fGroups)
+fGroups
+12  2  0 
+ 7  7  7 
+```
+The second piece of information we need is a mapping table that has Variable names (Gene IDs) in the first column and Grouping terms (e.g. REACTOME ids for that gene).  
+```R
+> mCounts[1:5, 1:10]
+               2597     9792    65980     1592     8720     2790     3779     2000     6398   222223
+GSM484380 10.158587 8.371591 7.812608 6.667878 7.604684 8.327295 7.709530 9.491233 5.543011 4.165178
+GSM484381  9.939359 8.877825 7.948275 6.030240 7.894243 8.174115 7.152345 8.806329 5.266879 4.492998
+GSM484382  9.491808 9.333348 8.542408 5.298431 8.084001 6.839688 6.253693 8.620620 3.947724 4.729314
+GSM484383 10.513044 8.368436 7.524928 6.451396 7.919592 8.666990 7.588009 9.189281 4.962316 4.237957
+GSM484384  9.568857 9.054925 8.204923 5.436528 8.069337 8.066015 6.575776 8.679335 4.415582 4.252351
+> head(dfGraph, 10)
+      ENTREZID      V2
+30887    57488 1430728
+30888    57488 1660662
+30889    57488  428157
+30890    57488  556833
+33498   338440 2672351
+33499   338440  382551
+33500   338440  983712
+51717    23019  212436
+51718    23019 3700989
+51719    23019  429914
+```
+In the code snippet below, we subset the count matrix, by the number of genes with actual REACTOME terms attached.
+```R
+# select genes that have a reactome term attached
+# this will reduce your initial gene list as a lot of genes actually have 
+# no annotations, you may use a low level database like GO if you think 
+# that you lose too many genes
+n = unique(dfGraph$ENTREZID)
+mCounts = mCounts[,n]
+print(paste('Total number of genes with Reactome terms', length(n)))
+[1] "Total number of genes with Reactome terms 823"
+# order the count matrix based on grouping factor
+# this will serve useful later for plotting but is not necessary
+rownames(mCounts) = fGroups
+mCounts = mCounts[order(fGroups),]
+fGroups = fGroups[order(fGroups)]
 
+head(fGroups)
+GSM484382 GSM484385 GSM484392 GSM484393 GSM484394 GSM484397 
+       12        12        12        12        12        12 
+Levels: 12 2 0
+```
+### Building the Graph  
+The constructor for the CGraphClust object requires a matrix of absolute correlations of genes and the mapping data frame with Gene Ids and Pathway labels.  
+```R
+mCor = cor(mCounts)
+oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.7, bSuppressPlots = F)
+```
+If everything goes well you should have the graph object in the variable called oGr. This can now be used for further analysis.  
 
+### Graph Pruning  
+Due to the nature of the data, sometimes you will have graphs with very small clusters, which will contain 2 to 5 genes, however most clusters will be pretty large e.g. 10 to 90 plus genes. Small clusters can be removed by identifying these genes and dropping them from the graph.
+```R
+dfCluster = getClusterMapping(oGr)
+colnames(dfCluster) = c('gene', 'cluster')
+rownames(dfCluster) = dfCluster$gene
+# how many genes in each cluster
+iSizes = sort(table(dfCluster$cluster))
+iSizes
 
+ 170834   71387  112316  397014   72306 1266738  194315 2454202   15869 1852241  379724 1428517   72312  109582 
+      2       2       3       4       4       6       6       6       8       8       8       9      10      12 
+ 382551 2262752  196849  372790   72203 5653656  392499  556833 1280218 1280215  212436 6798695 
+     13      14      15      18      28      35      36      36      44      51      66      87 
+# remove communities smaller than 5 members
+i = which(iSizes <= 5)
+if (length(i) > 0) {
+  cVertRem = as.character(dfCluster[dfCluster$cluster %in% names(i),'gene'])
+  iVertKeep = which(!(V(getFinalGraph(oGr))$name %in% cVertRem))
+  oGr = CGraphClust.recalibrate(oGr, iVertKeep)
+}
+```
+### Analysis  
+The types of analyses that can be performed on the CGraphClust object include:  
+1- Individual types of igraph objects can be extracted using the functions: getBipartiteGraph, getCorrelationGraph and getFinalGraph.  
+2- Centrality summaries of Degree, Closeness, Betweenness and Hub centralities can be obtained using plot.centrality.graph, plot.centrality.diagnostics, mPrintCentralitySummary, dfGetTopVertices.  
+3- Information regarding clusters/communities in the graph can be obtained by getClusterMapping, plot.graph.clique, getCommunity, getLargestCliques, getSignificantClusters, getHclust.  
+4- Multiple plotting functions, e.g. plot.mean.expressions, plot.significant.expressions, plot.components etc.  
+
+For typical usage where we want the list of genes that are the top 10% with respect to at least one centrality score, we can use the following approach:  
+```R
+## top vertices/nodes/genes based on centrality scores
+## get a table of top vertices 
+dfTopGenes.cent = dfGetTopVertices(oGr, iQuantile = 0.90)
+rownames(dfTopGenes.cent) = dfTopGenes.cent$VertexID
+head(dfTopGenes.cent)
+       VertexID clique degree closeness betweenness   hub
+4940       4940   TRUE  FALSE     FALSE       FALSE FALSE
+2633       2633   TRUE   TRUE     FALSE       FALSE FALSE
+2634       2634   TRUE   TRUE     FALSE       FALSE FALSE
+163351   163351   TRUE   TRUE     FALSE       FALSE FALSE
+10346     10346   TRUE   TRUE     FALSE       FALSE FALSE
+115362   115362   TRUE   TRUE     FALSE       FALSE FALSE
+# assign metadata annotation to these genes and clusters
+dfCluster = getClusterMapping(oGr)
+colnames(dfCluster) = c('gene', 'cluster')
+rownames(dfCluster) = dfCluster$gene
+df = f_dfGetGeneAnnotation(as.character(dfTopGenes.cent$VertexID))
+dfTopGenes.cent = cbind(dfTopGenes.cent[as.character(df$ENTREZID),], SYMBOL=df$SYMBOL, GENENAME=df$GENENAME)
+dfCluster = dfCluster[as.character(dfTopGenes.cent$VertexID),]
+dfTopGenes.cent = cbind(dfTopGenes.cent, Cluster=dfCluster$cluster)
+head(dfTopGenes.cent)
+       VertexID clique degree closeness betweenness   hub SYMBOL                                  GENENAME Cluster
+4940       4940   TRUE  FALSE     FALSE       FALSE FALSE   OAS3         2'-5'-oligoadenylate synthetase 3 1280215
+2633       2633   TRUE   TRUE     FALSE       FALSE FALSE   GBP1               guanylate binding protein 1 1280215
+2634       2634   TRUE   TRUE     FALSE       FALSE FALSE   GBP2               guanylate binding protein 2 1280215
+163351   163351   TRUE   TRUE     FALSE       FALSE FALSE   GBP6 guanylate binding protein family member 6 1280215
+10346     10346   TRUE   TRUE     FALSE       FALSE FALSE TRIM22            tripartite motif containing 22 1280215
+115362   115362   TRUE   TRUE     FALSE       FALSE FALSE   GBP5               guanylate binding protein 5 1280215
+```
+The scripts in the [Paper folder](https://github.com/uhkniazi/CGraphClust/tree/master/Paper) contain a working example to generate test data and build the respective graphs; while the [Test_data](https://github.com/uhkniazi/CGraphClust/tree/master/Test_data) folder contains various other test examples.  
+  
+  
+The following section contains details about each function in the class.
 
 
 ***

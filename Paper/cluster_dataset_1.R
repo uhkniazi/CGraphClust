@@ -66,7 +66,7 @@ fGroups = fGroups[order(fGroups)]
 head(fGroups)
 
 # create a correlation matrix to decide cor cutoff
-# in a random collection of genes the correlations should follow rougly a 
+# in a random collection of genes the correlations should follow roughly a 
 # normal distribution centered at 0, as this is a subset of differentially expressed
 # genes, they should show a bimodal pattern
 mCor = cor(mCounts)
