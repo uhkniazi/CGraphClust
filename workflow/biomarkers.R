@@ -7,6 +7,8 @@ library(org.Hs.eg.db)
 library(downloader)
 source('CGraphClust.R')
 
+p.old = par()
+
 # utility function to load object
 f_LoadObject = function(r.obj.file)
 {
@@ -32,6 +34,10 @@ table(oExp$fSamples)
 ## assign annotation names
 mCounts = t(exprs(oExp))
 dim(mCounts)
+
+## sub select top genes sorted on p-values
+cvTopGenes = rownames(lData.train$results)[1:2000]
+mCounts = mCounts[,cvTopGenes]
 
 # convert enterez ids to uniprot as Reactome database file uses UNIPROT ids
 dfMap = AnnotationDbi::select(org.Hs.eg.db, colnames(mCounts), 'UNIPROT', 'ENTREZID')
@@ -96,6 +102,261 @@ axis(1, at = seq(-1, 1, by=0.1), las=2)
 # at the histogram, if you move this too low then you may end up with a graph with too many
 # connections and it may be dominated by noise/random associations, and it will likely crash you machine
 oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.6, bSuppressPlots = F)
+
+# you may not want to suppress the 2 plots, to see the distribution fits
+# 1- degree distribution of type 2 vertices, i.e. connections of IDs and Genes
+# bipartite graph is created and some cleaning performed, i.e. 
+# those type 2 vertices with too many connections (degree) with type 1 vertices are removed.
+# this is done by looking at the distribution of the degrees on a log scale and approximating
+# a negative binomial and poisson distributions on top. the cutoff is by default 0.95 quantile under
+# a negative binomial model, anything over that is removed. The idea is that type vertices that have a
+# lot of connections, are not very interesting and they tend to hide the more interesting connections.
+
+# 2- distribution of observed to expected ratio weights for connections between genes
+# graph is projected on to one dimension (type 1 vertices) and connections between type 1
+# vertices are assigned interestingness or observed to expected probability ratios as weights.
+# the weights on a square root scale follow a negative binomial distribution and only the highest
+# weights are chosen, as they are the most interesting. So anything over 0.95 quantile under a neg bin model
+# are chosen and the other connections are discarded.
+
+## general graph structure
+## we would like to see how does the graph look like, are the clusters connected or in subgraphs
+set.seed(1)
+plot.final.graph(oGr)
+ecount(getFinalGraph(oGr))
+vcount(getFinalGraph(oGr))
+
+## community structure
+## overview of how the commuinties look like
+# plot the main communities in 2 different ways
+ig = getFinalGraph(oGr)
+par(mar=c(1,1,1,1)+0.1)
+set.seed(1)
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T, iSize = 20)
+plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr, 
+     vertex.frame.color=NA, mark.groups=NULL, edge.color='lightgrey')
+set.seed(1)
+ig = getFinalGraph(oGr)
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 30)
+plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr, 
+     vertex.frame.color=NA, edge.color='darkgrey')
+
+
+## if there are small sized communities/clusters then you may want to remove them?
+## we normally remove clusters with 5 or less genes
+# get community sizes
+dfCluster = getClusterMapping(oGr)
+colnames(dfCluster) = c('gene', 'cluster')
+rownames(dfCluster) = dfCluster$gene
+# how many genes in each cluster
+iSizes = sort(table(dfCluster$cluster))
+iSizes
+# remove communities smaller than 5 members
+i = which(iSizes <= 5)
+if (length(i) > 0) {
+  cVertRem = as.character(dfCluster[dfCluster$cluster %in% names(i),'gene'])
+  iVertKeep = which(!(V(getFinalGraph(oGr))$name %in% cVertRem))
+  oGr = CGraphClust.recalibrate(oGr, iVertKeep)
+}
+
+# make a pdf output for publication
+dir.create('Paper/Results', showWarnings = F)
+pdf('Paper/Results/community_tb.pdf')
+par(mar=c(1,1,1,1)+0.1, family='Helvetica')
+ig = getFinalGraph(oGr)
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 20)
+set.seed(1)
+plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr,
+     vertex.frame.color=NA, edge.color='darkgrey')
+set.seed(1)
+ig = plot.centrality.graph(oGr)
+dev.off(dev.cur())
+
+## centrality diagnostics
+## centrality parameters should not be correlated significantly and the location of the central
+## genes can be visualized
+## centrality in social networks is simpler to understand intuitively 
+## e.g. degree = people with lots of followers 
+## hub = people with lots of followers connected to people with lots of followers
+# look at the graph centrality properties
+set.seed(1)
+ig = plot.centrality.graph(oGr)
+# plot the genes or vertex sizes by fold change
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 20)
+set.seed(1)
+plot(ig, vertex.label=NA, layout=layout_with_fr, vertex.frame.color=NA, edge.color='darkgrey')
+par(p.old)
+
+## the diagnostic plots show the distribution of the centrality parameters
+# these diagnostics plots should be looked at in combination with the centrality graphs
+# these plots are bar plots of ordered statistics - sorted centrality parameter
+# usually the last 10% (on the right) will show a sudden rise and may be the interesting genes/nodes
+plot.centrality.diagnostics(oGr)
+
+# get the centrality parameters
+mCent = mPrintCentralitySummary(oGr)
+
+## top vertices/nodes/genes based on centrality scores
+## get a table of top vertices 
+dfTopGenes.cent = dfGetTopVertices(oGr, iQuantile = 0.80)
+rownames(dfTopGenes.cent) = dfTopGenes.cent$VertexID
+# assign metadata annotation to these genes and clusters
+dfCluster = getClusterMapping(oGr)
+colnames(dfCluster) = c('gene', 'cluster')
+rownames(dfCluster) = dfCluster$gene
+df = f_dfGetGeneAnnotation(as.character(dfTopGenes.cent$VertexID))
+dfTopGenes.cent = cbind(dfTopGenes.cent[as.character(df$ENTREZID),], SYMBOL=df$SYMBOL, GENENAME=df$GENENAME)
+dfCluster = dfCluster[as.character(dfTopGenes.cent$VertexID),]
+dfTopGenes.cent = cbind(dfTopGenes.cent, Cluster=dfCluster$cluster)
+
+####### NOTE: This section of code is very slow, use only if you need data from genbank
+## not run
+# # loop and get the data from genbank
+# n = rep(NA, length=nrow(dfTopGenes.cent))
+# names(n) = as.character(dfTopGenes.cent$VertexID)
+# for (i in seq_along(n)){
+#   n[i] = f_csGetGeneSummaryFromGenbank(names(n)[i])
+#   # this wait time is required to stop sending queries to ncbi server very quickly
+#   Sys.sleep(time = 3)
+# }
+# cvSum.2 = as.character(dfTopGenes.cent$VertexID)
+# dfTopGenes.cent$Summary = n[cvSum.2]
+####### Section ends
+
+dir.create('Paper/Results', showWarnings = F)
+write.csv(dfTopGenes.cent, file='Paper/Results/Top_Centrality_Genes_tb.xls')
+
+## perform variable selection
+if(!require(downloader) || !require(methods)) stop('Library downloader and methods required')
+
+url = 'https://raw.githubusercontent.com/uhkniazi/CCrossValidation/master/CCrossValidation.R'
+download(url, 'CCrossValidation.R')
+
+# load the required packages
+source('CCrossValidation.R')
+# delete the file after source
+unlink('CCrossValidation.R')
+
+## subset the data matrix
+mCounts = mCounts[, dfTopGenes.cent$VertexID]
+colnames(mCounts) = as.character(dfTopGenes.cent$SYMBOL)
+
+## prepare data for modelling in stan
+dfData = data.frame((mCounts))
+dim(dfData)
+dfData$fGroups = fGroups
+
+lData = list(resp=ifelse(dfData$fGroups == 'ATB', 1, 0), mModMatrix=model.matrix(fGroups ~ 1 + ., data=dfData))
+
+detach("package:org.Hs.eg.db", unload=T)
+library(rstan)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+stanDso = rstan::stan_model(file='workflow/binomialRegressionSharedCoeffVariance.stan')
+
+lStanData = list(Ntotal=length(lData$resp), Ncol=ncol(lData$mModMatrix), X=lData$mModMatrix,
+                 y=lData$resp)
+
+## give initial values
+initf = function(chain_id = 1) {
+  list(betas=rep(0, times=ncol(lStanData$X)), tau=0.5)
+}
+
+
+fit.stan = sampling(stanDso, data=lStanData, iter=1000, chains=4, pars=c('tau', 'betas2'), init=initf, 
+                    control=list(adapt_delta=0.99, max_treedepth = 11))
+
+save(fit.stan, file='workflow/results/fit.stan.binom_reverse.rds')
+
+print(fit.stan, c('betas2', 'tau'))
+print(fit.stan, 'tau')
+traceplot(fit.stan, 'tau')
+
+## get the coefficient of interest - Modules in our case from the random coefficients section
+mCoef = extract(fit.stan)$betas2
+dim(mCoef)
+# ## get the intercept at population level
+iIntercept = mCoef[,1]
+mCoef = mCoef[,-1]
+
+## function to calculate statistics for a coefficient
+getDifference = function(ivData){
+  # get the difference vector
+  d = ivData
+  # get the z value
+  z = mean(d)/sd(d)
+  # get 2 sided p-value
+  p = pnorm(-abs(mean(d)/sd(d)))*2
+  return(p)
+}
+
+ivPval = apply(mCoef, 2, getDifference)
+hist(ivPval)
+plot(colMeans(mCoef), ivPval, pch=19)
+m = colMeans(mCoef)
+names(m) = colnames(lData$mModMatrix)[2:ncol(lData$mModMatrix)]
+m = abs(m)
+m = sort(m, decreasing = T)
+cvTopGenes.binomial = names(m)[1:30] #names(m[m > 0.25])
+
+par(mar=c(6,3,4,2)+0.1)
+l2 = barplot(m[cvTopGenes.binomial], 
+             las=2, xaxt='n', col='grey', main='Top Variables')
+axis(1, at = l2, labels = cvTopGenes.binomial, tick = F, las=2, cex.axis=0.7 )
+
+# use the top 30 genes to find top combinations of genes
+dfData = data.frame(mCounts[,cvTopGenes.binomial])
+
+oVar.sub = CVariableSelection.ReduceModel(dfData, fGroups, boot.num = 50)
+
+# plot the number of variables vs average error rate
+plot.var.selection(oVar.sub)
+
+# print variable combinations
+for (i in 1:7){
+  cvTopGenes.sub = CVariableSelection.ReduceModel.getMinModel(oVar.sub, i)
+  cat('Variable Count', i, paste(cvTopGenes.sub), '\n')
+  #print(cvTopGenes.sub)
+}
+
+## choose the 1 variable model
+dfData.train = data.frame(mCounts)
+dfData = data.frame(dfData.train[,CVariableSelection.ReduceModel.getMinModel(oVar.sub, 4)])
+colnames(dfData) = CVariableSelection.ReduceModel.getMinModel(oVar.sub, 4)
+
+head(dfData)
+dfData$fGroups = fGroups
+### fit a model to this data
+fit.1 = lda(fGroups ~ ., data=dfData)
+
+## check the prediction on this data
+ivPredict = predict(fit.1, newdata = dfData)$posterior[, 'ATB']
+
+## how good is this predictor
+library(lattice)
+densityplot(~ ivPredict, groups=fGroups, type='n', xlab='Predicted Score', main='Model predicted score', auto.key = list(columns=2))
+xyplot(ivPredict ~ fGroups, xlab='Actual Group', ylab='Predicted Probability of Being ATB (1)',
+       main='Predicted scores vs Actual groups')
+
+### plot the score performance
+cvTopGenes.sub = CVariableSelection.ReduceModel.getMinModel(oVar.sub, 4)
+dfData.train = data.frame(mCounts)
+dfData.train = data.frame(dfData.train[,cvTopGenes.sub])
+colnames(dfData.train) = cvTopGenes.sub
+
+oCV = CCrossValidation.LDA(test.dat = dfData.train, train.dat = dfData.train, test.groups = fGroups,
+                           train.groups = fGroups, level.predict = 'ATB', boot.num = 500)
+
+plot.cv.performance(oCV)
+
+df = getCutoffTprFprCrossValidation(oCV)
+
+fPredict = rep('reject', times=length(ivPredict))
+fPredict[ivPredict >= 0.6] = 'ATB'
+table(fPredict, fGroups)
+
+
+
 
 
 
