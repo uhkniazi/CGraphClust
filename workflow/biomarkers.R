@@ -3,6 +3,7 @@
 # Date: 02/05/2018
 # Desc: variable selection for biomarker discovery in TB dataset
 
+
 library(org.Hs.eg.db)
 library(downloader)
 source('CGraphClust.R')
@@ -39,45 +40,57 @@ dim(mCounts)
 cvTopGenes = rownames(lData.train$results)[1:2000]
 mCounts = mCounts[,cvTopGenes]
 
-# convert enterez ids to uniprot as Reactome database file uses UNIPROT ids
-dfMap = AnnotationDbi::select(org.Hs.eg.db, colnames(mCounts), 'UNIPROT', 'ENTREZID')
-dfMap = na.omit(dfMap)
+library(graphite)
+p = pathwayDatabases()
+p = p[p$species == 'hsapiens', ]
+lPathways = lapply(as.character(p$database), function(x) pathways('hsapiens', x))
+names(lPathways) = as.character(p$database)
 
-### load the uniprot2reactome mapping obtained from
-## any other databsae of choice can be used as long as there are 2 columns
-## where Column 1 = Gene and Column 2 = Database ID (label)
+## function to extract gene ids from the list for a pathway
+f_getIDs = function(pathway){
+  pathway = convertIdentifiers(pathway, 'entrez')
+  df = sapply(pathway, nodes)
+  pn = sapply(pathway, function(x) x@id)
+  names(pn) = NULL
+  db = sapply(pathway, function(x) x@database)
+  names(db) = NULL
+  id = sapply(pathway, function(x) x@identifier)
+  names(id) = NULL
+  df = lapply(1:length(df), function(x) {
+    ## error check if a pathway has 0 genes after conversion of labels
+    if (length(df[[x]]) == 0) df[[x]] = NA ## set to NA and use remove NA to drop this later
+    data.frame(Gene=df[[x]], Pathway=pn[x], LongName=names(df[x]), Database=db[x], identifier=id[x])})
+  df = do.call(rbind, df)
+  df = na.omit(df)
+  return(df)
+}
 
-# http://www.reactome.org/download/current/UniProt2Reactome_All_Levels.txt
-# get reactome data
-url = 'http://www.reactome.org/download/current/UniProt2Reactome_All_Levels.txt'
-dir.create('Data_external', showWarnings = F)
-csReactomeFile = 'Data_external/UniProt2Reactome_All_Levels.txt'
-# download the reactome file if it doesnt exist
-if (!file.exists(csReactomeFile)) download(url, csReactomeFile)
-dfReactome = read.csv(csReactomeFile, header = F, stringsAsFactors=F, sep='\t')
-x = gsub('\\w+-\\w+-(\\d+)', replacement = '\\1', x = dfReactome$V2, perl = T)
-dfReactome$V2 = x
-head(dfReactome)
+names(lPathways)
+df1 = f_getIDs(lPathways[['biocarta']]); head(df1)
+df2 = f_getIDs(lPathways[['kegg']]); head(df2)
+df3 = f_getIDs(lPathways[['nci']]); head(df3)
+df4 = f_getIDs(lPathways[['panther']]); head(df4)
+df5 = f_getIDs(lPathways[['reactome']]); head(df5)
 
-## map reactome ids to uniprot ids
-## where dfMap is the dataframe created earlier with gene ids mapped to uniprot ids
-dfReactome.sub = dfReactome[dfReactome$V1 %in% dfMap$UNIPROT,]
-# get the matching positions for uniprot ids in the reactome table
-i = match(dfReactome.sub$V1, dfMap$UNIPROT)
-dfReactome.sub$ENTREZID = dfMap$ENTREZID[i]
-dfGraph = dfReactome.sub[,c('ENTREZID', 'V2')]
+dfPathways = rbind(df1, df2, df3, df4, df5)
+head(dfPathways)
+dim(dfPathways)
+## save and load from here next time
+save(dfPathways, file='workflow/results/dfPathways.rds')
+
+dfGraph = dfPathways[,c('Gene', 'Pathway')]
 dfGraph = na.omit(dfGraph)
-
-rm(dfReactome)
-gc(reset = T)
-
+dfGraph$Gene = as.character(dfGraph$Gene)
+dfGraph$Pathway = as.character(dfGraph$Pathway)
 # select genes that have a reactome term attached
 # this will reduce your initial gene list as a lot of genes actually have 
 # no annotations, you may use a low level database like GO if you think 
 # that you lose too many genes
-n = unique(dfGraph$ENTREZID)
+dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
+n = unique(dfGraph$Gene)
 mCounts = mCounts[,n]
-print(paste('Total number of genes with Reactome terms', length(n)))
+print(paste('Total number of genes with terms', length(n)))
+dim(mCounts)
 # order the count matrix based on grouping factor
 # this will serve useful later for plotting but is not necessary
 rownames(mCounts) = fGroups
@@ -101,7 +114,7 @@ axis(1, at = seq(-1, 1, by=0.1), las=2)
 # the cutoff of 0.6 and absolute is your choice, we would base this cutoff after looking
 # at the histogram, if you move this too low then you may end up with a graph with too many
 # connections and it may be dominated by noise/random associations, and it will likely crash you machine
-oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.6, bSuppressPlots = F)
+oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.4, bSuppressPlots = F)
 
 # you may not want to suppress the 2 plots, to see the distribution fits
 # 1- degree distribution of type 2 vertices, i.e. connections of IDs and Genes
