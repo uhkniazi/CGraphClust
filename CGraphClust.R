@@ -144,7 +144,7 @@ setClass('CGraphClust', slots=list(hc='ANY', com='ANY',
 
 
 # constructor
-CGraphClust = function(dfGraph, mCor, iCorCut=0.5, bSuppressPlots = T, iMinComponentSize=6){
+CGraphClust = function(dfGraph, mCor, iCorCut=0.5, bSuppressPlots = T, iMinComponentSize=6, clusterMethod=cluster_walktrap){
   dfGraph = na.omit(dfGraph)
   # some error checks
   if (ncol(dfGraph) != 2) {
@@ -314,9 +314,9 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5, bSuppressPlots = T, iMinCompo
   # and choose a different community finding algorithm
   com = NULL
   if (ecount(ig.1) > 5000) {
-    print('Too many edges in graph to use edge.betweenness communities')
+    print('Too many edges in graph using cluster_walktrap')
     com = walktrap.community(ig.1)
-  } else com = edge.betweenness.community(ig.1)
+  } else com = clusterMethod(ig.1)
   # get the hclust object 
   hc = as.hclust(com)
   memb = membership(com)
@@ -346,7 +346,7 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5, bSuppressPlots = T, iMinCompo
 
 #### constructor 2 to create a new CGraphClust object based on subset of vertices
 # constructor
-CGraphClust.recalibrate = function(obj, ivVertexID.keep, iMinComponentSize=6){
+CGraphClust.recalibrate = function(obj, ivVertexID.keep, iMinComponentSize=6, clusterMethod=cluster_walktrap){
   ig.1 = getFinalGraph(obj)
   # only keep the desired vertices
   ig.1 = induced.subgraph(ig.1, V(ig.1)[ivVertexID.keep])
@@ -388,9 +388,9 @@ CGraphClust.recalibrate = function(obj, ivVertexID.keep, iMinComponentSize=6){
   # and choose a different community finding algorithm
   com = NULL
   if (ecount(ig.1) > 5000) {
-    print('Too many edges in graph to use edge.betweenness communities')
+    print('Too many edges in graph using cluster_walktrap')
     com = walktrap.community(ig.1)
-  } else com = edge.betweenness.community(ig.1)
+  } else com = clusterMethod(ig.1)
   # get the hclust object 
   hc = as.hclust(com)
   memb = membership(com)
@@ -422,7 +422,7 @@ CGraphClust.recalibrate = function(obj, ivVertexID.keep, iMinComponentSize=6){
 ####### constructor 3
 #### constructor 3 to create a new CGraphClust object by combining two CGraphClust objects
 # constructor
-CGraphClust.intersect.union = function(obj1, obj2, iMinOverlap=10, iMinComponentSize=6){
+CGraphClust.intersect.union = function(obj1, obj2, iMinOverlap=10, iMinComponentSize=6, clusterMethod=cluster_walktrap){
   # create a union graph based on common vertices
   iVertID.obj1 = which(V(getFinalGraph(obj1))$name %in% V(getFinalGraph(obj2))$name)
   iVertID.obj2 = which(V(getFinalGraph(obj2))$name %in% V(getFinalGraph(obj1))$name)
@@ -498,9 +498,9 @@ CGraphClust.intersect.union = function(obj1, obj2, iMinOverlap=10, iMinComponent
   # and choose a different community finding algorithm
   com = NULL
   if (ecount(ig.1) > 5000) {
-    print('Too many edges in graph to use edge.betweenness communities')
+    print('Too many edges in graph using cluster_walktrap')
     com = walktrap.community(ig.1)
-  } else com = edge.betweenness.community(ig.1)
+  } else com = clusterMethod(ig.1)
   # get the hclust object 
   hc = as.hclust(com)
   memb = membership(com)
@@ -1235,6 +1235,7 @@ setMethod('dfGetTopVertices', signature='CGraphClust', definition = function(obj
 
 
 ## utility functions for data stabilization
+## NOTE: Revisit these stabalization functions
 f_ivStabilizeData = function(ivDat, fGroups){
   #set.seed(123)
   # if fGroups is not a factor
