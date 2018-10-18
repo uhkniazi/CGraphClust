@@ -45,28 +45,28 @@ CGraph = function(oGraph){
   # check if graph is bipartite
   if (!is.bipartite(oGraph)) stop('Graph is not bipartite')
   #### internal private functions
-  # processing steps - called by constructor  
-  # assign probabilities to vertex of first kind
-  # Name: CGraph.assign.marginal.probabilities
-  # Desc: assigns probabilities to each vertex of the first kind (TRUE) 
-  #       based on how many times it is connected to the vertex of the 
-  #       second kind i.e. degree(V1) / (total number of V-type2)
-  # Args: internal function - object of CGraph class
-  CGraph.assign.marginal.probabilities = function(obj){
-    # vertex of the first kind will be assigned probabilities
-    # based on their relations with the vertices of the second kind
-    # flag to identify vertex types
-    f = V(obj@ig)$type
-    d = degree(obj@ig)
-    d = d[f]
-    # r is the total numbers of vertices of the second kind
-    r = sum(!f)
-    p = d/r
-    V(obj@ig)[f]$prob_marginal = p
-    obj@r = r
-    obj@f = f
-    return(obj)
-  }
+  # # processing steps - called by constructor  
+  # # assign probabilities to vertex of first kind
+  # # Name: CGraph.assign.marginal.probabilities
+  # # Desc: assigns probabilities to each vertex of the first kind (TRUE) 
+  # #       based on how many times it is connected to the vertex of the 
+  # #       second kind i.e. degree(V1) / (total number of V-type2)
+  # # Args: internal function - object of CGraph class
+  # CGraph.assign.marginal.probabilities = function(obj){
+  #   # vertex of the first kind will be assigned probabilities
+  #   # based on their relations with the vertices of the second kind
+  #   # flag to identify vertex types
+  #   f = V(obj@ig)$type
+  #   d = degree(obj@ig)
+  #   d = d[f]
+  #   # r is the total numbers of vertices of the second kind
+  #   r = sum(!f)
+  #   p = d/r
+  #   V(obj@ig)[f]$prob_marginal = p
+  #   obj@r = r
+  #   obj@f = f
+  #   return(obj)
+  # }
   
   # Name: CGraph.project
   # Desc: assigns a level of interestingness/leverage or observed to expected ratio to 
@@ -82,27 +82,120 @@ CGraph = function(oGraph){
     # project the graph in one dimension and
     # assign weights based on observed to expected ratios
     g.p = bipartite.projection(obj@ig, which = 'TRUE')
-    # get the matrix with rows representing each edge
-    m = get.edgelist(g.p)
+    # # get the matrix with rows representing each edge
+    # m = get.edgelist(g.p)
     w = E(g.p)$weight
-    # calculate observed ratio
-    # weight / r
-    ob = w / obj@r
-    # calculate expected 
-    mExp = cbind(V(g.p)[m[,1]]$prob_marginal, V(g.p)[m[,2]]$prob_marginal)
-    ex = mExp[,1] * mExp[,2]
-    E(g.p)$observed = ob
-    E(g.p)$expected = ex
-    E(g.p)$ob_to_ex = ob / ex
+    # calculate observed ratio / proportion
+    # weight / r, where r is the total number of type 2 edges
+    ob = (w+1e-6) / obj@r
+    ## assign categories to weights
+    cat = cut(ob, quantile(jitter(ob), prob=c(0, 0.5, 0.75, 1)), labels = c('red', 'yellow', 'green'))
+    # # calculate expected 
+    # mExp = cbind(V(g.p)[m[,1]]$prob_marginal, V(g.p)[m[,2]]$prob_marginal)
+    # ex = mExp[,1] * mExp[,2]
+    # E(g.p)$observed = ob
+    # E(g.p)$expected = ex
+    # E(g.p)$ob_to_ex = ob / ex
+    E(g.p)$weight_cat = as.character(cat)
     obj@ig.p = g.p
     return(obj)
   }
   
+  ############# weighting functions
+  generate.weights = function(suc, trials){
+    ## break the weight vector into 3 quantiles
+    ## define 3 functions with a prior for each of the quantiles
+    ## model m1 - green
+    m1 = function(th) dbeta(th, quantile(suc, 0.975), trials, log = T)
+    
+    ## model m2 - yellow
+    m2 = function(th) dbeta(th, quantile(suc, 0.75), trials, log = T)
+    
+    ## model m3 - red
+    m3 = function(th) dbeta(th, quantile(suc, 0.5), trials, log = T)
+    
+    ## define an array that represents number of models in our parameter space
+    ## each index has a prior weight/probability of being selected
+    ## this can be thought of coming from a categorical distribution 
+    mix.prior = c(m1=2/10 ,m2= 3/10 ,m3= 5/10)
+    
+    library(LearnBayes)
+    library(car)
+    logit.inv = function(p) {exp(p)/(exp(p)+1) }
+    
+    mylogpost_m1 = function(theta, data){
+      ## theta contains parameters we wish to track
+      th = logit.inv(theta['theta'])
+      success = data['suc']
+      fail = data['fail']
+      
+      # define likelihood function
+      lf = function(s, f, t) return(dbinom(s, s+f, t, log=T))
+      
+      # calculate log posterior
+      val = lf(success, fail, th) + m1(th) 
+      return(val)
+    }
+    
+    mylogpost_m2 = function(theta, data){
+      ## theta contains parameters we wish to track
+      th = logit.inv(theta['theta'])
+      success = data['suc']
+      fail = data['fail']
+      
+      # define likelihood function
+      lf = function(s, f, t) return(dbinom(s, s+f, t, log=T))
+      
+      # calculate log posterior
+      val = lf(success, fail, th) + m2(th)
+      return(val)
+    }
+    
+    mylogpost_m3 = function(theta, data){
+      ## theta contains parameters we wish to track
+      th = logit.inv(theta['theta'])
+      success = data['suc']
+      fail = data['fail']
+      
+      # define likelihood function
+      lf = function(s, f, t) return(dbinom(s, s+f, t, log=T))
+      
+      # calculate log posterior
+      val = lf(success, fail, th) + m3(th)
+      return(val)
+    }
+    
+    lMixs = lapply(1:20, function(x){
+      data = c(suc=suc[x], fail=r-suc[x])
+      start = c(theta=logit(median(suc)))
+      fit_m1 = laplace(mylogpost_m1, start, data)
+      fit_m2 = laplace(mylogpost_m2, start, data)
+      fit_m3 = laplace(mylogpost_m3, start, data)
+      mix.post = mix.prior
+      mix.post[1] = exp(fit_m1$int) * mix.prior[1] / (exp(fit_m1$int) * mix.prior[1] + exp(fit_m2$int) * mix.prior[2]
+                                                      + exp(fit_m3$int) * mix.prior[3])
+      
+      mix.post[2] = exp(fit_m2$int) * mix.prior[2] / (exp(fit_m1$int) * mix.prior[1] + exp(fit_m2$int) * mix.prior[2]
+                                                      + exp(fit_m3$int) * mix.prior[3])
+      
+      mix.post[3] = exp(fit_m3$int) * mix.prior[3] / (exp(fit_m1$int) * mix.prior[1] + exp(fit_m2$int) * mix.prior[2]
+                                                      + exp(fit_m3$int) * mix.prior[3])
+      return(mix.post)
+    })
+    
+  }
+  
+  
+  
+  
+  
   ####
   # create the object
   g = new('CGraph', ig=oGraph, r = 0, f= F, ig.p=NULL)
-  # assign marginal probabilities
-  g = CGraph.assign.marginal.probabilities(g)
+  f = V(g@ig)$type
+  # r is the total numbers of vertices of the second kind
+  g@r = sum(!f)
+  g@f = f
   # assign weights on one mode projection
   g = CGraph.project(g)
   return(g)
@@ -163,45 +256,46 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5, bSuppressPlots = T, iMinCompo
   }
   
   ## graph cleaning
-  # remove very frequent type 2 terms, as they create too many edges
-  # and may hide real relationships
-  f = V(oIGbp)$type
-  # degree vector of type 2 vertices
-  ivDegGo = degree(oIGbp, V(oIGbp)[!f])
-  # on a log scale it follows a poisson or negative binomial dist
-  t = log(ivDegGo)
-  r = range(t)
-  s = seq(floor(r[1])-0.5, ceiling(r[2])+0.5, by=1)
-  r[1] = floor(r[1])
-  r[2] = ceiling(r[2])
-  if (!bSuppressPlots){
-    # which distribution can approximate the frequency of reactome terms
-    hist(t, prob=T, main='degree distribution of type 2 vertices', breaks=s,
-         xlab='log degree', ylab='')
-    # try negative binomial and poisson distributions
-    # parameterized on the means
-    dn = dnbinom(r[1]:r[2], size = mean(t), mu = mean(t))
-    dp = dpois(r[1]:r[2], mean(t))
-    lines(r[1]:r[2], dn, col='black', type='b')
-    lines(r[1]:r[2], dp, col='red', type='b')
-    legend('topright', legend =c('nbinom', 'poi'), fill = c('black', 'red'))
-  }
-  # a poisson distribution with mean(t) fits well - use this as cutoff
-  # however a negative binomial will adjust for overdispertion, try both perhaps
-  #i = round(exp(qpois(0.05, mean(t), lower.tail = F)))
-  i = round(exp(qnbinom(0.05, size = mean(t), mu = mean(t), lower.tail = F)))
-  c = names(which(ivDegGo>i))
-  v = V(oIGbp)[c]
-  oIGbp = delete.vertices(oIGbp, v)
-  # delete any orphan type 1 vertices left behind
-  d = degree(oIGbp)
-  oIGbp = delete.vertices(oIGbp, which(d == 0))
+  # # remove very frequent type 2 terms, as they create too many edges
+  # # and may hide real relationships
+  # f = V(oIGbp)$type
+  # # degree vector of type 2 vertices
+  # ivDegGo = degree(oIGbp, V(oIGbp)[!f])
+  # # on a log scale it follows a poisson or negative binomial dist
+  # t = log(ivDegGo)
+  # r = range(t)
+  # s = seq(floor(r[1])-0.5, ceiling(r[2])+0.5, by=1)
+  # r[1] = floor(r[1])
+  # r[2] = ceiling(r[2])
+  # if (!bSuppressPlots){
+  #   # which distribution can approximate the frequency of reactome terms
+  #   hist(t, prob=T, main='degree distribution of type 2 vertices', breaks=s,
+  #        xlab='log degree', ylab='')
+  #   # try negative binomial and poisson distributions
+  #   # parameterized on the means
+  #   dn = dnbinom(r[1]:r[2], size = mean(t), mu = mean(t))
+  #   dp = dpois(r[1]:r[2], mean(t))
+  #   lines(r[1]:r[2], dn, col='black', type='b')
+  #   lines(r[1]:r[2], dp, col='red', type='b')
+  #   legend('topright', legend =c('nbinom', 'poi'), fill = c('black', 'red'))
+  # }
+  # # a poisson distribution with mean(t) fits well - use this as cutoff
+  # # however a negative binomial will adjust for overdispertion, try both perhaps
+  # i = round(exp(qpois(0.05, mean(t), lower.tail = F)))
+  # #i = round(exp(qnbinom(0.05, size = mean(t), mu = mean(t), lower.tail = F)))
+  # c = names(which(ivDegGo>i))
+  # v = V(oIGbp)[c]
+  # oIGbp = delete.vertices(oIGbp, v)
+  # # delete any orphan type 1 vertices left behind
+  # d = degree(oIGbp)
+  # oIGbp = delete.vertices(oIGbp, which(d == 0))
   
   ## graph projection to one dimension
   # create the CGraph object and calculate obs to exp weights after projection
   obj = CGraph(oIGbp)
   # create a projection of the graph 
-  oIGProj = getProjectedGraph(obj)
+  # oIGProj = getProjectedGraph(obj)
+  oIGProj = obj@ig.p
   ## some type 1 vertices are orphans as they don't share
   # type 2 vertices with other type 1 and will now be orphans after projection,
   # remove those
@@ -209,33 +303,53 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5, bSuppressPlots = T, iMinCompo
   oIGProj = delete.vertices(oIGProj, which(d == 0))
   # switch the weights with obs to exp ratio
   E(oIGProj)$weight_old = E(oIGProj)$weight
-  E(oIGProj)$weight = E(oIGProj)$ob_to_ex
+  w = rep(0, length=ecount(oIGProj))
+  w[E(oIGProj)$weight_cat == 'red'] = -1
+  w[E(oIGProj)$weight_cat == 'green'] = 1
+  E(oIGProj)$weight = w #E(oIGProj)$ob_to_ex
   
   ## remove low observed to expected probabilities
-  w = E(oIGProj)$weight
-  # choose a cutoff by modelling the distribution shape
-  # it appears that the distribution follows a power law?
-  # taking square root means we can fit a poisson or neg bin distribution
-  w2 = sqrt(w)
-  r = range(w2)
-  s = seq(floor(r[1])-0.5, ceiling(r[2])+0.5, by = 1)
-  r[1] = floor(r[1])
-  r[2] = ceiling(r[2])
-  if (!bSuppressPlots){
-    hist(w2, prob=T, breaks=s, main='distribution of obs to exp ratios', 
-         xlab='square root obs to exp ratio', ylab='')
-    r = round(r)
-    dp = dpois(r[1]:r[2], lambda = median(w2))
-    dn = dnbinom(r[1]:r[2], size = median(w2), mu = median(w2))
-    lines(r[1]:r[2], dp, col='red', type='b')
-    lines(r[1]:r[2], dn, col='blue', type='b')
-    legend('topright', legend = c('poi', 'nbin'), fill = c('red', 'blue'))
-  }
-  # NOTE: this cutoff can be changed, the lower it is the more edges in the graph
-  # use negative binomial to choose cutoff
-  c = qnbinom(0.05, size = median(w2), mu=median(w2), lower.tail = F)
-  f = which(w2 < c)
+  w = E(oIGProj)$weight_cat
+  # # choose a cutoff by modelling the distribution shape
+  # # it appears that the distribution follows a power law?
+  # # taking square root means we can fit a poisson or neg bin distribution
+  # w2 = sqrt(w)
+  # r = range(w2)
+  # s = seq(floor(r[1])-0.5, ceiling(r[2])+0.5, by = 1)
+  # r[1] = floor(r[1])
+  # r[2] = ceiling(r[2])
+  # if (!bSuppressPlots){
+  #   hist(w2, prob=T, breaks=s, main='distribution of obs to exp ratios', 
+  #        xlab='square root obs to exp ratio', ylab='')
+  #   r = round(r)
+  #   dp = dpois(r[1]:r[2], lambda = median(w2))
+  #   dn = dnbinom(r[1]:r[2], size = median(w2), mu = median(w2))
+  #   lines(r[1]:r[2], dp, col='red', type='b')
+  #   lines(r[1]:r[2], dn, col='blue', type='b')
+  #   legend('topright', legend = c('poi', 'nbin'), fill = c('red', 'blue'))
+  # }
+  # # NOTE: this cutoff can be changed, the lower it is the more edges in the graph
+  # # use negative binomial to choose cutoff
+  # c = qnbinom(0.05, size = median(w2), mu=median(w2), lower.tail = F)
+  # f = which(w2 < c)
+  f = which(w == 'red')
   oIGProj = delete.edges(oIGProj, edges = f)
+  
+  ## reweight the edges
+  reweight_edges = function(g.p, r=obj@r){
+    w = E(g.p)$weight_old
+    ob = (w+1e-6) / r
+    ## assign categories to weights
+    cat = cut(ob, quantile(jitter(ob), prob=c(0, 0.5, 0.75, 1)), labels = c('red', 'yellow', 'green'))
+    # # calculate expected 
+    # mExp = cbind(V(g.p)[m[,1]]$prob_marginal, V(g.p)[m[,2]]$prob_marginal)
+    # ex = mExp[,1] * mExp[,2]
+    # E(g.p)$observed = ob
+    # E(g.p)$expected = ex
+    # E(g.p)$ob_to_ex = ob / ex
+    E(g.p)$weight_cat = as.character(cat)
+    
+  }
   
   ## create correlation matrix graph, by treating it as an adjacency matrix
   diag(mCor) = 0  
