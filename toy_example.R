@@ -15,7 +15,7 @@ type.1.universe = 1:7
 dfGraph = NULL
 # randomly assign labels to type 1 vertices
 for (i in seq_along(type.1.universe)){
-  s = sample(type.2.universe, 5, replace = F)
+  s = sample(type.2.universe, runif(1, 1, length(type.2.universe)), replace = F)
   df = data.frame(i, s)
   dfGraph = rbind(dfGraph, df)
 }

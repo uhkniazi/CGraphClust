@@ -67,57 +67,33 @@ CGraph = function(oGraph){
   #   obj@f = f
   #   return(obj)
   # }
-  
-  # Name: CGraph.project
-  # Desc: assigns a level of interestingness/leverage or observed to expected ratio to 
-  #       each edge after graph projection on the vertex of first kind i.e. type = TRUE 
-  #       Observed frequency = weight of edge / (total number of vertices of second type)
-  #       i.e. how many shared vertices of type 2 are between the 2 type 1 vertices
-  #       Expected frequency = how many times we expect to see them based on their 
-  #       joint probability under assumption of independence. 
-  #       (marginal.prob of V1 * marginal.prob of V2)
-  # Args: called internally no need to do it externally, 
-  #       will project on vertex with TYPE=TRUE
-  CGraph.project = function(obj){
-    # project the graph in one dimension and
-    # assign weights based on observed to expected ratios
-    g.p = bipartite.projection(obj@ig, which = 'TRUE')
-    # # get the matrix with rows representing each edge
-    # m = get.edgelist(g.p)
-    w = E(g.p)$weight
-    # calculate observed ratio / proportion
-    # weight / r, where r is the total number of type 2 edges
-    ob = (w+1e-6) / obj@r
-    ## assign categories to weights
-    cat = cut(ob, quantile(jitter(ob), prob=c(0, 0.5, 0.75, 1)), labels = c('red', 'yellow', 'green'))
-    # # calculate expected 
-    # mExp = cbind(V(g.p)[m[,1]]$prob_marginal, V(g.p)[m[,2]]$prob_marginal)
-    # ex = mExp[,1] * mExp[,2]
-    # E(g.p)$observed = ob
-    # E(g.p)$expected = ex
-    # E(g.p)$ob_to_ex = ob / ex
-    E(g.p)$weight_cat = as.character(cat)
-    obj@ig.p = g.p
-    return(obj)
-  }
-  
   ############# weighting functions
   generate.weights = function(suc, trials){
     ## break the weight vector into 3 quantiles
+    m1.suc = quantile(suc, 0.975)
+    m1.fail = trials - m1.suc
+    
+    m2.suc = quantile(suc, 0.75)
+    m2.fail = trials - m2.suc
+    
+    m3.suc = quantile(suc, 0.5)
+    m3.fail = trials - m3.suc
+    
+    
     ## define 3 functions with a prior for each of the quantiles
     ## model m1 - green
-    m1 = function(th) dbeta(th, quantile(suc, 0.975), trials, log = T)
+    m1 = function(th) dbeta(th, m1.suc, m1.fail, log = T)
     
     ## model m2 - yellow
-    m2 = function(th) dbeta(th, quantile(suc, 0.75), trials, log = T)
+    m2 = function(th) dbeta(th, m2.suc, m2.fail, log = T)
     
     ## model m3 - red
-    m3 = function(th) dbeta(th, quantile(suc, 0.5), trials, log = T)
+    m3 = function(th) dbeta(th, m3.suc, m3.fail, log = T)
     
     ## define an array that represents number of models in our parameter space
     ## each index has a prior weight/probability of being selected
     ## this can be thought of coming from a categorical distribution 
-    mix.prior = c(m1=2/10 ,m2= 3/10 ,m3= 5/10)
+    mix.prior = c(m1=3/9 ,m2= 3/9 ,m3= 3/9)
     
     library(LearnBayes)
     library(car)
@@ -165,9 +141,10 @@ CGraph = function(oGraph){
       return(val)
     }
     
-    lMixs = lapply(1:20, function(x){
-      data = c(suc=suc[x], fail=r-suc[x])
-      start = c(theta=logit(median(suc)))
+    # starting value for search - initial value
+    start = c(theta=logit(median(suc)))
+    mMixs = sapply(seq_along(suc), function(x){
+      data = c(suc=suc[x], fail=trials-suc[x])
       fit_m1 = laplace(mylogpost_m1, start, data)
       fit_m2 = laplace(mylogpost_m2, start, data)
       fit_m3 = laplace(mylogpost_m3, start, data)
@@ -182,8 +159,45 @@ CGraph = function(oGraph){
                                                       + exp(fit_m3$int) * mix.prior[3])
       return(mix.post)
     })
-    
+    return(mMixs)
   }
+  
+  # Name: CGraph.project
+  # Desc: assigns a level of interestingness/leverage or observed to expected ratio to 
+  #       each edge after graph projection on the vertex of first kind i.e. type = TRUE 
+  #       Observed frequency = weight of edge / (total number of vertices of second type)
+  #       i.e. how many shared vertices of type 2 are between the 2 type 1 vertices
+  #       Expected frequency = how many times we expect to see them based on their 
+  #       joint probability under assumption of independence. 
+  #       (marginal.prob of V1 * marginal.prob of V2)
+  # Args: called internally no need to do it externally, 
+  #       will project on vertex with TYPE=TRUE
+  CGraph.project = function(obj){
+    # project the graph in one dimension and
+    # assign weights based on observed to expected ratios
+    g.p = bipartite.projection(obj@ig, which = 'TRUE')
+    # # get the matrix with rows representing each edge
+    # m = get.edgelist(g.p)
+    w = E(g.p)$weight
+    # calculate observed ratio / proportion
+    # weight / r, where r is the total number of type 2 edges
+    ob = (w+1e-6) / obj@r
+    ## assign categories to weights
+    mWeights = generate.weights(w, obj@r)
+    i = apply(mWeights, 2, which.max)
+    cat = c('green', 'yellow', 'red')[i]
+    #cat = cut(ob, quantile(jitter(ob), prob=c(0, 0.5, 0.75, 1)), labels = c('red', 'yellow', 'green'))
+    # # calculate expected 
+    # mExp = cbind(V(g.p)[m[,1]]$prob_marginal, V(g.p)[m[,2]]$prob_marginal)
+    # ex = mExp[,1] * mExp[,2]
+    # E(g.p)$observed = ob
+    # E(g.p)$expected = ex
+    # E(g.p)$ob_to_ex = ob / ex
+    E(g.p)$weight_cat = as.character(cat)
+    obj@ig.p = g.p
+    return(obj)
+  }
+  
   
   
   
@@ -256,11 +270,11 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5, bSuppressPlots = T, iMinCompo
   }
   
   ## graph cleaning
-  # # remove very frequent type 2 terms, as they create too many edges
-  # # and may hide real relationships
-  # f = V(oIGbp)$type
-  # # degree vector of type 2 vertices
-  # ivDegGo = degree(oIGbp, V(oIGbp)[!f])
+  # remove very frequent type 2 terms, as they create too many edges
+  # and may hide real relationships
+  f = V(oIGbp)$type
+  # degree vector of type 2 vertices
+  ivDegGo = degree(oIGbp, V(oIGbp)[!f])
   # # on a log scale it follows a poisson or negative binomial dist
   # t = log(ivDegGo)
   # r = range(t)
@@ -284,12 +298,13 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5, bSuppressPlots = T, iMinCompo
   # i = round(exp(qpois(0.05, mean(t), lower.tail = F)))
   # #i = round(exp(qnbinom(0.05, size = mean(t), mu = mean(t), lower.tail = F)))
   # c = names(which(ivDegGo>i))
-  # v = V(oIGbp)[c]
-  # oIGbp = delete.vertices(oIGbp, v)
-  # # delete any orphan type 1 vertices left behind
+  c = names(which(ivDegGo<=2))
+  v = V(oIGbp)[c]
+  oIGbp = delete.vertices(oIGbp, v)
+  # delete any orphan type 1 vertices left behind
   # d = degree(oIGbp)
   # oIGbp = delete.vertices(oIGbp, which(d == 0))
-  
+
   ## graph projection to one dimension
   # create the CGraph object and calculate obs to exp weights after projection
   obj = CGraph(oIGbp)
