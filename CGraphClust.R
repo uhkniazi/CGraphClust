@@ -39,34 +39,45 @@ if (!require(igraph)) stop('CGraphClust.R: library igraph required')
 setClass('CGraph', slots=list(ig='ANY', r='numeric', f='logical', ig.p='ANY'))
 
 # object constructor
-CGraph = function(oGraph){
+CGraph = function(dfGraph, bFilterLowDegree=T, ivWeights=c(1, 0, -1)){
   # check if igraph library present
   if (!require(igraph)) stop('R library igraph required')
-  # check if graph is bipartite
-  if (!is.bipartite(oGraph)) stop('Graph is not bipartite')
-  #### internal private functions
-  # # processing steps - called by constructor  
-  # # assign probabilities to vertex of first kind
-  # # Name: CGraph.assign.marginal.probabilities
-  # # Desc: assigns probabilities to each vertex of the first kind (TRUE) 
-  # #       based on how many times it is connected to the vertex of the 
-  # #       second kind i.e. degree(V1) / (total number of V-type2)
-  # # Args: internal function - object of CGraph class
-  # CGraph.assign.marginal.probabilities = function(obj){
-  #   # vertex of the first kind will be assigned probabilities
-  #   # based on their relations with the vertices of the second kind
-  #   # flag to identify vertex types
-  #   f = V(obj@ig)$type
-  #   d = degree(obj@ig)
-  #   d = d[f]
-  #   # r is the total numbers of vertices of the second kind
-  #   r = sum(!f)
-  #   p = d/r
-  #   V(obj@ig)[f]$prob_marginal = p
-  #   obj@r = r
-  #   obj@f = f
-  #   return(obj)
-  # }
+  if (!require(LearnBayes)) stop('R library LearnBayes required')
+
+  dfGraph = na.omit(dfGraph)
+  # some error checks
+  if (ncol(dfGraph) != 2) {
+    stop(paste('data frame dfGraph should have 2 columns only', 
+               'column 1 for vertex of type 1, and column 2 for vertex of',
+               'type 2'))
+  }
+  # create bipartite graph
+  oIGbp = graph.data.frame(dfGraph, directed = F)
+  # set the vertex type variable to make graph bipartite
+  f = rep(c(T, F), times = c(length(unique(dfGraph[,1])),length(unique(dfGraph[,2]))))
+  V(oIGbp)$type = f
+  # sanity check - is graph bipartite
+  if (!is.bipartite(oIGbp)) {
+    stop(paste('Graph is not bipartite'))
+  }
+  
+  ## graph cleaning
+  if (bFilterLowDegree){
+    # remove  type 2 terms that have low degrees, 
+    # these are rare terms that add little to the association scores
+    f = V(oIGbp)$type
+    # degree vector of type 2 vertices
+    ivDegGo = degree(oIGbp, V(oIGbp)[!f])
+    c = names(which(ivDegGo<=2))
+    v = V(oIGbp)[c]
+    oIGbp = delete.vertices(oIGbp, v)
+    # check if graph is bipartite
+    if (!is.bipartite(oIGbp)) stop('Graph is not bipartite')
+  }
+  
+  ############################### internal private functions
+  ### called by constructor
+
   ############# weighting functions
   generate.weights = function(suc, trials){
     ## break the weight vector into 3 quantiles
@@ -163,56 +174,35 @@ CGraph = function(oGraph){
   }
   
   # Name: CGraph.project
-  # Desc: assigns a level of interestingness/leverage or observed to expected ratio to 
-  #       each edge after graph projection on the vertex of first kind i.e. type = TRUE 
-  #       Observed frequency = weight of edge / (total number of vertices of second type)
-  #       i.e. how many shared vertices of type 2 are between the 2 type 1 vertices
-  #       Expected frequency = how many times we expect to see them based on their 
-  #       joint probability under assumption of independence. 
-  #       (marginal.prob of V1 * marginal.prob of V2)
+  # Desc: assigns a score to each edge based on the model scores
+  #       the score for each model is calculated using a mixture of binomial models with beta priors
   # Args: called internally no need to do it externally, 
   #       will project on vertex with TYPE=TRUE
   CGraph.project = function(obj){
-    # project the graph in one dimension and
-    # assign weights based on observed to expected ratios
+    # project the graph in one dimension and assign weights
     g.p = bipartite.projection(obj@ig, which = 'TRUE')
-    # # get the matrix with rows representing each edge
-    # m = get.edgelist(g.p)
     w = E(g.p)$weight
-    # remove low weight edges i.e. if two type 1 vertices share only one type 2 vertex
-    f = which(w < 2)
-    g.p = delete.edges(g.p, edges=f)
-    w = E(g.p)$weight
-    # calculate observed ratio / proportion
-    # weight / r, where r is the total number of type 2 edges
-    #ob = (w+1e-6) / obj@r
-    ## assign categories to weights
+    if (bFilterLowDegree) {
+      # remove low weight edges i.e. if two type 1 vertices share only one type 2 vertex
+      f = which(w < 2)
+      g.p = delete.edges(g.p, edges=f)
+      w = E(g.p)$weight
+    }
+    ## assign weights and categories to weights
     mWeights = generate.weights(w, obj@r)
     i = apply(mWeights, 2, which.max)
     cat = c('green', 'yellow', 'red')[i]
-    num = c(1, 0, -1)[i]
-    #cat = cut(ob, quantile(jitter(ob), prob=c(0, 0.5, 0.75, 1)), labels = c('red', 'yellow', 'green'))
-    # # calculate expected 
-    # mExp = cbind(V(g.p)[m[,1]]$prob_marginal, V(g.p)[m[,2]]$prob_marginal)
-    # ex = mExp[,1] * mExp[,2]
-    # E(g.p)$observed = ob
-    # E(g.p)$expected = ex
-    # E(g.p)$ob_to_ex = ob / ex
-    E(g.p)$weight_cat = as.character(cat)
+    num = ivWeights[i]
+    E(g.p)$weight_cat = cat
     E(g.p)$weight_projection = E(g.p)$weight
     E(g.p)$weight = num
     obj@ig.p = g.p
     return(obj)
   }
   
-  
-  
-  
-  
-  
-  ####
+  ######## end internal functions called by constructor
   # create the object
-  g = new('CGraph', ig=oGraph, r = 0, f= F, ig.p=NULL)
+  g = new('CGraph', ig=oIGbp, r = 0, f= F, ig.p=NULL)
   f = V(g@ig)$type
   # r is the total numbers of vertices of the second kind
   g@r = sum(!f)
