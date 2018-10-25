@@ -179,13 +179,18 @@ CGraph = function(oGraph){
     # # get the matrix with rows representing each edge
     # m = get.edgelist(g.p)
     w = E(g.p)$weight
+    # remove low weight edges i.e. if two type 1 vertices share only one type 2 vertex
+    f = which(w < 2)
+    g.p = delete.edges(g.p, edges=f)
+    w = E(g.p)$weight
     # calculate observed ratio / proportion
     # weight / r, where r is the total number of type 2 edges
-    ob = (w+1e-6) / obj@r
+    #ob = (w+1e-6) / obj@r
     ## assign categories to weights
     mWeights = generate.weights(w, obj@r)
     i = apply(mWeights, 2, which.max)
     cat = c('green', 'yellow', 'red')[i]
+    num = c(1, 0, -1)[i]
     #cat = cut(ob, quantile(jitter(ob), prob=c(0, 0.5, 0.75, 1)), labels = c('red', 'yellow', 'green'))
     # # calculate expected 
     # mExp = cbind(V(g.p)[m[,1]]$prob_marginal, V(g.p)[m[,2]]$prob_marginal)
@@ -194,6 +199,8 @@ CGraph = function(oGraph){
     # E(g.p)$expected = ex
     # E(g.p)$ob_to_ex = ob / ex
     E(g.p)$weight_cat = as.character(cat)
+    E(g.p)$weight_projection = E(g.p)$weight
+    E(g.p)$weight = num
     obj@ig.p = g.p
     return(obj)
   }
@@ -270,8 +277,8 @@ CGraphClust = function(dfGraph, mCor, iCorCut=0.5, bSuppressPlots = T, iMinCompo
   }
   
   ## graph cleaning
-  # remove very frequent type 2 terms, as they create too many edges
-  # and may hide real relationships
+  # remove  type 2 terms that have low degrees, 
+  # these are rare terms that add little to the association scores
   f = V(oIGbp)$type
   # degree vector of type 2 vertices
   ivDegGo = degree(oIGbp, V(oIGbp)[!f])

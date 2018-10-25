@@ -92,5 +92,5 @@ getalphabeta = function(m, v){
   return(c(alpha=al, beta=be))
 }
 
-
+g.mix = function(theta) mix.prior[1]*exp(m1(theta)) + mix.prior[2]*exp(m2(theta)) + mix.prior[3]*exp(m3(theta))
 
