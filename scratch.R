@@ -36,7 +36,11 @@ mCounts = mCounts[,cvTopGenes]
 
 load('workflow/results/dfPathways.rds')
 
-dfGraph = dfPathways[,c('Gene', 'Pathway')]
+table(dfPathways$Database)
+
+## separate the pathways and do one database at a time
+
+dfGraph = dfPathways[dfPathways$Database == 'Reactome',c('Gene', 'Pathway')]
 dfGraph = na.omit(dfGraph)
 dfGraph$Gene = as.character(dfGraph$Gene)
 dfGraph$Pathway = as.character(dfGraph$Pathway)
@@ -48,9 +52,164 @@ str(dfGraph)
 # that you lose too many genes
 dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
 n = unique(dfGraph$Gene)
-mCounts = mCounts[,n]
-print(paste('Total number of genes with terms', length(n)))
-dim(mCounts)
+#mCounts = mCounts[,n]
+#print(paste('Total number of genes with terms', length(n)))
+#dim(mCounts)
+
+dfGraph = na.omit(dfGraph)
+
+oCGbp.reactome = CGraph(dfGraph)
+plot.projected.graph(oCGbp.reactome, cDropEdges = c('red', 'yellow'))
+
+dfGraph = dfPathways[dfPathways$Database == 'KEGG',c('Gene', 'Pathway')]
+dfGraph = na.omit(dfGraph)
+dfGraph$Gene = as.character(dfGraph$Gene)
+dfGraph$Pathway = as.character(dfGraph$Pathway)
+str(dfGraph)
+dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
+n = unique(dfGraph$Gene)
+
+oCGbp.kegg = CGraph(dfGraph)
+plot.projected.graph(oCGbp.kegg, bDropOrphans = F)
+
+dfGraph = dfPathways[dfPathways$Database == 'PANTHER',c('Gene', 'Pathway')]
+dfGraph = na.omit(dfGraph)
+dfGraph$Gene = as.character(dfGraph$Gene)
+dfGraph$Pathway = as.character(dfGraph$Pathway)
+str(dfGraph)
+dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
+n = unique(dfGraph$Gene)
+
+oCGbp.panther = CGraph(dfGraph)
+plot.projected.graph(oCGbp.panther)
+
+table(dfPathways$Database)
+dfGraph = dfPathways[dfPathways$Database == 'BioCarta',c('Gene', 'Pathway')]
+dfGraph = na.omit(dfGraph)
+dfGraph$Gene = as.character(dfGraph$Gene)
+dfGraph$Pathway = as.character(dfGraph$Pathway)
+str(dfGraph)
+dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
+n = unique(dfGraph$Gene)
+
+oCGbp.biocarta = CGraph(dfGraph)
+plot.projected.graph(oCGbp.biocarta)
+
+ig = CGraph.union(getProjectedGraph(oCGbp.biocarta), oCGbp.kegg@ig.p, oCGbp.panther@ig.p, oCGbp.reactome@ig.p)
+table(E(ig)$weight)
+ig = delete.edges(ig, which(E(ig)$weight < 0))
+ig = delete.vertices(ig, which(degree(ig) == 0))
+
+plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$weight), vertex.frame.color=NA)
+
+plot(ig, vertex.label=f_dfGetGeneAnnotation(names(V(ig)))$SYMBOL, vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, edge.color='darkgrey')
+
+## add fold changes for infomap method
+n = names(V(ig))
+V(ig)$weight = abs(lData.train$results[n, 'logFC'])*10
+#E(ig)$weight = E(ig)$weight + abs(min(E(ig)$weight))
+com = cluster_leading_eigen(ig)
+com = cluster_label_prop(ig)
+com = cluster_infomap(ig, nb.trials = 100)
+com = cluster_louvain(ig)
+table(membership(com))
+pdf('temp/graph.pdf')
+par(mar=c(1,1,1,1)+0.1, family='Helvetica')
+set.seed(123)
+plot(ig, vertex.label=f_dfGetGeneAnnotation(names(V(ig)))$SYMBOL, vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
+     edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr(ig, weights = E(ig)$weight)*10)
+set.seed(123)
+plot(com, ig, vertex.label=f_dfGetGeneAnnotation(names(V(ig)))$SYMBOL, vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
+     edge.color='darkgrey', edge.width=0.1, layout=layout_with_fr(ig, weights = E(ig)$weight))
+
+
+
+m = membership(com)
+t = table(membership(com))
+t = names(which(t > 1))
+m = m[m %in% as.numeric(t)]
+
+ig.s = induced.subgraph(ig, V(ig)[names(m)])
+
+set.seed(123)
+plot(ig.s, vertex.label=f_dfGetGeneAnnotation(names(V(ig.s)))$SYMBOL, vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
+     edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr(ig.s, weights = E(ig.s)$weight))
+
+m = membership(com)
+t = table(membership(com))
+t = names(which.max(t))
+m = m[m %in% as.numeric(t)]
+
+ig.s = induced.subgraph(ig, V(ig)[names(m)])
+
+set.seed(123)
+plot(ig.s, vertex.label=f_dfGetGeneAnnotation(names(V(ig.s)))$SYMBOL, vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
+     edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr(ig.s, weights = E(ig.s)$weight))
+
+
+dev.off(dev.cur())
+plot(ig, vertex.label=NA, layout=layout_with_fr, vertex.frame.color=NA, edge.color='darkgrey')
+###################################################### scratch for distance based graph
+dfResults = lData.train$results[unique(dfGraph$Gene),]
+plot(dfResults$logFC, scale(-1*log10(dfResults$P.Value)))
+mData = cbind(dfResults$logFC, dfResults$P.Value)#-1*log10(dfResults$P.Value))
+
+
+library(downloader)
+url = 'https://raw.githubusercontent.com/uhkniazi/CDiagnosticPlots/master/CDiagnosticPlots.R'
+download(url, 'CDiagnosticPlots.R')
+
+# load the required packages
+source('CDiagnosticPlots.R')
+# delete the file after source
+unlink('CDiagnosticPlots.R')
+
+oDiag.1 = CDiagnosticPlots(t(mData), 'FC, PValue')
+
+plot.PCA(oDiag.1, u, legend.pos = 'topright')
+p = oDiag.1@lData$PCA
+
+whiten = function(mData){
+  ## center the data
+  ivMeans = colMeans(mData)
+  # centered data
+  mData.s = sweep(mData, 2, ivMeans, '-')
+  ## calculate covariance matrix
+  mCov = cov(mData)
+  ## see bishop 2006 chapter 12 page 568 for formula
+  # y = 1/sqrt(L) * t(U) * centered data
+  ## get the eigen vectors and values
+  lEigens = eigen(mCov)
+  L = diag(lEigens$values)
+  U = lEigens$vectors
+  # invert after taking square root
+  Z = solve(sqrt(L))
+  Z = Z %*% t(U)
+  yn = Z %*% t(mData.s)
+  rownames(yn) = colnames(mData)
+  return(t(yn))
+}
+
+plot(whiten(mData))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

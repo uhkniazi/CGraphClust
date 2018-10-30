@@ -39,7 +39,7 @@ if (!require(igraph)) stop('CGraphClust.R: library igraph required')
 setClass('CGraph', slots=list(ig='ANY', r='numeric', f='logical', ig.p='ANY'))
 
 # object constructor
-CGraph = function(dfGraph, bFilterLowDegree=T, ivWeights=c(1, 0, -1)){
+CGraph = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLinks=T,  ivWeights=c(1, 0, -1)){
   # check if igraph library present
   if (!require(igraph)) stop('R library igraph required')
   if (!require(LearnBayes)) stop('R library LearnBayes required')
@@ -61,14 +61,15 @@ CGraph = function(dfGraph, bFilterLowDegree=T, ivWeights=c(1, 0, -1)){
     stop(paste('Graph is not bipartite'))
   }
   
-  ## graph cleaning
-  if (bFilterLowDegree){
+  ## graph cleaning 
+  if (bFilterLowDegreeType2Edges){
     # remove  type 2 terms that have low degrees, 
     # these are rare terms that add little to the association scores
     f = V(oIGbp)$type
     # degree vector of type 2 vertices
     ivDegGo = degree(oIGbp, V(oIGbp)[!f])
-    c = names(which(ivDegGo<=2))
+    # setting this at less than 2, if 2 type 1 terms share a lot of weak terms, those should be preserved
+    c = names(which(ivDegGo < 2))
     v = V(oIGbp)[c]
     oIGbp = delete.vertices(oIGbp, v)
     # check if graph is bipartite
@@ -182,7 +183,7 @@ CGraph = function(dfGraph, bFilterLowDegree=T, ivWeights=c(1, 0, -1)){
     # project the graph in one dimension and assign weights
     g.p = bipartite.projection(obj@ig, which = 'TRUE')
     w = E(g.p)$weight
-    if (bFilterLowDegree) {
+    if (bFilterWeakLinks) {
       # remove low weight edges i.e. if two type 1 vertices share only one type 2 vertex
       f = which(w < 2)
       g.p = delete.edges(g.p, edges=f)
@@ -223,6 +224,32 @@ setGeneric('getProjectedGraph', function(obj)standardGeneric('getProjectedGraph'
 setMethod('getProjectedGraph', signature = 'CGraph', definition = function(obj){
   return(obj@ig.p)
 })
+
+# simple plotting function for the graph
+setGeneric('plot.projected.graph', function(obj, cDropEdges='red', bDropOrphans=T)standardGeneric('plot.projected.graph'))
+setMethod('plot.projected.graph', signature = 'CGraph', definition = function(obj, cDropEdges='red', bDropOrphans=T){
+  ig = getProjectedGraph(obj)
+  i = which(E(ig)$weight_cat %in% cDropEdges)
+  if (length(i) > 0) ig = delete.edges(ig, i)
+  if (bDropOrphans) {
+    c = which(degree(ig) == 0)
+    ig = delete.vertices(ig, c)
+  }
+  p.old = par(mar=c(1,1,1,1)+0.1)
+  plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$weight), vertex.frame.color=NA)
+  par(p.old)
+})
+
+# constructor for union
+CGraph.union = function(g1, g2, ...){
+  u = graph.union(g1, g2, ...)
+  i = grep('weight_\\d+', edge_attr_names(u))
+  ## add the weights together
+  w = do.call(cbind, args = edge.attributes(u)[i])
+  E(u)$weight = rowSums(w, na.rm = T)
+  #g = new('CGraph', ig=NULL, r = 0, f= F, ig.p=u)
+  return(u)
+}
 
 ############### end class CGraph
 
