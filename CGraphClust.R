@@ -39,7 +39,7 @@ if (!require(igraph)) stop('CGraphClust.R: library igraph required')
 setClass('CGraph', slots=list(ig='ANY', r='numeric', f='logical', ig.p='ANY'))
 
 # object constructor
-CGraph = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLinks=T,  ivWeights=c(1, 0, -1)){
+CGraph.bipartite = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLinks=T,  ivWeights=c(1, 0, -1)){
   # check if igraph library present
   if (!require(igraph)) stop('R library igraph required')
   if (!require(LearnBayes)) stop('R library LearnBayes required')
@@ -214,6 +214,151 @@ CGraph = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLinks=T,  iv
 }
 
 
+# object constructor 2 for correlation matrix
+CGraph.cor = function(mCor, ivWeights=c(2, 1, -2)){
+  # check if igraph library present
+  if (!require(igraph)) stop('R library igraph required')
+  if (!require(LearnBayes)) stop('R library LearnBayes required')
+  library(car)
+  
+  ############################### internal private functions
+  ### called by constructor
+  
+  ############# weighting functions
+  generate.weights = function(iCor){
+    # scale value for log posterior function
+    iScale = sd(iCor)
+    # starting value for search - initial value
+    start = c('mu'=mean(iCor))
+    # define a grid for calculating model scores and then
+    # bin the actual correlations in those grid bins
+    r = range(iCor)
+    iGrid = seq(floor(r[1]), ceiling(r[2]), length.out = 100)
+    ## break the weight vector into 3 quantiles
+    q1 = quantile(iCor, 0.975)
+    
+    q2 = quantile(iCor, 0.75)
+    
+    q3 = quantile(iCor, 0.5)
+    
+    
+    ## define 3 functions with a prior for each of the quantiles
+    ## model m1 - green
+    m1 = function(th) dnorm(th, q1, log = T)
+    
+    ## model m2 - yellow
+    m2 = function(th) dnorm(th, q2, log = T)
+    
+    ## model m3 - red
+    m3 = function(th) dnorm(th, q3, log = T)
+    
+    
+    ## define an array that represents number of models in our parameter space
+    ## each index has a prior weight/probability of being selected
+    ## this can be thought of coming from a categorical distribution 
+    mix.prior = c(m1=3/9 ,m2= 3/9 ,m3= 3/9)
+    
+    lp1 = function(theta, data){
+      m = theta['mu']
+      d = data # data observed
+      log.lik = sum(dnorm(d, m, iScale, log=T))
+      log.prior = m1(m)
+      log.post = log.lik + log.prior
+      return(log.post)
+    }
+    
+    lp2 = function(theta, data){
+      m = theta['mu']
+      d = data # data observed
+      log.lik = sum(dnorm(d, m, iScale, log=T))
+      log.prior = m2(m) 
+      log.post = log.lik + log.prior
+      return(log.post)
+    }
+    
+    lp3 = function(theta, data){
+      m = theta['mu']
+      d = data # data observed
+      log.lik = sum(dnorm(d, m, iScale, log=T))
+      log.prior = m3(m) 
+      log.post = log.lik + log.prior
+      return(log.post)
+    }
+    
+    mMixs = sapply(seq_along(iGrid), function(x){
+      data = iGrid[x]
+      fit_m1 = laplace(lp1, start, data)
+      fit_m2 = laplace(lp2, start, data)
+      fit_m3 = laplace(lp3, start, data)
+      mix.post = mix.prior
+      mix.post[1] = exp(fit_m1$int) * mix.prior[1] / (exp(fit_m1$int) * mix.prior[1] + exp(fit_m2$int) * mix.prior[2]
+                                                      + exp(fit_m3$int) * mix.prior[3])
+      
+      mix.post[2] = exp(fit_m2$int) * mix.prior[2] / (exp(fit_m1$int) * mix.prior[1] + exp(fit_m2$int) * mix.prior[2]
+                                                      + exp(fit_m3$int) * mix.prior[3])
+      
+      mix.post[3] = exp(fit_m3$int) * mix.prior[3] / (exp(fit_m1$int) * mix.prior[1] + exp(fit_m2$int) * mix.prior[2]
+                                                      + exp(fit_m3$int) * mix.prior[3])
+      return(mix.post)
+    })
+    # bin the actual correlation vector on the grid bin
+    i = apply(mMixs, 2, which.max)
+    cat = c('green', 'yellow', 'red')[i]
+    cat = factor(cat, levels = c('red', 'yellow', 'green'))
+    # break points for bins
+    p = tapply(iGrid, cat, range)
+    p = c(p$red, p$yellow[2], p$green[2])
+    cat.all = as.character(cut(iCor, breaks = p, include.lowest = F, labels = levels(cat)))
+    return(cat.all)
+  }
+  
+  # Name: CGraph.project
+  # Desc: assigns a score to each edge based on the model scores
+  #       the score for each model is calculated using a mixture of binomial models with beta priors
+  # Args: called internally no need to do it externally, 
+  #       will project on vertex with TYPE=TRUE
+  CGraph.project = function(obj){
+    # project the graph in one dimension and assign weights
+    g.p = bipartite.projection(obj@ig, which = 'TRUE')
+    w = E(g.p)$weight
+    if (bFilterWeakLinks) {
+      # remove low weight edges i.e. if two type 1 vertices share only one type 2 vertex
+      f = which(w < 2)
+      g.p = delete.edges(g.p, edges=f)
+      w = E(g.p)$weight
+    }
+    ## assign weights and categories to weights
+    mWeights = generate.weights(w, obj@r)
+    i = apply(mWeights, 2, which.max)
+    cat = c('green', 'yellow', 'red')[i]
+    num = ivWeights[i]
+    E(g.p)$weight_cat = cat
+    E(g.p)$weight_projection = E(g.p)$weight
+    E(g.p)$weight = num
+    obj@ig.p = g.p
+    return(obj)
+  }
+  
+  ######## end internal functions called by constructor
+  # create the object
+  g = new('CGraph', ig=oIGbp, r = 0, f= F, ig.p=NULL)
+  f = V(g@ig)$type
+  # r is the total numbers of vertices of the second kind
+  g@r = sum(!f)
+  g@f = f
+  # assign weights on one mode projection
+  g = CGraph.project(g)
+  return(g)
+}
+
+
+
+
+
+
+
+
+
 # data acccessor functions
 setGeneric('getBipartiteGraph', function(obj)standardGeneric('getBipartiteGraph'))
 setMethod('getBipartiteGraph', signature = 'CGraph', definition = function(obj){
@@ -250,6 +395,10 @@ CGraph.union = function(g1, g2, ...){
   #g = new('CGraph', ig=NULL, r = 0, f= F, ig.p=u)
   return(u)
 }
+
+
+
+
 
 ############### end class CGraph
 
