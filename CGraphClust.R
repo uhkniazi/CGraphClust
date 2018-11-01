@@ -215,7 +215,7 @@ CGraph.bipartite = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLi
 
 
 # object constructor 2 for correlation matrix
-CGraph.cor = function(mCor, ivWeights=c(2, 1, -2)){
+CGraph.cor = function(ig.template, mCor, ivWeights=c(2, 1, -2)){
   # check if igraph library present
   if (!require(igraph)) stop('R library igraph required')
   if (!require(LearnBayes)) stop('R library LearnBayes required')
@@ -312,52 +312,29 @@ CGraph.cor = function(mCor, ivWeights=c(2, 1, -2)){
     return(cat.all)
   }
   
-  # Name: CGraph.project
-  # Desc: assigns a score to each edge based on the model scores
-  #       the score for each model is calculated using a mixture of binomial models with beta priors
-  # Args: called internally no need to do it externally, 
-  #       will project on vertex with TYPE=TRUE
-  CGraph.project = function(obj){
-    # project the graph in one dimension and assign weights
-    g.p = bipartite.projection(obj@ig, which = 'TRUE')
-    w = E(g.p)$weight
-    if (bFilterWeakLinks) {
-      # remove low weight edges i.e. if two type 1 vertices share only one type 2 vertex
-      f = which(w < 2)
-      g.p = delete.edges(g.p, edges=f)
-      w = E(g.p)$weight
-    }
-    ## assign weights and categories to weights
-    mWeights = generate.weights(w, obj@r)
-    i = apply(mWeights, 2, which.max)
-    cat = c('green', 'yellow', 'red')[i]
-    num = ivWeights[i]
-    E(g.p)$weight_cat = cat
-    E(g.p)$weight_projection = E(g.p)$weight
-    E(g.p)$weight = num
-    obj@ig.p = g.p
-    return(obj)
-  }
-  
   ######## end internal functions called by constructor
-  # create the object
-  g = new('CGraph', ig=oIGbp, r = 0, f= F, ig.p=NULL)
-  f = V(g@ig)$type
-  # r is the total numbers of vertices of the second kind
-  g@r = sum(!f)
-  g@f = f
-  # assign weights on one mode projection
-  g = CGraph.project(g)
+  ## create correlation matrix graph, by treating it as an adjacency matrix
+  mCor = round(mCor, 3)
+  diag(mCor) = 0  
+  # create the graph of correlations
+  oIGcor = graph.adjacency(mCor, mode='min', weighted=T)
+  ## house keeping and cleaning template graph to drop edge attributes
+  m = as_adjacency_matrix(ig.template)
+  ig.template = graph.adjacency(m, mode = 'min', weighted = NULL)
+  oIGcor = graph.intersection(ig.template, oIGcor)
+  c = E(oIGcor)$weight
+  E(oIGcor)$cor = c
+  c = logit(abs(c))
+  cat = generate.weights(c)
+  i = rep(NA, length(cat))
+  i[cat == 'green'] = ivWeights[1]
+  i[cat == 'yellow'] = ivWeights[2]
+  i[cat == 'red'] = ivWeights[3]
+  E(oIGcor)$weight_cat = cat
+  E(oIGcor)$weight = i
+  g = new('CGraph', ig=NULL, r = 0, f= F, ig.p=oIGcor)
   return(g)
 }
-
-
-
-
-
-
-
-
 
 # data acccessor functions
 setGeneric('getBipartiteGraph', function(obj)standardGeneric('getBipartiteGraph'))
@@ -385,7 +362,7 @@ setMethod('plot.projected.graph', signature = 'CGraph', definition = function(ob
   par(p.old)
 })
 
-# constructor for union
+# function to perform unions of the graph objects
 CGraph.union = function(g1, g2, ...){
   u = graph.union(g1, g2, ...)
   i = grep('weight_\\d+', edge_attr_names(u))
