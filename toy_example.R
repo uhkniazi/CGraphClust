@@ -60,11 +60,13 @@ for (r in 1:(nrow(mCounts))){
 mCor = cor(t(mCounts))
 hist(mCor)
 
-####### create bipartite graph
-oIGbp = graph.data.frame(dfGraph, directed = F)
-# set the vertex type variable to make graph bipartite
-f = rep(c(T, F), times = c(length(unique(dfGraph[,1])),length(unique(dfGraph[,2]))))
-V(oIGbp)$type = f
+####### create bipartite graph and projected graph
+oGr.pathways = CGraph.bipartite(dfGraph, F, F)
+oIGbp = getBipartiteGraph(oGr.pathways)
+# oIGbp = graph.data.frame(dfGraph, directed = F)
+# # set the vertex type variable to make graph bipartite
+# f = rep(c(T, F), times = c(length(unique(dfGraph[,1])),length(unique(dfGraph[,2]))))
+# V(oIGbp)$type = f
 # sanity check - is graph bipartite
 if (!is.bipartite(oIGbp)) {
   stop(paste('Graph is not bipartite'))
@@ -79,36 +81,40 @@ pdf('Temp/Figures/graphs.pdf')
 par(mar=c(1,1,1,1)+0.1)#, mfrow=c(2,2))
 plot(oIGbp, layout=layout_as_bipartite, vertex.size=10)
 
-oGr = CGraph(oIGbp)
-oIG.proj = getProjectedGraph(oGr)
-E(oIG.proj)$weight = E(oIG.proj)$ob_to_ex
-plot(oIG.proj, vertex.size=10, edge.label=round(E(oIG.proj)$ob_to_ex, 2), edge.label.cex=0.7, layout=layout_with_fr)
+oIG.proj = getProjectedGraph(oGr.pathways)
+#E(oIG.proj)$weight = E(oIG.proj)$ob_to_ex
+set.seed(123)
+plot(oIG.proj, vertex.size=10, edge.label=round(E(oIG.proj)$weight, 2), edge.label.cex=0.7, layout=layout_with_fr,
+     edge.color=E(oIG.proj)$weight_cat)
 
-# remove the low weight edges
-w2 = E(oIG.proj)$weight
-c = qnbinom(0.05, size = median(w2), mu=median(w2), lower.tail = F)
-f = which(w2 < c)
-oIGProj = delete.edges(oIG.proj, edges = f)
-# plot the new graph
-#plot(oIGProj, vertex.size=10, edge.label=round(E(oIGProj)$ob_to_ex, 2), edge.label.cex=0.7, layout=layout_with_fr)
+# # remove the low weight edges
+# w2 = E(oIG.proj)$weight
+# c = qnbinom(0.05, size = median(w2), mu=median(w2), lower.tail = F)
+# f = which(w2 < c)
+# oIGProj = delete.edges(oIG.proj, edges = f)
+# # plot the new graph
+# #plot(oIGProj, vertex.size=10, edge.label=round(E(oIGProj)$ob_to_ex, 2), edge.label.cex=0.7, layout=layout_with_fr)
 
 
 ### create correlation graph and intersect
-mCor = abs(mCor)
-diag(mCor) = 0
+# mCor = abs(mCor)
+# diag(mCor) = 0
 # create the graph of correlations
-oIGcor = graph.adjacency(mCor, mode='min', weighted=T)
-c = E(oIGcor)$weight
-E(oIGcor)$cor = E(oIGcor)$weight
-iCorCut = 0.5
-f = which(c < iCorCut)
-oIGcor = delete.edges(oIGcor, edges = f)
-plot(oIGcor, vertex.size=10, edge.label=round(E(oIGcor)$cor, 2), edge.label.cex=0.7, layout=layout_with_fr)
-# intersect the 2 graphs
-ig.1 = igraph::graph.intersection(oIGProj, oIGcor)
-# set observed to expected ratio as weight
-E(ig.1)$weight = E(ig.1)$ob_to_ex
-d = degree(ig.1)
-plot(ig.1, vertex.size=10, edge.label=round(E(ig.1)$ob_to_ex, 2), edge.label.cex=0.7, layout=layout_with_fr)
+oGr.cor = CGraph.cor(getProjectedGraph(oGr.pathways), mCor = mCor)
+oIGcor = getProjectedGraph(oGr.cor)  #graph.adjacency(mCor, mode='min', weighted=T)
+# c = E(oIGcor)$weight
+# E(oIGcor)$cor = E(oIGcor)$weight
+# iCorCut = 0.5
+# f = which(c < iCorCut)
+# oIGcor = delete.edges(oIGcor, edges = f)
+set.seed(123)
+plot(oIGcor, vertex.size=10, edge.label=round(E(oIGcor)$cor, 2), edge.label.cex=0.7, layout=layout_with_fr,
+     edge.color=E(oIGcor)$weight_cat)
+# # intersect the 2 graphs
+# ig.1 = igraph::graph.intersection(oIGProj, oIGcor)
+# # set observed to expected ratio as weight
+# E(ig.1)$weight = E(ig.1)$ob_to_ex
+# d = degree(ig.1)
+# plot(ig.1, vertex.size=10, edge.label=round(E(ig.1)$ob_to_ex, 2), edge.label.cex=0.7, layout=layout_with_fr)
 
 dev.off(dev.cur())
