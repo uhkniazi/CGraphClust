@@ -31,7 +31,7 @@ mCounts = t(exprs(oExp))
 dim(mCounts)
 
 ## sub select top genes sorted on p-values
-cvTopGenes = rownames(lData.train$results)[1:2000]
+cvTopGenes = rownames(lData.train$results)[1:3000]
 mCounts = mCounts[,cvTopGenes]
 
 load('workflow/results/dfPathways.rds')
@@ -58,8 +58,8 @@ n = unique(dfGraph$Gene)
 
 dfGraph = na.omit(dfGraph)
 
-oCGbp.reactome = CGraph(dfGraph)
-plot.projected.graph(oCGbp.reactome, cDropEdges = c('red', 'yellow'))
+oCGbp.reactome = CGraph.bipartite(dfGraph)
+plot.projected.graph(oCGbp.reactome, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
 
 dfGraph = dfPathways[dfPathways$Database == 'KEGG',c('Gene', 'Pathway')]
 dfGraph = na.omit(dfGraph)
@@ -69,7 +69,7 @@ str(dfGraph)
 dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
 n = unique(dfGraph$Gene)
 
-oCGbp.kegg = CGraph(dfGraph)
+oCGbp.kegg = CGraph.bipartite(dfGraph)
 plot.projected.graph(oCGbp.kegg, bDropOrphans = F)
 
 dfGraph = dfPathways[dfPathways$Database == 'PANTHER',c('Gene', 'Pathway')]
@@ -80,7 +80,7 @@ str(dfGraph)
 dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
 n = unique(dfGraph$Gene)
 
-oCGbp.panther = CGraph(dfGraph)
+oCGbp.panther = CGraph.bipartite(dfGraph)
 plot.projected.graph(oCGbp.panther)
 
 table(dfPathways$Database)
@@ -92,12 +92,20 @@ str(dfGraph)
 dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
 n = unique(dfGraph$Gene)
 
-oCGbp.biocarta = CGraph(dfGraph)
+oCGbp.biocarta = CGraph.bipartite(dfGraph)
 plot.projected.graph(oCGbp.biocarta)
 
 ig = CGraph.union(getProjectedGraph(oCGbp.biocarta), oCGbp.kegg@ig.p, oCGbp.panther@ig.p, oCGbp.reactome@ig.p)
 table(E(ig)$weight)
-ig = delete.edges(ig, which(E(ig)$weight < 0))
+
+# create a correlation graph
+oCGcor = CGraph.cor(ig, cor(mCounts))
+
+ig = CGraph.union(getProjectedGraph(oCGcor), getProjectedGraph(oCGbp.biocarta), oCGbp.kegg@ig.p, oCGbp.panther@ig.p, oCGbp.reactome@ig.p)
+table(E(ig)$weight)
+
+
+ig = delete.edges(ig, which(E(ig)$weight < 2))
 ig = delete.vertices(ig, which(degree(ig) == 0))
 
 plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$weight), vertex.frame.color=NA)
