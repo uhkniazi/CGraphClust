@@ -31,7 +31,7 @@ mCounts = t(exprs(oExp))
 dim(mCounts)
 
 ## sub select top genes sorted on p-values
-cvTopGenes = rownames(lData.train$results)[1:3000]
+cvTopGenes = rownames(lData.train$results)[1:2000]
 mCounts = mCounts[,cvTopGenes]
 
 load('workflow/results/dfPathways.rds')
@@ -51,7 +51,7 @@ str(dfGraph)
 # no annotations, you may use a low level database like GO if you think 
 # that you lose too many genes
 dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
-n = unique(dfGraph$Gene)
+length(unique(dfGraph$Gene))
 #mCounts = mCounts[,n]
 #print(paste('Total number of genes with terms', length(n)))
 #dim(mCounts)
@@ -59,6 +59,7 @@ n = unique(dfGraph$Gene)
 dfGraph = na.omit(dfGraph)
 
 oCGbp.reactome = CGraph.bipartite(dfGraph)
+table(E(getProjectedGraph(oCGbp.reactome))$weight)
 plot.projected.graph(oCGbp.reactome, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
 
 dfGraph = dfPathways[dfPathways$Database == 'KEGG',c('Gene', 'Pathway')]
@@ -67,10 +68,10 @@ dfGraph$Gene = as.character(dfGraph$Gene)
 dfGraph$Pathway = as.character(dfGraph$Pathway)
 str(dfGraph)
 dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
-n = unique(dfGraph$Gene)
+length(unique(dfGraph$Gene))
 
 oCGbp.kegg = CGraph.bipartite(dfGraph)
-plot.projected.graph(oCGbp.kegg, bDropOrphans = F)
+plot.projected.graph(oCGbp.kegg, bDropOrphans = T)
 
 dfGraph = dfPathways[dfPathways$Database == 'PANTHER',c('Gene', 'Pathway')]
 dfGraph = na.omit(dfGraph)
@@ -78,10 +79,10 @@ dfGraph$Gene = as.character(dfGraph$Gene)
 dfGraph$Pathway = as.character(dfGraph$Pathway)
 str(dfGraph)
 dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
-n = unique(dfGraph$Gene)
+length(unique(dfGraph$Gene))
 
 oCGbp.panther = CGraph.bipartite(dfGraph)
-plot.projected.graph(oCGbp.panther)
+plot.projected.graph(oCGbp.panther, bDropOrphans = F)
 
 table(dfPathways$Database)
 dfGraph = dfPathways[dfPathways$Database == 'BioCarta',c('Gene', 'Pathway')]
@@ -90,7 +91,7 @@ dfGraph$Gene = as.character(dfGraph$Gene)
 dfGraph$Pathway = as.character(dfGraph$Pathway)
 str(dfGraph)
 dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
-n = unique(dfGraph$Gene)
+length(unique(dfGraph$Gene))
 
 oCGbp.biocarta = CGraph.bipartite(dfGraph)
 plot.projected.graph(oCGbp.biocarta)
@@ -100,26 +101,28 @@ table(E(ig)$weight)
 
 # create a correlation graph
 oCGcor = CGraph.cor(ig, cor(mCounts))
-
+table(E(getProjectedGraph(oCGcor))$weight)
+plot.projected.graph(oCGcor)
 ig = CGraph.union(getProjectedGraph(oCGcor), getProjectedGraph(oCGbp.biocarta), oCGbp.kegg@ig.p, oCGbp.panther@ig.p, oCGbp.reactome@ig.p)
 table(E(ig)$weight)
 
 
-ig = delete.edges(ig, which(E(ig)$weight < 2))
+ig = delete.edges(ig, which(E(ig)$weight < 4))
+vcount(ig)
 ig = delete.vertices(ig, which(degree(ig) == 0))
-
+vcount(ig)
 plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$weight), vertex.frame.color=NA)
 
 plot(ig, vertex.label=f_dfGetGeneAnnotation(names(V(ig)))$SYMBOL, vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, edge.color='darkgrey')
 
 ## add fold changes for infomap method
 n = names(V(ig))
-V(ig)$weight = abs(lData.train$results[n, 'logFC'])*10
+V(ig)$weight = abs(lData.train$results[n, 'logFC'])
 #E(ig)$weight = E(ig)$weight + abs(min(E(ig)$weight))
-com = cluster_leading_eigen(ig)
-com = cluster_label_prop(ig)
+# com = cluster_leading_eigen(ig)
+# com = cluster_label_prop(ig)
 com = cluster_infomap(ig, nb.trials = 100)
-com = cluster_louvain(ig)
+#com = cluster_louvain(ig)
 table(membership(com))
 pdf('temp/graph.pdf')
 par(mar=c(1,1,1,1)+0.1, family='Helvetica')
@@ -134,7 +137,7 @@ plot(com, ig, vertex.label=f_dfGetGeneAnnotation(names(V(ig)))$SYMBOL, vertex.la
 
 m = membership(com)
 t = table(membership(com))
-t = names(which(t > 1))
+t = names(which(t > 11))
 m = m[m %in% as.numeric(t)]
 
 ig.s = induced.subgraph(ig, V(ig)[names(m)])

@@ -13,13 +13,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-# CGraphClust.R
-# Auth: Umar Niazi u.niazi@imperial.ac.uk
-# Date: 25/4/2015
-# Desc: class to create a igraph and hclust object based on 2 criteria: 1) shared 
-#       properties or connections with type 2 vertices in a bipartite graph.
-#       2) positive correlation value
-
 library(methods)
 if (!require(igraph)) stop('CGraphClust.R: library igraph required')
 
@@ -373,8 +366,11 @@ CGraph.union = function(g1, g2, ...){
   return(u)
 }
 
-
-
+## utility functions
+f_dfGetGeneAnnotation = function(cvEnterezID = NULL) {
+  if (!require(org.Hs.eg.db)) stop('org.Hs.eg.db annotation library required')
+  return(AnnotationDbi::select(org.Hs.eg.db, cvEnterezID, columns = c('SYMBOL', 'GENENAME'), keytype = 'ENTREZID'))  
+}
 
 
 ############### end class CGraph
@@ -1628,10 +1624,6 @@ f_lpostMean = function(ivDat, fGroups, sim.size=100000){
 }
 
 
-f_dfGetGeneAnnotation = function(cvEnterezID = NULL) {
-  if (!require(org.Hs.eg.db)) stop('org.Hs.eg.db annotation library required')
-  return(AnnotationDbi::select(org.Hs.eg.db, cvEnterezID, columns = c('SYMBOL', 'GENENAME'), keytype = 'ENTREZID'))  
-}
 
 
 # f_igCalculateVertexSizes = function(ig, mCounts, fGroups, bStabalize=FALSE, iSize=NULL){

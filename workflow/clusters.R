@@ -41,43 +41,47 @@ dim(mCounts)
 cvTopGenes = rownames(lData.train$results)[1:2000]
 mCounts = mCounts[,cvTopGenes]
 
-# library(graphite)
-# p = pathwayDatabases()
-# p = p[p$species == 'hsapiens', ]
-# lPathways = lapply(as.character(p$database), function(x) pathways('hsapiens', x))
-# names(lPathways) = as.character(p$database)
-# 
-# ## function to extract gene ids from the list for a pathway
-# f_getIDs = function(pathway){
-#   pathway = convertIdentifiers(pathway, 'entrez')
-#   df = sapply(pathway, nodes)
-#   pn = sapply(pathway, function(x) x@id)
-#   names(pn) = NULL
-#   db = sapply(pathway, function(x) x@database)
-#   names(db) = NULL
-#   id = sapply(pathway, function(x) x@identifier)
-#   names(id) = NULL
-#   df = lapply(1:length(df), function(x) {
-#     ## error check if a pathway has 0 genes after conversion of labels
-#     if (length(df[[x]]) == 0) df[[x]] = NA ## set to NA and use remove NA to drop this later
-#     data.frame(Gene=df[[x]], Pathway=pn[x], LongName=names(df[x]), Database=db[x], identifier=id[x])})
-#   df = do.call(rbind, df)
-#   df = na.omit(df)
-#   return(df)
-# }
-# 
-# names(lPathways)
-# df1 = f_getIDs(lPathways[['biocarta']]); head(df1)
-# df2 = f_getIDs(lPathways[['kegg']]); head(df2)
-# df3 = f_getIDs(lPathways[['nci']]); head(df3)
-# df4 = f_getIDs(lPathways[['panther']]); head(df4)
-# df5 = f_getIDs(lPathways[['reactome']]); head(df5)
-# 
-# dfPathways = rbind(df1, df2, df3, df4, df5)
-# head(dfPathways)
-# dim(dfPathways)
-## save and load from here next time
-#save(dfPathways, file='workflow/results/dfPathways.rds')
+library(graphite)
+p = pathwayDatabases()
+p = p[p$species == 'hsapiens', ]
+lPathways = lapply(as.character(p$database), function(x) pathways('hsapiens', x))
+names(lPathways) = as.character(p$database)
+
+## function to extract gene ids from the list for a pathway
+f_getIDs = function(pathway){
+  pathway = convertIdentifiers(pathway, 'entrez')
+  df = sapply(pathway, nodes)
+  pn = sapply(pathway, function(x) x@id)
+  names(pn) = NULL
+  db = sapply(pathway, function(x) x@database)
+  names(db) = NULL
+  #id = sapply(pathway, function(x) x@identifier)
+  #names(id) = NULL
+  df = lapply(1:length(df), function(x) {
+    ## error check if a pathway has 0 genes after conversion of labels
+    if (length(df[[x]]) == 0) df[[x]] = NA ## set to NA and use remove NA to drop this later
+    data.frame(Gene=df[[x]], Pathway=pn[x], LongName=names(df[x]), Database=db[x])})
+  df = do.call(rbind, df)
+  df = na.omit(df)
+  return(df)
+}
+
+names(lPathways)
+df1 = f_getIDs(lPathways[['biocarta']]); head(df1)
+df2 = f_getIDs(lPathways[['kegg']]); head(df2)
+df3 = f_getIDs(lPathways[['nci']]); head(df3)
+df4 = f_getIDs(lPathways[['panther']]); head(df4)
+df5 = f_getIDs(lPathways[['reactome']]); head(df5)
+df6 = f_getIDs(lPathways[['pharmgkb']]); head(df6)
+df7 = f_getIDs(lPathways[['humancyc']]); head(df7)
+df8 = f_getIDs(lPathways[['smpdb']]); head(df8)
+
+dfPathways = rbind(df1, df2, df3, df4, df5, df6, df7, df8)
+head(dfPathways)
+dim(dfPathways)
+dfPathways$Gene = gsub('ENTREZID:', replacement = '', x = as.character(dfPathways$Gene))
+# save and load from here next time
+save(dfPathways, file='workflow/results/dfPathways_2.rds')
 load('workflow/results/dfPathways.rds')
 
 dfGraph = dfPathways[,c('Gene', 'Pathway')]
