@@ -372,7 +372,30 @@ f_dfGetGeneAnnotation = function(cvEnterezID = NULL) {
   return(AnnotationDbi::select(org.Hs.eg.db, cvEnterezID, columns = c('SYMBOL', 'GENENAME'), keytype = 'ENTREZID'))  
 }
 
-
+mCompressMatrixByRow = function(mData, ig, com){
+  n = V(ig)$name
+  # sanity check
+  if (sum(rownames(mData) %in% n) == 0) stop('Row names of count matrix do not match with node names of graph')
+  mData = mData[n,]
+  if (!identical(names(membership(com)), n)) stop('community membership not in order with node names')
+  
+  memb = factor(membership(com))
+  # get row average for each cluster
+  mCent = matrix(NA, nrow=nlevels(memb), ncol = ncol(mData))
+  rownames(mCent) = levels(memb)
+  colnames(mCent) = colnames(mData)
+  # loop and calculate marginal for each cluster
+  for(a in 1:nrow(mCent)){
+    i = rownames(mCent)[a]
+    # if cluster has only one member
+    if (sum(memb == i) == 1) {
+      mCent[i,] = mData[memb == i,]
+    } else {
+      # else if more than one member,
+      mCent[i,] = colMeans(mData[memb==i,])}
+  }
+  return(mCent)
+}
 ############### end class CGraph
 
 # Name: Class CGgraphClust
