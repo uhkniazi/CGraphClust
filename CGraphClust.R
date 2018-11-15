@@ -208,7 +208,7 @@ CGraph.bipartite = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLi
 
 
 # object constructor 2 for correlation matrix
-CGraph.cor = function(ig.template, mCor, ivWeights=c(2, 1, -2)){
+CGraph.cor = function(ig.template=NULL, mCor, ivWeights=c(1, 0, -1)){
   # check if igraph library present
   if (!require(igraph)) stop('R library igraph required')
   if (!require(LearnBayes)) stop('R library LearnBayes required')
@@ -312,9 +312,11 @@ CGraph.cor = function(ig.template, mCor, ivWeights=c(2, 1, -2)){
   # create the graph of correlations
   oIGcor = graph.adjacency(mCor, mode='min', weighted=T)
   ## house keeping and cleaning template graph to drop edge attributes
-  m = as_adjacency_matrix(ig.template)
-  ig.template = graph.adjacency(m, mode = 'min', weighted = NULL)
-  oIGcor = graph.intersection(ig.template, oIGcor)
+  if (!is.null(ig.template)){
+    m = as_adjacency_matrix(ig.template)
+    ig.template = graph.adjacency(m, mode = 'min', weighted = NULL)
+    oIGcor = graph.intersection(ig.template, oIGcor)
+  }
   c = E(oIGcor)$weight
   E(oIGcor)$cor = c
   c = logit(abs(c))
