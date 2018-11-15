@@ -375,6 +375,26 @@ f_dfGetGeneAnnotation = function(cvEnterezID = NULL) {
 }
 
 mCompressMatrixByRow = function(mData, ig, com){
+  ## internal functions
+  getClusterSubgraph = function(ig, lab, com){
+    m = factor(membership(com))
+    m = m[m %in% lab]
+    ig.s = induced.subgraph(ig, V(ig)[names(m)])
+    return(ig.s)
+  }
+  
+  f_edge.score = function(g, mCl){
+    # get the list of edges
+    el = get.edgelist(g)
+    # for each edge list row, get the 
+    # expression matrix rows
+    mRet = apply(el, 1, function(x){
+      m = colSums(mCl[x,])
+      return(m)
+    })
+    return(t(mRet))
+  }
+  
   n = V(ig)$name
   # sanity check
   if (sum(rownames(mData) %in% n) == 0) stop('Row names of count matrix do not match with node names of graph')
@@ -389,12 +409,15 @@ mCompressMatrixByRow = function(mData, ig, com){
   # loop and calculate marginal for each cluster
   for(a in 1:nrow(mCent)){
     i = rownames(mCent)[a]
-    # if cluster has only one member
-    if (sum(memb == i) == 1) {
-      mCent[i,] = mData[memb == i,]
+    # if cluster has only one or two members then remove from analysis
+    # issue1 - if 2 members in cluster then only one edge, which crashes the 
+    # colSumns function in f_edge.score function, and a subgraph can have no edges
+    if (sum(memb == i) <= 2 || ecount(getClusterSubgraph(ig, i, com)) <= 1) {
+      # mCent[i,] = mCounts[memb == i,]
+      next;
     } else {
       # else if more than one member,
-      mCent[i,] = colMeans(mData[memb==i,])}
+      mCent[i,] = colMeans(f_edge.score(getClusterSubgraph(ig, i, com), mData[memb==i,]))}
   }
   return(mCent)
 }

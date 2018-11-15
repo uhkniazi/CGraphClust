@@ -34,7 +34,7 @@ dim(mCounts)
 cvTopGenes = rownames(lData.train$results)[1:2000]
 mCounts = mCounts[,cvTopGenes]
 
-load('workflow/results/dfPathways.rds')
+load('workflow/results/dfPathways_2.rds')
 
 table(dfPathways$Database)
 
@@ -62,6 +62,7 @@ oCGbp.reactome = CGraph.bipartite(dfGraph)
 table(E(getProjectedGraph(oCGbp.reactome))$weight)
 plot.projected.graph(oCGbp.reactome, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
 
+table(dfPathways$Database)
 dfGraph = dfPathways[dfPathways$Database == 'KEGG',c('Gene', 'Pathway')]
 dfGraph = na.omit(dfGraph)
 dfGraph$Gene = as.character(dfGraph$Gene)
@@ -73,7 +74,8 @@ length(unique(dfGraph$Gene))
 oCGbp.kegg = CGraph.bipartite(dfGraph)
 plot.projected.graph(oCGbp.kegg, bDropOrphans = T)
 
-dfGraph = dfPathways[dfPathways$Database == 'PANTHER',c('Gene', 'Pathway')]
+table(dfPathways$Database)
+dfGraph = dfPathways[dfPathways$Database == 'panther',c('Gene', 'Pathway')]
 dfGraph = na.omit(dfGraph)
 dfGraph$Gene = as.character(dfGraph$Gene)
 dfGraph$Pathway = as.character(dfGraph$Pathway)
@@ -85,7 +87,7 @@ oCGbp.panther = CGraph.bipartite(dfGraph)
 plot.projected.graph(oCGbp.panther, bDropOrphans = F)
 
 table(dfPathways$Database)
-dfGraph = dfPathways[dfPathways$Database == 'BioCarta',c('Gene', 'Pathway')]
+dfGraph = dfPathways[dfPathways$Database == 'biocarta',c('Gene', 'Pathway')]
 dfGraph = na.omit(dfGraph)
 dfGraph$Gene = as.character(dfGraph$Gene)
 dfGraph$Pathway = as.character(dfGraph$Pathway)
@@ -96,18 +98,119 @@ length(unique(dfGraph$Gene))
 oCGbp.biocarta = CGraph.bipartite(dfGraph)
 plot.projected.graph(oCGbp.biocarta)
 
-ig = CGraph.union(getProjectedGraph(oCGbp.biocarta), oCGbp.kegg@ig.p, oCGbp.panther@ig.p, oCGbp.reactome@ig.p)
+table(dfPathways$Database)
+dfGraph = dfPathways[dfPathways$Database == 'nci',c('Gene', 'Pathway')]
+dfGraph = na.omit(dfGraph)
+dfGraph$Gene = as.character(dfGraph$Gene)
+dfGraph$Pathway = as.character(dfGraph$Pathway)
+str(dfGraph)
+dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
+length(unique(dfGraph$Gene))
+
+oCGbp.nci = CGraph.bipartite(dfGraph)
+plot.projected.graph(oCGbp.nci)
+
+table(dfPathways$Database)
+dfGraph = dfPathways[dfPathways$Database == 'PharmGKB',c('Gene', 'Pathway')]
+dfGraph = na.omit(dfGraph)
+dfGraph$Gene = as.character(dfGraph$Gene)
+dfGraph$Pathway = as.character(dfGraph$Pathway)
+str(dfGraph)
+dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
+length(unique(dfGraph$Gene))
+
+oCGbp.pharm = CGraph.bipartite(dfGraph)
+plot.projected.graph(oCGbp.pharm)
+
+
+table(dfPathways$Database)
+dfGraph = dfPathways[dfPathways$Database == 'humancyc',c('Gene', 'Pathway')]
+dfGraph = na.omit(dfGraph)
+dfGraph$Gene = as.character(dfGraph$Gene)
+dfGraph$Pathway = as.character(dfGraph$Pathway)
+str(dfGraph)
+dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
+length(unique(dfGraph$Gene))
+
+oCGbp.humancyc = CGraph.bipartite(dfGraph)
+plot.projected.graph(oCGbp.humancyc)
+
+table(dfPathways$Database)
+dfGraph = dfPathways[dfPathways$Database == 'SMPDB',c('Gene', 'Pathway')]
+dfGraph = na.omit(dfGraph)
+dfGraph$Gene = as.character(dfGraph$Gene)
+dfGraph$Pathway = as.character(dfGraph$Pathway)
+str(dfGraph)
+dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts), ]
+length(unique(dfGraph$Gene))
+
+oCGbp.smpdb = CGraph.bipartite(dfGraph)
+plot.projected.graph(oCGbp.smpdb)
+
+ig = CGraph.union(getProjectedGraph(oCGbp.biocarta), oCGbp.kegg@ig.p, oCGbp.panther@ig.p, oCGbp.reactome@ig.p, 
+                  getProjectedGraph(oCGbp.humancyc), getProjectedGraph(oCGbp.nci), getProjectedGraph(oCGbp.pharm),
+                  getProjectedGraph(oCGbp.smpdb))
+table(E(ig)$weight)
+
+
+########### add the go term graphs
+dfGraph = AnnotationDbi::select(org.Hs.eg.db, colnames(mCounts), 'GO', 'ENTREZID')
+dfGraph = dfGraph[dfGraph$ONTOLOGY == 'BP',]
+dfGraph = dfGraph[,c('ENTREZID', 'GO')]
+dfGraph = na.omit(dfGraph)
+str(dfGraph)
+length(unique(dfGraph$ENTREZID))
+
+oCGbp.gobp = CGraph.bipartite(dfGraph)
+table(E(getProjectedGraph(oCGbp.gobp))$weight)
+plot.projected.graph(oCGbp.gobp, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
+
+dfGraph = AnnotationDbi::select(org.Hs.eg.db, colnames(mCounts), 'GO', 'ENTREZID')
+dfGraph = dfGraph[dfGraph$ONTOLOGY == 'CC',]
+dfGraph = dfGraph[,c('ENTREZID', 'GO')]
+dfGraph = na.omit(dfGraph)
+str(dfGraph)
+length(unique(dfGraph$ENTREZID))
+
+oCGbp.gocc = CGraph.bipartite(dfGraph)
+table(E(getProjectedGraph(oCGbp.gocc))$weight)
+plot.projected.graph(oCGbp.gocc, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
+
+
+dfGraph = AnnotationDbi::select(org.Hs.eg.db, colnames(mCounts), 'GO', 'ENTREZID')
+dfGraph = dfGraph[dfGraph$ONTOLOGY == 'MF',]
+dfGraph = dfGraph[,c('ENTREZID', 'GO')]
+dfGraph = na.omit(dfGraph)
+str(dfGraph)
+length(unique(dfGraph$ENTREZID))
+
+oCGbp.gomf = CGraph.bipartite(dfGraph)
+table(E(getProjectedGraph(oCGbp.gomf))$weight)
+plot.projected.graph(oCGbp.gomf, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
+
+ig = CGraph.union(getProjectedGraph(oCGbp.biocarta), oCGbp.kegg@ig.p, oCGbp.panther@ig.p, oCGbp.reactome@ig.p, 
+                  getProjectedGraph(oCGbp.humancyc), getProjectedGraph(oCGbp.nci), getProjectedGraph(oCGbp.pharm),
+                  getProjectedGraph(oCGbp.smpdb), getProjectedGraph(oCGbp.gobp), getProjectedGraph(oCGbp.gocc),
+                  getProjectedGraph(oCGbp.gomf))
 table(E(ig)$weight)
 
 # create a correlation graph
-oCGcor = CGraph.cor(ig, cor(mCounts))
+oCGcor = CGraph.cor(mCor = cor(mCounts))
 table(E(getProjectedGraph(oCGcor))$weight)
-plot.projected.graph(oCGcor)
-ig = CGraph.union(getProjectedGraph(oCGcor), getProjectedGraph(oCGbp.biocarta), oCGbp.kegg@ig.p, oCGbp.panther@ig.p, oCGbp.reactome@ig.p)
+table(E(getProjectedGraph(oCGbp.reactome))$weight)
+#plot.projected.graph(oCGcor)
+# ig = CGraph.union(getProjectedGraph(oCGcor), getProjectedGraph(oCGbp.biocarta), oCGbp.kegg@ig.p, oCGbp.panther@ig.p, oCGbp.reactome@ig.p, 
+#                   getProjectedGraph(oCGbp.humancyc), getProjectedGraph(oCGbp.nci), getProjectedGraph(oCGbp.pharm),
+#                   getProjectedGraph(oCGbp.smpdb), getProjectedGraph(oCGbp.gobp), getProjectedGraph(oCGbp.gocc),
+#                   getProjectedGraph(oCGbp.gomf))
+
+ig = CGraph.union(getProjectedGraph(oCGcor), oCGbp.reactome@ig.p, oCGbp.gobp@ig.p, oCGbp.gomf@ig.p, oCGbp.gocc@ig.p)
 table(E(ig)$weight)
 
 
-ig = delete.edges(ig, which(E(ig)$weight < 4))
+
+
+ig = delete.edges(ig, which(E(ig)$weight < 2))
 vcount(ig)
 ig = delete.vertices(ig, which(degree(ig) == 0))
 vcount(ig)
@@ -121,9 +224,20 @@ V(ig)$weight = abs(lData.train$results[n, 'logFC'])
 #E(ig)$weight = E(ig)$weight + abs(min(E(ig)$weight))
 # com = cluster_leading_eigen(ig)
 # com = cluster_label_prop(ig)
-com = cluster_infomap(ig, nb.trials = 100)
+com = cluster_infomap(ig)#, nb.trials = 100)
+com = cluster_walktrap(ig)
+m = max((E(ig)$weight))
+com = cluster_edge_betweenness(ig, weights = abs((E(ig)$weight)-m)+1)
 #com = cluster_louvain(ig)
 table(membership(com))
+mCent = na.omit(mCompressMatrixByRow((t(mCounts)), ig, com))
+library(lattice)
+df = data.frame(t(mCent))
+df = stack(df)
+df$fGroups = fGroups
+  
+xyplot( values ~ fGroups | ind, data=df, type='p', pch=20)
+
 pdf('temp/graph.pdf')
 par(mar=c(1,1,1,1)+0.1, family='Helvetica')
 set.seed(123)
@@ -136,9 +250,9 @@ plot(com, ig, vertex.label=f_dfGetGeneAnnotation(names(V(ig)))$SYMBOL, vertex.la
 
 
 m = membership(com)
-t = table(membership(com))
-t = names(which(t > 11))
-m = m[m %in% as.numeric(t)]
+table(membership(com))
+#t = names(which(t >= 10))
+m = m[m %in% rownames(mCent)]
 
 ig.s = induced.subgraph(ig, V(ig)[names(m)])
 
@@ -149,7 +263,7 @@ plot(ig.s, vertex.label=f_dfGetGeneAnnotation(names(V(ig.s)))$SYMBOL, vertex.lab
 m = membership(com)
 t = table(membership(com))
 t = names(which.max(t))
-m = m[m %in% as.numeric(t)]
+m = m[m %in% '24']#  as.numeric(t)]
 
 ig.s = induced.subgraph(ig, V(ig)[names(m)])
 
@@ -175,9 +289,10 @@ source('CDiagnosticPlots.R')
 # delete the file after source
 unlink('CDiagnosticPlots.R')
 
-oDiag.1 = CDiagnosticPlots(t(mData), 'FC, PValue')
+oDiag.1 = CDiagnosticPlots((mCent), 'FC, PValue')
 
-plot.PCA(oDiag.1, u, legend.pos = 'topright')
+plot.PCA(oDiag.1, fGroups, legend.pos = 'topright', csLabels = '')
+plot.dendogram(oDiag.1, fGroups)
 p = oDiag.1@lData$PCA
 
 whiten = function(mData){
@@ -201,7 +316,8 @@ whiten = function(mData){
   return(t(yn))
 }
 
-plot(whiten(mData))
+plot(whiten(t(mCent)), col=c(2,3,4)[as.numeric(fGroups)])
+legend('topright', legend = levels(fGroups), fill=c(2,3,4))
 
 
 
