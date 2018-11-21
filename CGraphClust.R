@@ -84,6 +84,18 @@ CGraph.bipartite = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLi
     m3.suc = quantile(suc, 0.5)
     m3.fail = trials - m3.suc
     
+    ## if difference between the median and 75% quantiles is small
+    ## then increase this as it can happen if most numbers in the 
+    ## suc vector are the same 
+    d = m2.suc - m3.suc
+    if (d <= 1){
+      d = ifelse(d==0, 2, 1)
+      m1.suc = m1.suc + d
+      m1.fail = trials - m1.suc
+      
+      m2.suc = m2.suc + d
+      m2.fail = trials - m2.suc
+    }
     
     ## define 3 functions with a prior for each of the quantiles
     ## model m1 - green
