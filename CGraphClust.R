@@ -102,11 +102,11 @@ CGraph.bipartite = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLi
     
     library(LearnBayes)
     library(car)
-    logit.inv = function(p) {exp(p)/(exp(p)+1) }
+    #logit.inv = function(p) {exp(p)/(exp(p)+1) }
     
     mylogpost_m1 = function(theta, data){
       ## theta contains parameters we wish to track
-      th = logit.inv(theta['theta'])
+      th = plogis(theta['theta'])
       success = data['suc']
       fail = data['fail']
       
@@ -120,7 +120,7 @@ CGraph.bipartite = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLi
     
     mylogpost_m2 = function(theta, data){
       ## theta contains parameters we wish to track
-      th = logit.inv(theta['theta'])
+      th = plogis(theta['theta'])
       success = data['suc']
       fail = data['fail']
       
@@ -134,7 +134,7 @@ CGraph.bipartite = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLi
     
     mylogpost_m3 = function(theta, data){
       ## theta contains parameters we wish to track
-      th = logit.inv(theta['theta'])
+      th = plogis(theta['theta'])
       success = data['suc']
       fail = data['fail']
       
@@ -147,7 +147,7 @@ CGraph.bipartite = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLi
     }
     
     # starting value for search - initial value
-    start = c(theta=logit(median(suc)))
+    start = c(theta=logit(median(suc)/trials))
     mMixs = sapply(seq_along(suc), function(x){
       data = c(suc=suc[x], fail=trials-suc[x])
       fit_m1 = laplace(mylogpost_m1, start, data)
