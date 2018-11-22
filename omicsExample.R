@@ -80,20 +80,19 @@ plot.projected.graph(oCGbp.gomf, cDropEdges = c('red', 'yellow'), bDropOrphans =
 
 
 # create 2 correlation graphs
-oCGcor.train = CGraph.cor(mCor = cor(mCounts.train))
+oCGcor.train = CGraph.cor(mCor = cor(mCounts.train), ivWeights = c(1, 0, 0))
 table(E(getProjectedGraph(oCGcor.train))$weight)
 
-oCGcor.test = CGraph.cor(mCor = cor(mCounts.test))
+oCGcor.test = CGraph.cor(mCor = cor(mCounts.test), ivWeights = c(1, 0, 0))
 table(E(getProjectedGraph(oCGcor.test))$weight)
 
 ig = CGraph.union(getProjectedGraph(oCGcor.train),
-                  getProjectedGraph(oCGcor.test),
                   getProjectedGraph(oCGbp.reactome),
                   getProjectedGraph(oCGbp.gobp),
                   getProjectedGraph(oCGbp.gomf))
 table(E(ig)$weight)
 
-ig = delete.edges(ig, which(E(ig)$weight < 3))
+ig = delete.edges(ig, which(E(ig)$weight < 2))
 vcount(ig)
 ecount(ig)
 ig = delete.vertices(ig, which(degree(ig) == 0))
@@ -106,3 +105,29 @@ set.seed(123)
 plot(ig, vertex.label=names(V(ig)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
      edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr)
 dev.off(dev.cur())
+
+## add the correlation graph union for the second data set
+m = as_adjacency_matrix(ig, attr = 'weight')
+ig = graph.adjacency(m, mode = 'min', weighted = T)
+
+
+ig = CGraph.union(getProjectedGraph(oCGcor.test),
+                  ig)
+table(E(ig)$weight)
+
+ig = delete.edges(ig, which(E(ig)$weight < 2))
+vcount(ig)
+ecount(ig)
+ig = delete.vertices(ig, which(degree(ig) == 0))
+vcount(ig)
+plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$weight), vertex.frame.color=NA)
+
+pdf('temp/graph.pdf')
+par(mar=c(1,1,1,1)+0.1, family='Helvetica')
+set.seed(123)
+plot(ig, vertex.label=names(V(ig)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
+     edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr)
+dev.off(dev.cur())
+
+
+
