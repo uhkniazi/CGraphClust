@@ -95,21 +95,20 @@ table(E(ig)$weight)
 ig = delete.edges(ig, which(E(ig)$weight < 2))
 vcount(ig)
 ecount(ig)
-ig = delete.vertices(ig, which(degree(ig) == 0))
-vcount(ig)
-plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$weight), vertex.frame.color=NA)
+ig.p = delete.vertices(ig, which(degree(ig) == 0))
+vcount(ig.p)
+plot(ig.p, vertex.label=NA, vertex.size=2, layout=layout_with_fr, vertex.frame.color=NA)
 
 pdf('temp/graph.pdf')
 par(mar=c(1,1,1,1)+0.1, family='Helvetica')
 set.seed(123)
-plot(ig, vertex.label=names(V(ig)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
+plot(ig.p, vertex.label=names(V(ig.p)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
      edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr)
 dev.off(dev.cur())
 
 ## add the correlation graph union for the second data set
 m = as_adjacency_matrix(ig, attr = 'weight')
 ig = graph.adjacency(m, mode = 'min', weighted = T)
-
 
 ig = CGraph.union(getProjectedGraph(oCGcor.test),
                   ig)
@@ -118,16 +117,53 @@ table(E(ig)$weight)
 ig = delete.edges(ig, which(E(ig)$weight < 2))
 vcount(ig)
 ecount(ig)
-ig = delete.vertices(ig, which(degree(ig) == 0))
-vcount(ig)
-plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$weight), vertex.frame.color=NA)
+ig.p = delete.vertices(ig, which(degree(ig) == 0))
+vcount(ig.p)
+plot(ig.p, vertex.label=NA, vertex.size=2, layout=layout_with_fr, vertex.frame.color=NA)
 
 pdf('temp/graph.pdf')
 par(mar=c(1,1,1,1)+0.1, family='Helvetica')
 set.seed(123)
-plot(ig, vertex.label=names(V(ig)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
+plot(ig.p, vertex.label=names(V(ig.p)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
      edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr)
 dev.off(dev.cur())
 
 
+## add a few more databases to 'grow' the graph
+#### add disgenet
+load('testData/dfDisgenet.rds')
+dfGraph = dfDisgenet[dfDisgenet$score > 0.1,c('SYMBOL', 'Pathway')]
+dfGraph = na.omit(dfGraph)
+dfGraph$Gene = as.character(dfGraph$SYMBOL)
+dfGraph$Pathway = as.character(dfGraph$Pathway)
+str(dfGraph)
+dfGraph = dfGraph[,-1]
+dfGraph = dfGraph[,c(2,1)]
+
+dfGraph = dfGraph[dfGraph$Gene %in% V(ig)$name, ]
+length(unique(dfGraph$Gene))
+
+oCGbp.disgenet = CGraph.bipartite(dfGraph)
+table(E(getProjectedGraph(oCGbp.disgenet))$weight)
+plot.projected.graph(oCGbp.disgenet, bDropOrphans = T, cDropEdges = c('red', 'yellow'))
+
+ig.orig = ig
+m = as_adjacency_matrix(ig, attr = 'weight')
+ig = graph.adjacency(m, mode = 'min', weighted = T)
+ig = CGraph.union(getProjectedGraph(oCGbp.disgenet), ig)
+table(E(ig)$weight)
+
+ig = delete.edges(ig, which(E(ig)$weight < 1))
+vcount(ig)
+ecount(ig)
+ig.p = delete.vertices(ig, which(degree(ig) == 0))
+vcount(ig.p)
+plot(ig.p, vertex.label=NA, vertex.size=2, layout=layout_with_fr, vertex.frame.color=NA)
+
+pdf('temp/graph.pdf')
+par(mar=c(1,1,1,1)+0.1, family='Helvetica')
+set.seed(123)
+plot(ig.p, vertex.label=names(V(ig.p)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
+     edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr)
+dev.off(dev.cur())
 
