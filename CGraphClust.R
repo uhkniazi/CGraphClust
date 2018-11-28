@@ -32,7 +32,8 @@ if (!require(igraph)) stop('CGraphClust.R: library igraph required')
 setClass('CGraph', slots=list(ig='ANY', r='numeric', f='logical', ig.p='ANY'))
 
 # object constructor
-CGraph.bipartite = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLinks=T,  ivWeights=c(1, 0, -1)){
+CGraph.bipartite = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLinks=T,  ivWeights=c(1, 0, -1), 
+                            mix.prior = c(m1=3/9 ,m2= 3/9 ,m3= 3/9)){
   # check if igraph library present
   if (!require(igraph)) stop('R library igraph required')
   if (!require(LearnBayes)) stop('R library LearnBayes required')
@@ -110,7 +111,8 @@ CGraph.bipartite = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLi
     ## define an array that represents number of models in our parameter space
     ## each index has a prior weight/probability of being selected
     ## this can be thought of coming from a categorical distribution 
-    mix.prior = c(m1=3/9 ,m2= 3/9 ,m3= 3/9)
+    ## moved to arguments section of the constructor
+    #mix.prior = c(m1=3/9 ,m2= 3/9 ,m3= 3/9)
     
     library(LearnBayes)
     library(car)
@@ -220,7 +222,7 @@ CGraph.bipartite = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLi
 
 
 # object constructor 2 for correlation matrix
-CGraph.cor = function(ig.template=NULL, mCor, ivWeights=c(1, 0, -1)){
+CGraph.cor = function(ig.template=NULL, mCor, ivWeights=c(1, 0, -1), mix.prior = c(m1=3/9 ,m2= 3/9 ,m3= 3/9)){
   # check if igraph library present
   if (!require(igraph)) stop('R library igraph required')
   if (!require(LearnBayes)) stop('R library LearnBayes required')
@@ -261,7 +263,8 @@ CGraph.cor = function(ig.template=NULL, mCor, ivWeights=c(1, 0, -1)){
     ## define an array that represents number of models in our parameter space
     ## each index has a prior weight/probability of being selected
     ## this can be thought of coming from a categorical distribution 
-    mix.prior = c(m1=3/9 ,m2= 3/9 ,m3= 3/9)
+    ## moved to the arguments section of the constructor
+    ##mix.prior = c(m1=3/9 ,m2= 3/9 ,m3= 3/9)
     
     lp1 = function(theta, data){
       m = theta['mu']
