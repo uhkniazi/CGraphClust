@@ -1,6 +1,32 @@
 # scratch.R
 # Desc: used for testing and rough work
 
+mPrintCentralitySummary = function(ig){
+  # calculate 3 measures of centrality i.e. degree, closeness and betweenness
+  deg = degree(ig)
+  clo = closeness(ig)
+  bet = betweenness(ig, directed = F)
+  # calculate the page rank and authority_score
+  aut = authority_score(ig, scale = F)
+  aut = aut$vector
+  # print the summary of the data
+  print('Degree summary')
+  print(summary(deg))
+  print('Closeness summary')
+  print(summary(clo))
+  print('Betweenness summary')
+  print(summary(bet))
+  print('Hub score summary')
+  print(summary(aut))
+  # print correlation summary
+  m = cbind(degree=deg, closeness=clo, betweenness=bet, hub=aut)
+  print('Correlation between scores')
+  print(round(cor(m), 3))
+  return(m)  
+}
+
+
+
 
 ### create a data set to use for bipartite graph
 library(org.Hs.eg.db)

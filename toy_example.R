@@ -79,12 +79,13 @@ V(oIGbp)[!fType]$shape = 'square'
 
 pdf('Temp/Figures/graphs.pdf')
 par(mar=c(1,1,1,1)+0.1)#, mfrow=c(2,2))
+set.seed(123)
 plot(oIGbp, layout=layout_as_bipartite, vertex.size=10)
 
 oIG.proj = getProjectedGraph(oGr.pathways)
 #E(oIG.proj)$weight = E(oIG.proj)$ob_to_ex
 set.seed(123)
-plot(oIG.proj, vertex.size=10, edge.label=round(E(oIG.proj)$weight, 2), edge.label.cex=0.7, layout=layout_with_fr,
+plot(oIG.proj, vertex.size=10, edge.label=round(E(oIG.proj)$weight, 2), edge.label.cex=2, layout=layout_with_fr, edge.width=2,
      edge.color=E(oIG.proj)$weight_cat)
 
 # # remove the low weight edges
@@ -100,7 +101,9 @@ plot(oIG.proj, vertex.size=10, edge.label=round(E(oIG.proj)$weight, 2), edge.lab
 # mCor = abs(mCor)
 # diag(mCor) = 0
 # create the graph of correlations
-oGr.cor = CGraph.cor(getProjectedGraph(oGr.pathways), mCor = mCor)
+m = c(m1=10, m2=9, m3=8)
+m = m/sum(m)
+oGr.cor = CGraph.cor(mCor = mCor, mix.prior = m)
 oIGcor = getProjectedGraph(oGr.cor)  #graph.adjacency(mCor, mode='min', weighted=T)
 # c = E(oIGcor)$weight
 # E(oIGcor)$cor = E(oIGcor)$weight
@@ -108,8 +111,13 @@ oIGcor = getProjectedGraph(oGr.cor)  #graph.adjacency(mCor, mode='min', weighted
 # f = which(c < iCorCut)
 # oIGcor = delete.edges(oIGcor, edges = f)
 set.seed(123)
-plot(oIGcor, vertex.size=10, edge.label=round(E(oIGcor)$cor, 2), edge.label.cex=0.7, layout=layout_with_fr,
+plot(oIGcor, vertex.size=10, edge.label=round(E(oIGcor)$cor, 2), edge.label.cex=1, layout=layout_with_fr,
      edge.color=E(oIGcor)$weight_cat)
+
+plot(oIGcor, vertex.size=10, edge.label=E(oIGcor)$weight, edge.label.cex=1, layout=layout_with_fr,
+     edge.color=E(oIGcor)$weight_cat)
+
+
 # # intersect the 2 graphs
 # ig.1 = igraph::graph.intersection(oIGProj, oIGcor)
 # # set observed to expected ratio as weight
@@ -118,3 +126,12 @@ plot(oIGcor, vertex.size=10, edge.label=round(E(oIGcor)$cor, 2), edge.label.cex=
 # plot(ig.1, vertex.size=10, edge.label=round(E(ig.1)$ob_to_ex, 2), edge.label.cex=0.7, layout=layout_with_fr)
 
 dev.off(dev.cur())
+
+ig = CGraph.union(oIG.proj, oIGcor)
+
+plot(ig, vertex.size=10, edge.label=E(ig)$weight, edge.label.cex=1, layout=layout_with_fr)
+table(E(ig)$weight)
+ig = delete.edges(ig, which(E(ig)$weight < 1))
+vcount(ig)
+ig = delete.vertices(ig, which(degree(ig) == 0))
+vcount(ig)
