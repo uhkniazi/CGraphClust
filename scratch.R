@@ -1,6 +1,9 @@
 # scratch.R
 # Desc: used for testing and rough work
 
+write.graph(ig, file= 'temp/mansoor.graphml', format='graphml')
+
+
 mPrintCentralitySummary = function(ig){
   # calculate 3 measures of centrality i.e. degree, closeness and betweenness
   deg = degree(ig)
