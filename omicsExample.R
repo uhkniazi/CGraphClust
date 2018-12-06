@@ -3,6 +3,7 @@
 # Date: 17/11/2018
 # Desc: analysis of omics example data sets
 
+source('CGraphClust.R')
 p.old = par()
 
 # utility function to load object
