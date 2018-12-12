@@ -436,6 +436,37 @@ mCompressMatrixByRow = function(mData, ig, com){
   }
   return(mCent)
 }
+
+f_igCalculateVertexSizesAndColors = function(ig, mCounts, fGroups, bColor = FALSE, iSize=NULL, transform_function=identity){
+  n = V(ig)$name
+  # sanity check
+  if (sum(rownames(mCounts) %in% n) == 0) stop('f_igCalculatevertexSizesAndColors: Row names of count matrix do not match with genes')
+  
+  # calculate fold changes function
+  lf_getFC = function(x, f){
+    l = levels(f)
+    r = tapply(x, f, mean)
+    fc = transform_function(r[l[length(l)]]) - transform_function(r[l[1]])
+    return(fc)
+  }
+  # calculate colour function
+  lf_getDirection = function(x, f){
+    l = levels(f)
+    r = tapply(x, f, mean)
+    c = ifelse(r[l[1]] < r[l[length(l)]], 'pink', 'lightblue')
+    return(c)
+  }
+  
+  if (is.null(iSize)) iSize = 4000/vcount(ig)
+  mCounts = mCounts[n,]
+  s = apply(mCounts, 1, function(x) lf_getFC(x, fGroups))
+  V(ig)[n]$size = abs(s * iSize)
+  # assign colours if required
+  if (bColor){c = sapply(seq_along(n), function(x) lf_getDirection(mCounts[n[x], ], fGroups))
+  V(ig)[n]$color = c
+  }  
+  return(ig)
+}
 ############### end class CGraph
 
 # # Name: Class CGgraphClust

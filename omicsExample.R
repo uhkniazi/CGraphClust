@@ -52,6 +52,8 @@ oCGbp.reactome = CGraph.bipartite(dfGraph)
 table(E(getProjectedGraph(oCGbp.reactome))$weight)
 plot.projected.graph(oCGbp.reactome, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
 
+
+#### use the GO database
 dfGraph = AnnotationDbi::select(org.Hs.eg.db, 
                                 unique(c(colnames(mCounts.test), colnames(mCounts.train)))
                                 , 'GO', 'SYMBOL')
@@ -65,6 +67,7 @@ oCGbp.gobp = CGraph.bipartite(dfGraph)
 table(E(getProjectedGraph(oCGbp.gobp))$weight)
 plot.projected.graph(oCGbp.gobp, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
 
+### use disgenet database
 load('testData/dfDisgenet.rds')
 dfGraph = dfDisgenet[dfDisgenet$score > 0.1,c('SYMBOL', 'Pathway')]
 dfGraph = na.omit(dfGraph)
@@ -80,22 +83,6 @@ length(unique(dfGraph$Gene))
 oCGbp.disgenet = CGraph.bipartite(dfGraph)
 table(E(getProjectedGraph(oCGbp.disgenet))$weight)
 plot.projected.graph(oCGbp.disgenet, bDropOrphans = T, cDropEdges = c('red', 'yellow'))
-
-# dfGraph = AnnotationDbi::select(org.Hs.eg.db, 
-#                                 unique(c(colnames(mCounts.test), colnames(mCounts.train)))
-#                                 , 'GO', 'SYMBOL')
-# dfGraph = dfGraph[dfGraph$ONTOLOGY == 'MF',]
-# dfGraph = dfGraph[,c('SYMBOL', 'GO')]
-# dfGraph = na.omit(dfGraph)
-# str(dfGraph)
-# length(unique(dfGraph$SYMBOL))
-# 
-# m = c(m1=10, m2=5, m3=5)
-# m = m/sum(m)
-# 
-# oCGbp.gomf = CGraph.bipartite(dfGraph, mix.prior = m)
-# table(E(getProjectedGraph(oCGbp.gomf))$weight)
-# plot.projected.graph(oCGbp.gomf, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
 
 # create a template graph for making correlation graphs
 ig = CGraph.union(getProjectedGraph(oCGbp.reactome),
@@ -125,124 +112,81 @@ ig = CGraph.union(getProjectedGraph(oCGcor.train),
                   getProjectedGraph(oCGbp.disgenet))
 table(E(ig)$weight)
 
-ig = delete.edges(ig, which(E(ig)$weight < 2))
-vcount(ig)
-ecount(ig)
-ig.p = delete.vertices(ig, which(degree(ig) == 0))
-vcount(ig.p)
-plot(ig.p, vertex.label=NA, vertex.size=2, layout=layout_with_fr, vertex.frame.color=NA)
+## save the graph object in graphml format to use in cytoscape
+write.graph(ig, file= 'temp/tb_graph_weights.graphml', format='graphml')
 
-pdf('temp/graph2.pdf')
-par(mar=c(1,1,1,1)+0.1, family='Helvetica')
-set.seed(123)
-plot(ig.p, vertex.label=names(V(ig.p)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
-     edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr)
-dev.off(dev.cur())
+## calculate modularity at different cutoffs
+ivMod = rep(NA, times=5)
+for (i in 0:4){
+  ig.p = delete.edges(ig, which(E(ig)$weight < i))
+  com = cluster_louvain(ig.p)
+  ivMod [i+1] = modularity(ig.p, membership(com))
+}
 
-## calculate clusters and modularity
-# m = max((E(ig.p)$weight))
-# com = cluster_edge_betweenness(ig.p, weights = abs((E(ig.p)$weight)-m)+1)
-com = cluster_louvain(ig.p)
-table(membership(com))
-modularity(ig.p, membership(com))
+## import the list of genes after analysis in cytoscape
+dfGenes = read.csv(file.choose(), header=T, stringsAsFactors = F)
+ig.p = induced.subgraph(ig, V(ig)[dfGenes$name])
+ig.p = delete.edges(ig.p, which(E(ig.p)$weight < 1))
 
-## recalculate after removing smaller communities
-cl = clusters(ig.p)
-cl$csize
-i = which(cl$csize < 5)
-v = which(cl$membership %in% i)
-# delete the components that are small
-ig.p = delete.vertices(ig.p, v = v)
+## grouping factor to calculate fold changes
+fGroups = lData.test$grouping
+levels(fGroups)
+ig.draw = f_igCalculateVertexSizesAndColors(ig.p, mCounts = lData.test$data, fGroups = fGroups, bColor = T, iSize = 40)
+plot(ig.draw, vertex.label=names(V(ig.draw)), vertex.label.cex=1,  
+     edge.color='darkgrey', edge.width=1, layout=layout_with_fr)
 
-## calculate clusters and modularity
-# m = max((E(ig.p)$weight))
-# com = cluster_edge_betweenness(ig.p, weights = abs((E(ig.p)$weight)-m)+1)
-com = cluster_spinglass(ig.p)
-table(membership(com))
-modularity(ig.p, membership(com))
-
-hc = as.hclust(com)
-plot(hc)
-
-pdf('temp/graph.pdf')
-par(mar=c(1,1,1,1)+0.1, family='Helvetica')
-set.seed(123)
-plot(com, ig.p, vertex.label=names(V(ig.p)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
-     edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr)
-dev.off(dev.cur())
-
-
-df = data.frame(n=com$names, c=com$membership)
-df
-membership(com)
-df = df[order(df$c),]
-write.csv(df, file='temp/df.csv')
-
-
-
-
-
-
-
-
-## add the correlation graph union for the second data set
-m = as_adjacency_matrix(ig, attr = 'weight')
-ig = graph.adjacency(m, mode = 'min', weighted = T)
-
-ig = CGraph.union(getProjectedGraph(oCGcor.test),
-                  ig)
-table(E(ig)$weight)
-
-ig = delete.edges(ig, which(E(ig)$weight < 2))
-vcount(ig)
-ecount(ig)
-ig.p = delete.vertices(ig, which(degree(ig) == 0))
-vcount(ig.p)
-plot(ig.p, vertex.label=NA, vertex.size=2, layout=layout_with_fr, vertex.frame.color=NA)
-
-pdf('temp/graph.pdf')
-par(mar=c(1,1,1,1)+0.1, family='Helvetica')
-set.seed(123)
-plot(ig.p, vertex.label=names(V(ig.p)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
-     edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr)
-dev.off(dev.cur())
-
-
-## add a few more databases to 'grow' the graph
-#### add disgenet
-load('testData/dfDisgenet.rds')
-dfGraph = dfDisgenet[dfDisgenet$score > 0.1,c('SYMBOL', 'Pathway')]
-dfGraph = na.omit(dfGraph)
-dfGraph$Gene = as.character(dfGraph$SYMBOL)
-dfGraph$Pathway = as.character(dfGraph$Pathway)
-str(dfGraph)
-dfGraph = dfGraph[,-1]
-dfGraph = dfGraph[,c(2,1)]
-
-dfGraph = dfGraph[dfGraph$Gene %in% V(ig)$name, ]
-length(unique(dfGraph$Gene))
-
-oCGbp.disgenet = CGraph.bipartite(dfGraph)
-table(E(getProjectedGraph(oCGbp.disgenet))$weight)
-plot.projected.graph(oCGbp.disgenet, bDropOrphans = T, cDropEdges = c('red', 'yellow'))
-
-ig.orig = ig
-m = as_adjacency_matrix(ig, attr = 'weight')
-ig = graph.adjacency(m, mode = 'min', weighted = T)
-ig = CGraph.union(getProjectedGraph(oCGbp.disgenet), ig)
-table(E(ig)$weight)
-
-ig = delete.edges(ig, which(E(ig)$weight < 1))
-vcount(ig)
-ecount(ig)
-ig.p = delete.vertices(ig, which(degree(ig) == 0))
-vcount(ig.p)
-plot(ig.p, vertex.label=NA, vertex.size=2, layout=layout_with_fr, vertex.frame.color=NA)
-
-pdf('temp/graph.pdf')
-par(mar=c(1,1,1,1)+0.1, family='Helvetica')
-set.seed(123)
-plot(ig.p, vertex.label=names(V(ig.p)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
-     edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr)
-dev.off(dev.cur())
-
+# 
+# 
+# ig = delete.edges(ig, which(E(ig)$weight < 2))
+# vcount(ig)
+# ecount(ig)
+# ig.p = delete.vertices(ig, which(degree(ig) == 0))
+# vcount(ig.p)
+# plot(ig.p, vertex.label=NA, vertex.size=2, layout=layout_with_fr, vertex.frame.color=NA)
+# 
+# pdf('temp/graph2.pdf')
+# par(mar=c(1,1,1,1)+0.1, family='Helvetica')
+# set.seed(123)
+# plot(ig.p, vertex.label=names(V(ig.p)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
+#      edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr)
+# dev.off(dev.cur())
+# 
+# ## calculate clusters and modularity
+# # m = max((E(ig.p)$weight))
+# # com = cluster_edge_betweenness(ig.p, weights = abs((E(ig.p)$weight)-m)+1)
+# com = cluster_louvain(ig.p)
+# table(membership(com))
+# modularity(ig.p, membership(com))
+# 
+# ## recalculate after removing smaller communities
+# cl = clusters(ig.p)
+# cl$csize
+# i = which(cl$csize < 5)
+# v = which(cl$membership %in% i)
+# # delete the components that are small
+# ig.p = delete.vertices(ig.p, v = v)
+# 
+# ## calculate clusters and modularity
+# # m = max((E(ig.p)$weight))
+# # com = cluster_edge_betweenness(ig.p, weights = abs((E(ig.p)$weight)-m)+1)
+# com = cluster_spinglass(ig.p)
+# table(membership(com))
+# modularity(ig.p, membership(com))
+# 
+# hc = as.hclust(com)
+# plot(hc)
+# 
+# pdf('temp/graph.pdf')
+# par(mar=c(1,1,1,1)+0.1, family='Helvetica')
+# set.seed(123)
+# plot(com, ig.p, vertex.label=names(V(ig.p)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
+#      edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr)
+# dev.off(dev.cur())
+# 
+# 
+# df = data.frame(n=com$names, c=com$membership)
+# df
+# membership(com)
+# df = df[order(df$c),]
+# write.csv(df, file='temp/df.csv')
+# 
