@@ -115,6 +115,35 @@ table(E(ig)$weight)
 ## save the graph object in graphml format to use in cytoscape
 write.graph(ig, file= 'temp/tb_graph_weights.graphml', format='graphml')
 
+
+# genes at different weights
+ig.p = delete.edges(ig, which(E(ig)$weight < 4))
+vcount(ig.p)
+ecount(ig.p)
+ig.p = delete.vertices(ig.p, which(degree(ig.p) == 0))
+vcount(ig.p)
+#write.csv(V(ig.p)$name, file='temp/names.csv')
+#write.csv(AnnotationDbi::select(org.Hs.eg.db, keys=V(ig.p)$name, keytype = 'SYMBOL', columns =  'ENTREZID'), file='temp/names.csv')
+cvSeed = V(ig.p)$name
+
+dfKegg = dfPathways[dfPathways$Database == 'KEGG',c('Gene', 'Pathway')]
+dfKegg$Gene = as.character(dfKegg$Gene)
+dfKegg$Pathway = as.character(dfKegg$Pathway)
+str(dfKegg)
+
+df = AnnotationDbi::select(org.Hs.eg.db, keys=dfKegg$Gene, keytype = 'ENTREZID', columns =  'SYMBOL')
+dfKegg$Gene = df$SYMBOL
+
+dfKegg.sub = dfKegg[dfKegg$Gene %in% cvSeed,]
+dim(dfKegg)
+dim(dfKegg.sub)
+sort(table(dfKegg.sub$Pathway))
+table(dfKegg.sub$Pathway %in% 'hsa:05152')
+
+
+
+
+
 ## calculate modularity at different cutoffs
 ivMod = rep(NA, times=5)
 for (i in 0:4){

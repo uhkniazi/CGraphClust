@@ -1,6 +1,23 @@
 # scratch.R
 # Desc: used for testing and rough work
 
+# https://github.com/uhkniazi/Scratch/blob/0bc2dffc459aa621adebc1076f2f2608ac81dd99/goTermsForJens.R
+
+temp = get.edgelist(ig.p)
+temp
+E(ig.p)
+E(ig.p)$weight
+which(E(ig.p)$weight > 4)
+get.edge.ids(ig.p, temp)
+apply(temp, 1, function(x) get.edge.ids(ig.p, x))
+ig.p = delete.edges(ig.p, 30)
+plot(ig.p)
+temp = get.edgelist(ig.p)
+dim(temp)
+ig.p = delete.edges(ig.p, c(30, 31))
+
+
+
 write.graph(ig, file= 'temp/mansoor.graphml', format='graphml')
 
 
@@ -304,11 +321,12 @@ plot(ig.s, vertex.label=f_dfGetGeneAnnotation(names(V(ig.s)))$SYMBOL, vertex.lab
 dev.off(dev.cur())
 plot(ig, vertex.label=NA, layout=layout_with_fr, vertex.frame.color=NA, edge.color='darkgrey')
 ###################################################### scratch for distance based graph
-dfResults = lData.train$results[unique(dfGraph$Gene),]
+dfResults = lData.test$data[V(ig.p)$name,]
 plot(dfResults$logFC, scale(-1*log10(dfResults$P.Value)))
-mData = cbind(dfResults$logFC, dfResults$P.Value)#-1*log10(dfResults$P.Value))
+mData = dfResults
 
-
+fGroups = lData.test$grouping
+colnames(mData) = as.character(fGroups)
 library(downloader)
 url = 'https://raw.githubusercontent.com/uhkniazi/CDiagnosticPlots/master/CDiagnosticPlots.R'
 download(url, 'CDiagnosticPlots.R')
@@ -317,11 +335,13 @@ download(url, 'CDiagnosticPlots.R')
 source('CDiagnosticPlots.R')
 # delete the file after source
 unlink('CDiagnosticPlots.R')
-
-oDiag.1 = CDiagnosticPlots((mCent), 'FC, PValue')
+#colnames(mData) = fGroups
+oDiag.1 = CDiagnosticPlots(mData, 'selected')
 
 plot.PCA(oDiag.1, fGroups, legend.pos = 'topright', csLabels = '')
 plot.dendogram(oDiag.1, fGroups)
+plot.mean.summary(oDiag.1, fGroups)
+plot.sigma.summary(oDiag.1, fGroups)
 p = oDiag.1@lData$PCA
 
 whiten = function(mData){
