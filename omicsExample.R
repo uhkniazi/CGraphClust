@@ -116,33 +116,70 @@ table(E(ig)$weight)
 write.graph(ig, file= 'temp/tb_graph_weights.graphml', format='graphml')
 
 
-# genes at different weights
-ig.p = delete.edges(ig, which(E(ig)$weight < 4))
-vcount(ig.p)
-ecount(ig.p)
-ig.p = delete.vertices(ig.p, which(degree(ig.p) == 0))
-vcount(ig.p)
-#write.csv(V(ig.p)$name, file='temp/names.csv')
-#write.csv(AnnotationDbi::select(org.Hs.eg.db, keys=V(ig.p)$name, keytype = 'SYMBOL', columns =  'ENTREZID'), file='temp/names.csv')
-cvSeed = V(ig.p)$name
+# genes at different weights in kegg pathway
+# belonging to TB
+iIndex = sort(unique(E(ig)$weight))
+iIndex = iIndex[-c(1, length(iIndex))]
+mRes = matrix(NA, length(iIndex), ncol = 2)
+for (i in seq_along(iIndex)){
+  ig.p = delete.edges(ig, which(E(ig)$weight < iIndex[i]))
+  ig.p = delete.vertices(ig.p, which(degree(ig.p) == 0))
+  cvSeed = V(ig.p)$name
+  dfKegg = dfPathways[dfPathways$Database == 'KEGG',c('Gene', 'Pathway')]
+  dfKegg$Gene = as.character(dfKegg$Gene)
+  dfKegg$Pathway = as.character(dfKegg$Pathway)
+  df = AnnotationDbi::select(org.Hs.eg.db, keys=dfKegg$Gene, keytype = 'ENTREZID', columns =  'SYMBOL')
+  dfKegg$Gene = df$SYMBOL
+  dfKegg.sub = dfKegg[dfKegg$Gene %in% cvSeed,]
+  mRes[i,] = as.numeric(table(dfKegg.sub$Pathway %in% 'hsa:05152'))
+}
+mRes[7,2] = 0
+x = (mRes[,2]+0.01) / mRes[,1]
 
-dfKegg = dfPathways[dfPathways$Database == 'KEGG',c('Gene', 'Pathway')]
-dfKegg$Gene = as.character(dfKegg$Gene)
-dfKegg$Pathway = as.character(dfKegg$Pathway)
-str(dfKegg)
+## number of significant go terms 
+library(GOstats)
+# get the universe of genes with go terms
+univ = keys(org.Hs.eg.db, 'ENTREZID')
+dfUniv = AnnotationDbi::select(org.Hs.eg.db, keys = univ, columns = c('GO'), keytype = 'ENTREZID')
+dim(dfUniv)
+dfUniv = na.omit(dfUniv)
+dim(dfUniv)
+univ = unique(dfUniv$ENTREZID)
+length(univ)
+iIndex = sort(unique(E(ig)$weight))
+iIndex = iIndex[-c(1, length(iIndex))]
+mRes = matrix(NA, length(iIndex), ncol = 2)
+for (i in seq_along(iIndex)){
+  ig.p = delete.edges(ig, which(E(ig)$weight < iIndex[i]))
+  ig.p = delete.vertices(ig.p, which(igraph::degree(ig.p) == 0))
+  cvSeed = V(ig.p)$name
+  df = AnnotationDbi::select(org.Hs.eg.db, keys=cvSeed, keytype = 'SYMBOL', columns =  'ENTREZID')
+  
+  ## make hypergeometric test object for each type, CC, BP and MF
+  params = new('GOHyperGParams', geneIds=unique(df$ENTREZID),
+               annotation='org.Hs.eg.db',
+               universeGeneIds=univ,
+               ontology='BP',
+               pvalueCutoff= 0.01,
+               conditional=FALSE,
+               testDirection='over')
+  
+  oGOStat = hyperGTest(params) 
+  # get pvalues
+  ivPGO = pvalues(oGOStat)
+  # fdr
+  ivPGO.adj = p.adjust(ivPGO, 'BH')
+  
+  mRes[i,] = table(ivPGO.adj < 0.01)
+}
+rownames(mRes) = iIndex
+plot(mRes[,2], xaxt='n')
+axis(1, at = 1:length(iIndex), labels = iIndex)
 
-df = AnnotationDbi::select(org.Hs.eg.db, keys=dfKegg$Gene, keytype = 'ENTREZID', columns =  'SYMBOL')
-dfKegg$Gene = df$SYMBOL
-
-dfKegg.sub = dfKegg[dfKegg$Gene %in% cvSeed,]
-dim(dfKegg)
-dim(dfKegg.sub)
-sort(table(dfKegg.sub$Pathway))
-table(dfKegg.sub$Pathway %in% 'hsa:05152')
-
-
-
-
+# house keeping
+detach("package:GOstats", unload=T)
+detach("package:igraph", unload=T)
+library(igraph)
 
 ## calculate modularity at different cutoffs
 ivMod = rep(NA, times=5)
@@ -151,6 +188,12 @@ for (i in 0:4){
   com = cluster_louvain(ig.p)
   ivMod [i+1] = modularity(ig.p, membership(com))
 }
+
+plot(ivMod, xaxt='n')
+axis(1, at = 1:length(ivMod), labels = 0:4)
+
+## correlations at different cutoffs?
+
 
 ## import the list of genes after analysis in cytoscape
 dfGenes = read.csv(file.choose(), header=T, stringsAsFactors = F)

@@ -20,6 +20,41 @@ ig.p = delete.edges(ig.p, c(30, 31))
 
 write.graph(ig, file= 'temp/mansoor.graphml', format='graphml')
 
+#################### go
+library(GOstats)
+# get the universe of genes with go terms
+univ = keys(org.Hs.eg.db, 'ENTREZID')
+dfUniv = AnnotationDbi::select(org.Hs.eg.db, keys = univ, columns = c('GO'), keytype = 'ENTREZID')
+dim(dfUniv)
+dfUniv = na.omit(dfUniv)
+dim(dfUniv)
+univ = unique(dfUniv$ENTREZID)
+length(univ)
+
+df = AnnotationDbi::select(org.Hs.eg.db, keys=cvSeed, keytype = 'SYMBOL', columns =  'ENTREZID')
+
+## make hypergeometric test object for each type, CC, BP and MF
+params = new('GOHyperGParams', geneIds=unique(df$ENTREZID),
+             annotation='org.Hs.eg.db',
+             universeGeneIds=univ,
+             ontology='BP',
+             pvalueCutoff= 0.01,
+             conditional=FALSE,
+             testDirection='over')
+
+oGOStat = hyperGTest(params) 
+# get pvalues
+ivPGO = pvalues(oGOStat)
+# fdr
+ivPGO.adj = p.adjust(ivPGO, 'BH')
+
+table(ivPGO.adj < 0.01)
+p = sort(ivPGO.adj[ivPGO.adj < 0.01], decreasing = F)
+columns(GO.db)
+temp.3 = select(GO.db, keys=names(p), keytype='GOID', columns=columns(GO.db))
+
+
+####################
 
 mPrintCentralitySummary = function(ig){
   # calculate 3 measures of centrality i.e. degree, closeness and betweenness
