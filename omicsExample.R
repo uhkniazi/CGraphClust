@@ -121,6 +121,7 @@ write.graph(ig, file= 'temp/tb_graph_weights.graphml', format='graphml')
 iIndex = sort(unique(E(ig)$weight))
 iIndex = iIndex[-c(1, length(iIndex))]
 mRes = matrix(NA, length(iIndex), ncol = 2)
+rownames(mRes) = iIndex
 for (i in seq_along(iIndex)){
   ig.p = delete.edges(ig, which(E(ig)$weight < iIndex[i]))
   ig.p = delete.vertices(ig.p, which(degree(ig.p) == 0))
@@ -133,9 +134,10 @@ for (i in seq_along(iIndex)){
   dfKegg.sub = dfKegg[dfKegg$Gene %in% cvSeed,]
   mRes[i,] = as.numeric(table(dfKegg.sub$Pathway %in% 'hsa:05152'))
 }
-mRes[7,2] = 0
+#mRes[7,2] = 0
 x = (mRes[,2]+0.01) / mRes[,1]
-
+plot(x, xaxt='n', main='TB in Kegg Annotation')
+axis(1, at = 1:length(iIndex), labels = iIndex)
 ## number of significant go terms 
 library(GOstats)
 # get the universe of genes with go terms
@@ -173,24 +175,86 @@ for (i in seq_along(iIndex)){
   mRes[i,] = table(ivPGO.adj < 0.01)
 }
 rownames(mRes) = iIndex
-plot(mRes[,2], xaxt='n')
+plot(mRes[,2], xaxt='n', main='Significant Enrichment of GO Terms')
 axis(1, at = 1:length(iIndex), labels = iIndex)
 
 # house keeping
 detach("package:GOstats", unload=T)
 detach("package:igraph", unload=T)
 library(igraph)
-
+ig.2 = ig
+E(ig.2)$weight = E(ig.2)$weight + abs(min(E(ig.2)$weight))
+table(E(ig.2)$weight)
 ## calculate modularity at different cutoffs
-ivMod = rep(NA, times=5)
-for (i in 0:4){
-  ig.p = delete.edges(ig, which(E(ig)$weight < i))
+ivMod = rep(NA, times=length(iIndex))
+for (i in seq_along(iIndex)){
+  ig.p = delete.edges(ig.2, which(E(ig)$weight < iIndex[i]))
+  print(table(E(ig.p)$weight))
   com = cluster_louvain(ig.p)
-  ivMod [i+1] = modularity(ig.p, membership(com))
+  ivMod[i] = modularity(ig.p, membership(com))
 }
 
-plot(ivMod, xaxt='n')
-axis(1, at = 1:length(ivMod), labels = 0:4)
+plot(ivMod, xaxt='n', main='Modularity')
+axis(1, at = 1:length(iIndex), labels = iIndex)
+
+## get the clusters at a particular cutoff
+## select 2 large clusters, preferebly similar sizes
+## assign go terms to the cluster, and keep go terms that are more common
+## fit a model to the data cluster ~ GO terms
+## this should be able to identify/predict clusters if the go terms are concentrated in clusters
+## repeat this section multiple times manually to select optimal cluster sizes to compare
+library(lme4)
+iErrorRate = rep(NA, times=length(iIndex))
+names(iErrorRate) = iIndex
+iAIC = rep(NA, times=length(iIndex))
+names(iAIC) = iIndex
+
+
+## different cutoffs
+ig.p = delete.edges(ig.2, which(E(ig)$weight < iIndex[1]))
+ig.p = delete.vertices(ig.p, which(degree(ig.p) == 0))
+com = cluster_louvain(ig.p)
+dfCom = data.frame(gene=com$names, com=com$membership)
+i = sort(table(dfCom$com), decreasing = T)
+i
+# choose clusters of comparable sizes
+i = names(i)[2:3]
+dfCom = dfCom[dfCom$com %in% i,]
+dfCom$cluster = factor(dfCom$com)
+table(dfCom$cluster)
+# assign go terms to the genes in the clusters
+df = AnnotationDbi::select(org.Hs.eg.db, keys=as.character(dfCom$gene), keytype='SYMBOL', columns='GO')
+df = df[df$ONTOLOGY == 'BP', ]
+#df = df[df$EVIDENCE != 'TAS', ]
+df = na.omit(df)
+i = match(df$SYMBOL, as.character(dfCom$gene))
+dfCom = dfCom[i,]
+identical(as.character(dfCom$gene), df$SYMBOL)
+dfCom$GO = factor(df$GO)
+# choose more frequent go terms regardless of which cluster they belong to
+i = sort(table(dfCom$GO), decreasing = T)
+quantile(i, 0:10/10)
+i = i[i >= quantile(i, 0.90)]
+dfCom = dfCom[dfCom$GO %in% names(i), ]
+dfCom = droplevels.data.frame(dfCom)
+str(dfCom)
+# fit the model
+fit.cluster = glmer(cluster ~ 1 + (1|GO), data=dfCom, family='binomial')
+summary(fit.cluster)
+p = predict(fit.cluster, type='response')
+l = levels(dfCom$cluster)
+pred = ifelse(p > 0.5, l[2], l[1])
+table(pred, actual=dfCom$cluster)
+mean(pred != dfCom$cluster)
+iErrorRate[1] = mean(pred != dfCom$cluster)
+iAIC[1] = AIC(fit.cluster)
+
+plot(iErrorRate, xaxt='n', main='Prediction Error')
+axis(1, at = 1:length(iIndex), labels = iIndex)
+
+plot(iAIC, xaxt='n', main='Model Score')
+axis(1, at = 1:length(iIndex), labels = iIndex)
+
 
 ## correlations at different cutoffs?
 
