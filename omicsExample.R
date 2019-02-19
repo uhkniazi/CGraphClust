@@ -86,7 +86,7 @@ plot.projected.graph(oCGbp.disgenet, bDropOrphans = T, cDropEdges = c('red', 'ye
 
 # create a template graph for making correlation graphs
 ig = CGraph.union(getProjectedGraph(oCGbp.reactome),
-                  getProjectedGraph(oCGbp.gobp),
+                  #getProjectedGraph(oCGbp.gobp),
                   getProjectedGraph(oCGbp.disgenet))
 table(E(ig)$weight)
 
@@ -108,7 +108,7 @@ table(E(getProjectedGraph(oCGcor.test))$weight)
 ig = CGraph.union(getProjectedGraph(oCGcor.train),
                   getProjectedGraph(oCGcor.test),
                   getProjectedGraph(oCGbp.reactome),
-                  getProjectedGraph(oCGbp.gobp),
+                  #getProjectedGraph(oCGbp.gobp),
                   getProjectedGraph(oCGbp.disgenet))
 table(E(ig)$weight)
 
@@ -119,7 +119,7 @@ write.graph(ig, file= 'temp/tb_graph_weights.graphml', format='graphml')
 # genes at different weights in kegg pathway
 # belonging to TB
 iIndex = sort(unique(E(ig)$weight))
-iIndex = iIndex[-c(1, length(iIndex))]
+iIndex = iIndex[-c(length(iIndex))]
 mRes = matrix(NA, length(iIndex), ncol = 2)
 rownames(mRes) = iIndex
 for (i in seq_along(iIndex)){
@@ -136,7 +136,7 @@ for (i in seq_along(iIndex)){
 }
 #mRes[7,2] = 0
 x = (mRes[,2]+0.01) / mRes[,1]
-plot(x, xaxt='n', main='TB in Kegg Annotation')
+plot(x, xaxt='n', main='TB in Kegg Annotation', ylab='Proportion Genes Detected', xlab='Edge Weight Cutoff', type='b')
 axis(1, at = 1:length(iIndex), labels = iIndex)
 ## number of significant go terms 
 library(GOstats)
@@ -149,7 +149,7 @@ dim(dfUniv)
 univ = unique(dfUniv$ENTREZID)
 length(univ)
 iIndex = sort(unique(E(ig)$weight))
-iIndex = iIndex[-c(1, length(iIndex))]
+iIndex = iIndex[-c(length(iIndex))]
 mRes = matrix(NA, length(iIndex), ncol = 2)
 for (i in seq_along(iIndex)){
   ig.p = delete.edges(ig, which(E(ig)$weight < iIndex[i]))
@@ -175,7 +175,7 @@ for (i in seq_along(iIndex)){
   mRes[i,] = table(ivPGO.adj < 0.01)
 }
 rownames(mRes) = iIndex
-plot(mRes[,2], xaxt='n', main='Significant Enrichment of GO Terms')
+plot(mRes[,2], xaxt='n', main='Enrichment of GO Terms', xlab='Edge Weight Cutoff', ylab='Count', type='b')
 axis(1, at = 1:length(iIndex), labels = iIndex)
 
 # house keeping
@@ -211,14 +211,18 @@ names(iAIC) = iIndex
 
 
 ## different cutoffs
-ig.p = delete.edges(ig.2, which(E(ig)$weight < iIndex[1]))
+ecount(ig.2)
+table(E(ig)$weight)
+ig.p = delete.edges(ig.2, which(E(ig)$weight < iIndex[6]))
+ecount(ig.p)
 ig.p = delete.vertices(ig.p, which(degree(ig.p) == 0))
+ecount(ig.p)
 com = cluster_louvain(ig.p)
 dfCom = data.frame(gene=com$names, com=com$membership)
 i = sort(table(dfCom$com), decreasing = T)
 i
 # choose clusters of comparable sizes
-i = names(i)[2:3]
+i = names(i)[1:2]
 dfCom = dfCom[dfCom$com %in% i,]
 dfCom$cluster = factor(dfCom$com)
 table(dfCom$cluster)
@@ -246,83 +250,14 @@ l = levels(dfCom$cluster)
 pred = ifelse(p > 0.5, l[2], l[1])
 table(pred, actual=dfCom$cluster)
 mean(pred != dfCom$cluster)
-iErrorRate[1] = mean(pred != dfCom$cluster)
-iAIC[1] = AIC(fit.cluster)
+iErrorRate[6] = mean(pred != dfCom$cluster)
+iAIC[6] = AIC(fit.cluster)
 
-plot(iErrorRate, xaxt='n', main='Prediction Error')
+plot(iErrorRate, xaxt='n', main='Cluster ~ GO Terms', ylab='Prediction Error', xlab='Edge Weight Cutoff', type='b')
 axis(1, at = 1:length(iIndex), labels = iIndex)
 
-plot(iAIC, xaxt='n', main='Model Score')
+plot(iAIC, xaxt='n', main='Cluster Purity: Cluster ID ~ GO Terms', ylab='Akaike Information Criterion', xlab='Edge Weight Cutoff',
+     type='b')
 axis(1, at = 1:length(iIndex), labels = iIndex)
 
 
-## correlations at different cutoffs?
-
-
-## import the list of genes after analysis in cytoscape
-dfGenes = read.csv(file.choose(), header=T, stringsAsFactors = F)
-ig.p = induced.subgraph(ig, V(ig)[dfGenes$name])
-ig.p = delete.edges(ig.p, which(E(ig.p)$weight < 1))
-
-## grouping factor to calculate fold changes
-fGroups = lData.test$grouping
-levels(fGroups)
-ig.draw = f_igCalculateVertexSizesAndColors(ig.p, mCounts = lData.test$data, fGroups = fGroups, bColor = T, iSize = 40)
-plot(ig.draw, vertex.label=names(V(ig.draw)), vertex.label.cex=1,  
-     edge.color='darkgrey', edge.width=1, layout=layout_with_fr)
-
-# 
-# 
-# ig = delete.edges(ig, which(E(ig)$weight < 2))
-# vcount(ig)
-# ecount(ig)
-# ig.p = delete.vertices(ig, which(degree(ig) == 0))
-# vcount(ig.p)
-# plot(ig.p, vertex.label=NA, vertex.size=2, layout=layout_with_fr, vertex.frame.color=NA)
-# 
-# pdf('temp/graph2.pdf')
-# par(mar=c(1,1,1,1)+0.1, family='Helvetica')
-# set.seed(123)
-# plot(ig.p, vertex.label=names(V(ig.p)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
-#      edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr)
-# dev.off(dev.cur())
-# 
-# ## calculate clusters and modularity
-# # m = max((E(ig.p)$weight))
-# # com = cluster_edge_betweenness(ig.p, weights = abs((E(ig.p)$weight)-m)+1)
-# com = cluster_louvain(ig.p)
-# table(membership(com))
-# modularity(ig.p, membership(com))
-# 
-# ## recalculate after removing smaller communities
-# cl = clusters(ig.p)
-# cl$csize
-# i = which(cl$csize < 5)
-# v = which(cl$membership %in% i)
-# # delete the components that are small
-# ig.p = delete.vertices(ig.p, v = v)
-# 
-# ## calculate clusters and modularity
-# # m = max((E(ig.p)$weight))
-# # com = cluster_edge_betweenness(ig.p, weights = abs((E(ig.p)$weight)-m)+1)
-# com = cluster_spinglass(ig.p)
-# table(membership(com))
-# modularity(ig.p, membership(com))
-# 
-# hc = as.hclust(com)
-# plot(hc)
-# 
-# pdf('temp/graph.pdf')
-# par(mar=c(1,1,1,1)+0.1, family='Helvetica')
-# set.seed(123)
-# plot(com, ig.p, vertex.label=names(V(ig.p)), vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
-#      edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr)
-# dev.off(dev.cur())
-# 
-# 
-# df = data.frame(n=com$names, c=com$membership)
-# df
-# membership(com)
-# df = df[order(df$c),]
-# write.csv(df, file='temp/df.csv')
-# 
