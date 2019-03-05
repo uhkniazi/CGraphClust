@@ -53,19 +53,19 @@ table(E(getProjectedGraph(oCGbp.reactome))$weight)
 plot.projected.graph(oCGbp.reactome, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
 
 
-#### use the GO database
-dfGraph = AnnotationDbi::select(org.Hs.eg.db, 
-                                unique(c(colnames(mCounts.test), colnames(mCounts.train)))
-                                , 'GO', 'SYMBOL')
-dfGraph = dfGraph[dfGraph$ONTOLOGY == 'BP',]
-dfGraph = dfGraph[,c('SYMBOL', 'GO')]
-dfGraph = na.omit(dfGraph)
-str(dfGraph)
-length(unique(dfGraph$SYMBOL))
-
-oCGbp.gobp = CGraph.bipartite(dfGraph)
-table(E(getProjectedGraph(oCGbp.gobp))$weight)
-plot.projected.graph(oCGbp.gobp, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
+# #### use the GO database
+# dfGraph = AnnotationDbi::select(org.Hs.eg.db, 
+#                                 unique(c(colnames(mCounts.test), colnames(mCounts.train)))
+#                                 , 'GO', 'SYMBOL')
+# dfGraph = dfGraph[dfGraph$ONTOLOGY == 'BP',]
+# dfGraph = dfGraph[,c('SYMBOL', 'GO')]
+# dfGraph = na.omit(dfGraph)
+# str(dfGraph)
+# length(unique(dfGraph$SYMBOL))
+# 
+# oCGbp.gobp = CGraph.bipartite(dfGraph)
+# table(E(getProjectedGraph(oCGbp.gobp))$weight)
+# plot.projected.graph(oCGbp.gobp, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
 
 ### use disgenet database
 load('testData/dfDisgenet.rds')
@@ -98,11 +98,11 @@ vcount(ig.p)
 plot(ig.p, vertex.label=NA, vertex.size=2, layout=layout_with_fr, vertex.frame.color=NA)
 
 # create 2 correlation graphs
-oCGcor.train = CGraph.cor(ig.template = ig.p, mCor = cor(mCounts.train), ivWeights = c(1, 0, 0)) 
+oCGcor.train = CGraph.cor(ig.template = ig.p, mCor = cor(mCounts.train), ivWeights = c(1, 0, -1)) 
 table(E(getProjectedGraph(oCGcor.train))$weight)
 
 
-oCGcor.test = CGraph.cor(ig.template = ig.p, mCor = cor(mCounts.test), ivWeights = c(1, 0, 0))
+oCGcor.test = CGraph.cor(ig.template = ig.p, mCor = cor(mCounts.test), ivWeights = c(1, 0, -1))
 table(E(getProjectedGraph(oCGcor.test))$weight)
 
 ig = CGraph.union(getProjectedGraph(oCGcor.train),
@@ -178,6 +178,79 @@ rownames(mRes) = iIndex
 plot(mRes[,2], xaxt='n', main='Enrichment of GO Terms', xlab='Edge Weight Cutoff', ylab='Count', type='b')
 axis(1, at = 1:length(iIndex), labels = iIndex)
 
+rs = rowSums(mRes)
+plot(mRes[,2]/rs, xaxt='n', main='Proportion of GO Enrichment', xlab='Edge Weight Cutoff', ylab='Proportion', type='b')
+axis(1, at = 1:length(iIndex), labels = iIndex)
+
+## random list of genes at cutoff 3
+ig.p = delete.edges(ig, which(E(ig)$weight < 3))
+table(E(ig.p)$weight)
+ig.p = delete.vertices(ig.p, which(igraph::degree(ig.p) == 0))
+ecount(ig.p)
+vcount(ig.p)
+cvGenes = V(ig)$name
+
+f1 = function(){
+  cvSeed = sample(cvGenes, 136)
+  df = AnnotationDbi::select(org.Hs.eg.db, keys=cvSeed, keytype = 'SYMBOL', columns =  'ENTREZID')
+  ## make hypergeometric test object for each type, CC, BP and MF
+  params = new('GOHyperGParams', geneIds=unique(df$ENTREZID),
+               annotation='org.Hs.eg.db',
+               universeGeneIds=univ,
+               ontology='BP',
+               pvalueCutoff= 0.01,
+               conditional=FALSE,
+               testDirection='over')
+  
+  oGOStat = hyperGTest(params) 
+  # get pvalues
+  ivPGO = pvalues(oGOStat)
+  # fdr
+  ivPGO.adj = p.adjust(ivPGO, 'BH')
+  ret = sum((ivPGO.adj < 0.01))
+  return((ret+0.5)/(length(ivPGO.adj)+1))
+}
+
+go.sim = replicate(30, f1())
+
+## random list of genes at cutoff -1
+ig.p = delete.edges(ig, which(E(ig)$weight < -1))
+table(E(ig.p)$weight)
+ig.p = delete.vertices(ig.p, which(igraph::degree(ig.p) == 0))
+ecount(ig.p)
+vcount(ig.p)
+cvGenes = V(ig)$name
+
+f1 = function(){
+  cvSeed = sample(cvGenes, 1171)
+  df = AnnotationDbi::select(org.Hs.eg.db, keys=cvSeed, keytype = 'SYMBOL', columns =  'ENTREZID')
+  ## make hypergeometric test object for each type, CC, BP and MF
+  params = new('GOHyperGParams', geneIds=unique(df$ENTREZID),
+               annotation='org.Hs.eg.db',
+               universeGeneIds=univ,
+               ontology='BP',
+               pvalueCutoff= 0.01,
+               conditional=FALSE,
+               testDirection='over')
+  
+  oGOStat = hyperGTest(params) 
+  # get pvalues
+  ivPGO = pvalues(oGOStat)
+  # fdr
+  ivPGO.adj = p.adjust(ivPGO, 'BH')
+  ret = sum((ivPGO.adj < 0.01))
+  return((ret+0.5)/(length(ivPGO.adj)+1))
+}
+
+go.sim.minus1 = replicate(30, f1())
+
+library(lattice)
+df = data.frame(go.sim, go.sim.minus1)
+colnames(df) = c('Weight 3', 'Weight -1')
+df = stack(df)
+histogram( ~ values | ind, data=df)
+hist(go.sim)
+
 # house keeping
 detach("package:GOstats", unload=T)
 detach("package:igraph", unload=T)
@@ -209,11 +282,11 @@ names(iErrorRate) = iIndex
 iAIC = rep(NA, times=length(iIndex))
 names(iAIC) = iIndex
 
-
+cutoff = 6
 ## different cutoffs
 ecount(ig.2)
 table(E(ig)$weight)
-ig.p = delete.edges(ig.2, which(E(ig)$weight < iIndex[6]))
+ig.p = delete.edges(ig.2, which(E(ig)$weight < iIndex[cutoff]))
 ecount(ig.p)
 ig.p = delete.vertices(ig.p, which(degree(ig.p) == 0))
 ecount(ig.p)
@@ -222,7 +295,7 @@ dfCom = data.frame(gene=com$names, com=com$membership)
 i = sort(table(dfCom$com), decreasing = T)
 i
 # choose clusters of comparable sizes
-i = names(i)[1:2]
+i = names(i)[c(1,2)]
 dfCom = dfCom[dfCom$com %in% i,]
 dfCom$cluster = factor(dfCom$com)
 table(dfCom$cluster)
@@ -250,8 +323,8 @@ l = levels(dfCom$cluster)
 pred = ifelse(p > 0.5, l[2], l[1])
 table(pred, actual=dfCom$cluster)
 mean(pred != dfCom$cluster)
-iErrorRate[6] = mean(pred != dfCom$cluster)
-iAIC[6] = AIC(fit.cluster)
+iErrorRate[cutoff] = mean(pred != dfCom$cluster)
+iAIC[cutoff] = AIC(fit.cluster)
 
 plot(iErrorRate, xaxt='n', main='Cluster ~ GO Terms', ylab='Prediction Error', xlab='Edge Weight Cutoff', type='b')
 axis(1, at = 1:length(iIndex), labels = iIndex)
