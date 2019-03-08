@@ -3,6 +3,19 @@
 
 # https://github.com/uhkniazi/Scratch/blob/0bc2dffc459aa621adebc1076f2f2608ac81dd99/goTermsForJens.R
 
+plot(ig, vertex.label=NA, vertex.size=2, 
+     layout=layout_with_fr, vertex.frame.color=NA)
+
+plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
+     vertex.frame.color=NA, 
+     edge.color='darkgrey', edge.width=0.5,
+     layout=layout_with_fr(ig, weights = E(ig)$green))
+
+plot(ig.s, vertex.label=f_dfGetGeneAnnotation(names(V(ig.s)))$SYMBOL, vertex.label.cex=0.1, vertex.size=2, vertex.frame.color=NA, 
+     edge.color='darkgrey', edge.width=0.5, layout=layout_with_fr(ig.s, weights = E(ig.s)$weight))
+
+
+
 temp = get.edgelist(ig.p)
 temp
 E(ig.p)

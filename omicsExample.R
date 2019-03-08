@@ -19,13 +19,13 @@ f_LoadObject = function(r.obj.file)
 lData.train = f_LoadObject('testData/lData.train.rds')
 names(lData.train)
 
-lData.test = f_LoadObject('testData/lData.test.rds')
-names(lData.test)
+# lData.test = f_LoadObject('testData/lData.test.rds')
+# names(lData.test)
 
 mCounts.train = t(lData.train$data)
-mCounts.test = t(lData.test$data)
+# mCounts.test = t(lData.test$data)
 
-str(mCounts.test)
+# str(mCounts.test)
 str(mCounts.train)
 
 load('testData/dfPathways.rds')
@@ -38,248 +38,63 @@ dfGraph$Gene = as.character(dfGraph$Gene)
 dfGraph$Pathway = as.character(dfGraph$Pathway)
 str(dfGraph)
 
+# convert gene ids to symbols
 library(org.Hs.eg.db)
 df = AnnotationDbi::select(org.Hs.eg.db, keys=dfGraph$Gene, keytype = 'ENTREZID', columns =  'SYMBOL')
 dfGraph$Gene = df$SYMBOL
-# select subset of genes from our 2 matrices
-dfGraph = dfGraph[dfGraph$Gene %in% unique(c(colnames(mCounts.test), colnames(mCounts.train))), ]
+# select subset of genes from our data set
+dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts.train), ]
 dfGraph = na.omit(dfGraph)
 dim(dfGraph)
 length(unique(dfGraph$Gene))
-length(unique(c(colnames(mCounts.test), colnames(mCounts.train))))
+# 1075 genes have annotations
 
-oCGbp.reactome = CGraph.bipartite(dfGraph)
+oCGbp.reactome = CGraph.bipartite(dfGraph, ivWeights = c(2, 1, 0))
 table(E(getProjectedGraph(oCGbp.reactome))$weight)
+plot.projected.graph(oCGbp.reactome, cDropEdges = c(''), bDropOrphans = T)
+plot.projected.graph(oCGbp.reactome, cDropEdges = c('red'), bDropOrphans = T)
+set.seed(123)
 plot.projected.graph(oCGbp.reactome, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
 
-## separate the pathways and do one database at a time
-table(dfPathways$Database)
-dfGraph = dfPathways[dfPathways$Database == 'KEGG',c('Gene', 'Pathway')]
-dfGraph$Gene = as.character(dfGraph$Gene)
-dfGraph$Pathway = as.character(dfGraph$Pathway)
-str(dfGraph)
-
-df = AnnotationDbi::select(org.Hs.eg.db, keys=dfGraph$Gene, keytype = 'ENTREZID', columns =  'SYMBOL')
-dfGraph$Gene = df$SYMBOL
-# select subset of genes from our 2 matrices
-dfGraph = dfGraph[dfGraph$Gene %in% unique(c(colnames(mCounts.test), colnames(mCounts.train))), ]
-dfGraph = na.omit(dfGraph)
-dim(dfGraph)
-length(unique(dfGraph$Gene))
-length(unique(c(colnames(mCounts.test), colnames(mCounts.train))))
-
-oCGbp.kegg = CGraph.bipartite(dfGraph)
-table(E(getProjectedGraph(oCGbp.kegg))$weight)
-plot.projected.graph(oCGbp.kegg, cDropEdges = c('red'), bDropOrphans = T)
-
-# #### use the GO database
-# dfGraph = AnnotationDbi::select(org.Hs.eg.db, 
-#                                 unique(c(colnames(mCounts.test), colnames(mCounts.train)))
-#                                 , 'GO', 'SYMBOL')
-# dfGraph = dfGraph[dfGraph$ONTOLOGY == 'BP',]
-# dfGraph = dfGraph[,c('SYMBOL', 'GO')]
-# dfGraph = na.omit(dfGraph)
-# str(dfGraph)
-# length(unique(dfGraph$SYMBOL))
-# 
-# oCGbp.gobp = CGraph.bipartite(dfGraph)
-# table(E(getProjectedGraph(oCGbp.gobp))$weight)
-# plot.projected.graph(oCGbp.gobp, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
-
-### use disgenet database
-load('testData/dfDisgenet.rds')
-dfGraph = dfDisgenet[dfDisgenet$score > 0.1,c('SYMBOL', 'Pathway')]
-dfGraph = na.omit(dfGraph)
-dfGraph$Gene = as.character(dfGraph$SYMBOL)
-dfGraph$Pathway = as.character(dfGraph$Pathway)
-str(dfGraph)
-dfGraph = dfGraph[,-1]
-dfGraph = dfGraph[,c(2,1)]
-
-dfGraph = dfGraph[dfGraph$Gene %in% unique(c(colnames(mCounts.test), colnames(mCounts.train))), ]
-length(unique(dfGraph$Gene))
-
-oCGbp.disgenet = CGraph.bipartite(dfGraph)
-table(E(getProjectedGraph(oCGbp.disgenet))$weight)
-plot.projected.graph(oCGbp.disgenet, bDropOrphans = T, cDropEdges = c('red', 'yellow'))
-
-# create a template graph for making correlation graphs
-ig = CGraph.union(getProjectedGraph(oCGbp.reactome),
-                  getProjectedGraph(oCGbp.kegg),
-                  getProjectedGraph(oCGbp.disgenet))
+ig = getProjectedGraph(oCGbp.reactome)
 table(E(ig)$weight)
 
-ig = delete.edges(ig, which(E(ig)$weight < 1))
+ig = delete.edges(ig, which(E(ig)$weight < 2))
 vcount(ig)
 ecount(ig)
-ig.p = delete.vertices(ig, which(degree(ig) == 0))
-vcount(ig.p)
-plot(ig.p, vertex.label=NA, vertex.size=2, layout=layout_with_fr, vertex.frame.color=NA)
+ig = delete.vertices(ig, which(degree(ig) == 0))
+vcount(ig)
 
-# create 2 correlation graphs
-oCGcor.train = CGraph.cor(ig.template = ig.p, mCor = cor(mCounts.train), ivWeights = c(1, 0, -1)) 
-table(E(getProjectedGraph(oCGcor.train))$weight)
+set.seed(123)
+plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
+     vertex.frame.color=NA, 
+     edge.color='darkgrey', edge.width=0.5,
+     layout=layout_with_fr(ig, weights = E(ig)$green))
 
+set.seed(123)
+plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
+     vertex.frame.color=NA, 
+     edge.color='darkgrey', edge.width=0.5,
+     layout=layout_with_fr(ig, weights = E(ig)$weight))
 
-oCGcor.test = CGraph.cor(ig.template = ig.p, mCor = cor(mCounts.test), ivWeights = c(1, 0, -1))
-table(E(getProjectedGraph(oCGcor.test))$weight)
+set.seed(123)
+plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
+     vertex.frame.color=NA, 
+     edge.color='darkgrey', edge.width=0.5,
+     layout=layout_with_fr(ig, weights = E(ig)$red))
 
-ig = CGraph.union(getProjectedGraph(oCGcor.train),
-                  getProjectedGraph(oCGcor.test),
-                  getProjectedGraph(oCGbp.reactome),
-                  getProjectedGraph(oCGbp.kegg),
-                  getProjectedGraph(oCGbp.disgenet))
-table(E(ig)$weight)
+set.seed(123)
+plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
+     vertex.frame.color=NA, 
+     edge.color='darkgrey', edge.width=0.5,
+     layout=layout_with_fr(ig, weights = E(ig)$yellow))
+
 
 ## save the graph object in graphml format to use in cytoscape
 write.graph(ig, file= 'temp/tb_graph_weights.graphml', format='graphml')
 
 
-# genes at different weights in kegg pathway
-# belonging to TB
-iIndex = sort(unique(E(ig)$weight))
-iIndex = iIndex[-c(length(iIndex))]
-mRes = matrix(NA, length(iIndex), ncol = 2)
-rownames(mRes) = iIndex
-for (i in seq_along(iIndex)){
-  ig.p = delete.edges(ig, which(E(ig)$weight < iIndex[i]))
-  ig.p = delete.vertices(ig.p, which(degree(ig.p) == 0))
-  cvSeed = V(ig.p)$name
-  dfKegg = dfPathways[dfPathways$Database == 'KEGG',c('Gene', 'Pathway')]
-  dfKegg$Gene = as.character(dfKegg$Gene)
-  dfKegg$Pathway = as.character(dfKegg$Pathway)
-  df = AnnotationDbi::select(org.Hs.eg.db, keys=dfKegg$Gene, keytype = 'ENTREZID', columns =  'SYMBOL')
-  dfKegg$Gene = df$SYMBOL
-  dfKegg.sub = dfKegg[dfKegg$Gene %in% cvSeed,]
-  mRes[i,] = as.numeric(table(dfKegg.sub$Pathway %in% 'hsa:05152'))
-}
-#mRes[7,2] = 0
-x = (mRes[,2]+0.5) / ((rowSums(mRes))+1)
-plot(x, xaxt='n', main='TB in Kegg Annotation', ylab='Proportion Genes Detected', xlab='Edge Weight Cutoff', type='b')
-axis(1, at = 1:length(iIndex), labels = iIndex)
-## number of significant go terms 
-library(GOstats)
-# get the universe of genes with go terms
-univ = keys(org.Hs.eg.db, 'ENTREZID')
-dfUniv = AnnotationDbi::select(org.Hs.eg.db, keys = univ, columns = c('GO'), keytype = 'ENTREZID')
-dim(dfUniv)
-dfUniv = na.omit(dfUniv)
-dim(dfUniv)
-univ = unique(dfUniv$ENTREZID)
-length(univ)
-iIndex = sort(unique(E(ig)$weight))
-iIndex = iIndex[-c(length(iIndex))]
-mRes = matrix(NA, length(iIndex), ncol = 2)
-for (i in seq_along(iIndex)){
-  ig.p = delete.edges(ig, which(E(ig)$weight < iIndex[i]))
-  ig.p = delete.vertices(ig.p, which(igraph::degree(ig.p) == 0))
-  cvSeed = V(ig.p)$name
-  df = AnnotationDbi::select(org.Hs.eg.db, keys=cvSeed, keytype = 'SYMBOL', columns =  'ENTREZID')
-  
-  ## make hypergeometric test object for each type, CC, BP and MF
-  params = new('GOHyperGParams', geneIds=unique(df$ENTREZID),
-               annotation='org.Hs.eg.db',
-               universeGeneIds=univ,
-               ontology='BP',
-               pvalueCutoff= 0.01,
-               conditional=FALSE,
-               testDirection='over')
-  
-  oGOStat = hyperGTest(params) 
-  # get pvalues
-  ivPGO = pvalues(oGOStat)
-  # fdr
-  ivPGO.adj = p.adjust(ivPGO, 'BH')
-  
-  mRes[i,] = table(ivPGO.adj < 0.01)
-}
-rownames(mRes) = iIndex
-plot(mRes[,2], xaxt='n', main='Enrichment of GO Terms', xlab='Edge Weight Cutoff', ylab='Count', type='b')
-axis(1, at = 1:length(iIndex), labels = iIndex)
 
-rs = rowSums(mRes)
-plot(mRes[,2]/rs, xaxt='n', main='Proportion of GO Enrichment', xlab='Edge Weight Cutoff', ylab='Proportion', type='b')
-axis(1, at = 1:length(iIndex), labels = iIndex)
-
-## random list of genes at cutoff 3
-ig.p = delete.edges(ig, which(E(ig)$weight < 3))
-table(E(ig.p)$weight)
-ig.p = delete.vertices(ig.p, which(igraph::degree(ig.p) == 0))
-ecount(ig.p)
-vcount(ig.p)
-cvGenes = V(ig)$name
-
-f1 = function(){
-  cvSeed = sample(cvGenes, 132)
-  df = AnnotationDbi::select(org.Hs.eg.db, keys=cvSeed, keytype = 'SYMBOL', columns =  'ENTREZID')
-  ## make hypergeometric test object for each type, CC, BP and MF
-  params = new('GOHyperGParams', geneIds=unique(df$ENTREZID),
-               annotation='org.Hs.eg.db',
-               universeGeneIds=univ,
-               ontology='BP',
-               pvalueCutoff= 0.01,
-               conditional=FALSE,
-               testDirection='over')
-  
-  oGOStat = hyperGTest(params) 
-  # get pvalues
-  ivPGO = pvalues(oGOStat)
-  # fdr
-  ivPGO.adj = p.adjust(ivPGO, 'BH')
-  ret = sum((ivPGO.adj < 0.01))
-  return((ret+0.5)/(length(ivPGO.adj)+1))
-}
-
-go.sim = replicate(30, f1())
-
-## random list of genes at cutoff -3
-ig.p = delete.edges(ig, which(E(ig)$weight < -3))
-table(E(ig.p)$weight)
-ig.p = delete.vertices(ig.p, which(igraph::degree(ig.p) == 0))
-ecount(ig.p)
-vcount(ig.p)
-cvGenes = V(ig)$name
-
-f1 = function(){
-  cvSeed = sample(cvGenes, 1188)
-  df = AnnotationDbi::select(org.Hs.eg.db, keys=cvSeed, keytype = 'SYMBOL', columns =  'ENTREZID')
-  ## make hypergeometric test object for each type, CC, BP and MF
-  params = new('GOHyperGParams', geneIds=unique(df$ENTREZID),
-               annotation='org.Hs.eg.db',
-               universeGeneIds=univ,
-               ontology='BP',
-               pvalueCutoff= 0.01,
-               conditional=FALSE,
-               testDirection='over')
-  
-  oGOStat = hyperGTest(params) 
-  # get pvalues
-  ivPGO = pvalues(oGOStat)
-  # fdr
-  ivPGO.adj = p.adjust(ivPGO, 'BH')
-  ret = sum((ivPGO.adj < 0.01))
-  return((ret+0.5)/(length(ivPGO.adj)+1))
-}
-
-go.sim.minus1 = replicate(30, f1())
-
-l = list(go.sim, go.sim.minus1)
-#save(l, file='temp/go.sim.rds')
-
-library(lattice)
-df = data.frame(go.sim, go.sim.minus1)
-colnames(df) = c('Weight 3', 'Weight -3')
-df = stack(df)
-histogram( ~ values | ind, data=df)
-hist(go.sim)
-
-# house keeping
-detach("package:GOstats", unload=T)
-detach("package:igraph", unload=T)
-library(igraph)
-ig.2 = ig
-E(ig.2)$weight = E(ig.2)$weight + abs(min(E(ig.2)$weight))
-table(E(ig.2)$weight)
 ## calculate modularity at different cutoffs
 ivMod = rep(NA, times=length(iIndex))
 for (i in seq_along(iIndex)){

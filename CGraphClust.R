@@ -204,6 +204,9 @@ CGraph.bipartite = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLi
     E(g.p)$weight_cat = cat
     E(g.p)$weight_projection = E(g.p)$weight
     E(g.p)$weight = num
+    E(g.p)$green = mWeights[1,] # numeric prob for green model
+    E(g.p)$yellow = mWeights[2,] # numeric prob for yellow model
+    E(g.p)$red = mWeights[3,]# numeric prob for red model
     obj@ig.p = g.p
     return(obj)
   }
