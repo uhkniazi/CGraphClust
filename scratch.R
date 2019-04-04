@@ -329,8 +329,9 @@ library(lattice)
 df = data.frame(t(mCent))
 df = stack(df)
 df$fGroups = fGroups
+df$hiv = lData.train$adjust
   
-xyplot( values ~ fGroups | ind, data=df, type='p', pch=20)
+xyplot( values ~ fGroups | ind, groups=hiv, data=df, type='p', pch=20, scales=list(relation='free'))
 
 pdf('temp/graph.pdf')
 par(mar=c(1,1,1,1)+0.1, family='Helvetica')

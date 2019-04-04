@@ -47,24 +47,30 @@ dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts.train), ]
 dfGraph = na.omit(dfGraph)
 dim(dfGraph)
 length(unique(dfGraph$Gene))
-# 1075 genes have annotations
+# 1080 genes have annotations
 
-oCGbp.reactome = CGraph.bipartite(dfGraph, ivWeights = c(2, 1, 0))
+oCGbp.reactome = CGraph.bipartite2(dfGraph, ivWeights = c(2, 1, 0))
 table(E(getProjectedGraph(oCGbp.reactome))$weight)
+
+# some figures
 plot.projected.graph(oCGbp.reactome, cDropEdges = c(''), bDropOrphans = T)
 plot.projected.graph(oCGbp.reactome, cDropEdges = c('red'), bDropOrphans = T)
 set.seed(123)
 plot.projected.graph(oCGbp.reactome, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
 
+# extract the igraph object
 ig = getProjectedGraph(oCGbp.reactome)
 table(E(ig)$weight)
 
+# drop all the red edges
 ig = delete.edges(ig, which(E(ig)$weight < 2))
 vcount(ig)
 ecount(ig)
 ig = delete.vertices(ig, which(degree(ig) == 0))
 vcount(ig)
+# 761 genes left
 
+# some plots
 set.seed(123)
 plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
      vertex.frame.color=NA, 
@@ -93,6 +99,43 @@ plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2,
 ## save the graph object in graphml format to use in cytoscape
 write.graph(ig, file= 'temp/tb_graph_weights.graphml', format='graphml')
 
+## import the gene list from cytoscape analysis
+cvClusterOne.genes = scan(what=character())
+mCounts.sub = mCounts.train[,cvClusterOne.genes]
+dim(mCounts.sub)
+
+ig.sub = induced_subgraph(ig, cvClusterOne.genes)
+ecount(ig.sub)
+vcount(ig.sub)
+fGroups = lData.train$grouping
+fAdjust = lData.train$adjust
+
+ig.plot = f_igCalculateVertexSizesAndColors(ig.sub, t(mCounts.sub), fGroups, bColor = T, iSize = 20)
+set.seed(123)
+plot(ig.plot, vertex.label.cex=0.5, layout=layout_with_fr(ig.plot, weights=E(ig.plot)$green),
+     vertex.frame.color='darkgrey', edge.color='lightgrey', 
+     main=paste(levels(fGroups)[nlevels(fGroups)], 'vs', levels(fGroups)[1]))
+legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+
+# community detection
+ecount(ig)
+#com.y = edge.betweenness.community(ig, weights=E(ig)$yellow)
+com.g = cluster_louvain(ig, weights=E(ig)$green)
+
+table(com.g$membership)
+mCom = mCompressMatrixByRow(t(mCounts.train), ig, com.g)
+
+set.seed(123)
+plot(com.y, ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
+     vertex.frame.color=NA, 
+     edge.color='darkgrey', edge.width=0.5,
+     layout=layout_with_fr(ig, weights = E(ig)$yellow))
+
+set.seed(123)
+plot(com.g, ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
+     vertex.frame.color=NA, 
+     edge.color='darkgrey', edge.width=0.5,
+     layout=layout_with_fr(ig, weights = E(ig)$green))
 
 
 ## calculate modularity at different cutoffs
