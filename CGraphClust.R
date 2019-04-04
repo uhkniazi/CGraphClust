@@ -223,6 +223,209 @@ CGraph.bipartite = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLi
   return(g)
 }
 
+CGraph.bipartite2 = function(dfGraph, bFilterLowDegreeType2Edges=T, bFilterWeakLinks=T,  ivWeights=c(1, 0, -1), 
+                             mix.prior = c(m1=3/9 ,m2= 3/9 ,m3= 3/9)){
+  # check if igraph library present
+  if (!require(igraph)) stop('R library igraph required')
+  if (!require(LearnBayes)) stop('R library LearnBayes required')
+  
+  dfGraph = na.omit(dfGraph)
+  # some error checks
+  if (ncol(dfGraph) != 2) {
+    stop(paste('data frame dfGraph should have 2 columns only', 
+               'column 1 for vertex of type 1, and column 2 for vertex of',
+               'type 2'))
+  }
+  # create bipartite graph
+  oIGbp = graph.data.frame(dfGraph, directed = F)
+  # set the vertex type variable to make graph bipartite
+  f = rep(c(T, F), times = c(length(unique(dfGraph[,1])),length(unique(dfGraph[,2]))))
+  V(oIGbp)$type = f
+  # sanity check - is graph bipartite
+  if (!is.bipartite(oIGbp)) {
+    stop(paste('Graph is not bipartite'))
+  }
+  
+  ## graph cleaning 
+  if (bFilterLowDegreeType2Edges){
+    # remove  type 2 terms that have low degrees, 
+    # these are rare terms that add little to the association scores
+    f = V(oIGbp)$type
+    # degree vector of type 2 vertices
+    ivDegGo = degree(oIGbp, V(oIGbp)[!f])
+    # setting this at less than 2, if 2 type 1 terms share a lot of weak terms, those should be preserved
+    c = names(which(ivDegGo < 2))
+    v = V(oIGbp)[c]
+    oIGbp = delete.vertices(oIGbp, v)
+    # check if graph is bipartite
+    if (!is.bipartite(oIGbp)) stop('Graph is not bipartite')
+  }
+  
+  ############################### internal private functions
+  ### called by constructor
+  
+  ############# weighting functions
+  generate.weights = function(iCor){
+    # scale value for log posterior function
+    iScale = sd(iCor)
+    # starting value for search - initial value
+    start = c('mu'=mean(iCor))
+    
+    ## break the weight vector into 3 quantiles
+    q1 = quantile(iCor, 0.975)
+    
+    q2 = quantile(iCor, 0.75)
+    
+    q3 = quantile(iCor, 0.5)
+    
+    
+    ## define 3 functions with a prior for each of the quantiles
+    ## model m1 - green
+    m1 = function(th) dcauchy(th, q1, log = T)
+    
+    ## model m2 - yellow
+    m2 = function(th) dcauchy(th, q2, log = T)
+    
+    ## model m3 - red
+    m3 = function(th) dcauchy(th, q3, log = T)
+    
+    ## define an array that represents number of models in our parameter space
+    ## each index has a prior weight/probability of being selected
+    ## this can be thought of coming from a categorical distribution 
+    ## moved to the arguments section of the constructor
+    ##mix.prior = c(m1=3/9 ,m2= 3/9 ,m3= 3/9)
+    library(LearnBayes)
+    library(car)
+    
+    lp1 = function(theta, data){
+      m = theta['mu']
+      d = data # data observed
+      log.lik = sum(dnorm(d, m, iScale, log=T))
+      log.prior = m1(m)
+      log.post = log.lik + log.prior
+      return(log.post)
+    }
+    
+    lp2 = function(theta, data){
+      m = theta['mu']
+      d = data # data observed
+      log.lik = sum(dnorm(d, m, iScale, log=T))
+      log.prior = m2(m) 
+      log.post = log.lik + log.prior
+      return(log.post)
+    }
+    
+    lp3 = function(theta, data){
+      m = theta['mu']
+      d = data # data observed
+      log.lik = sum(dnorm(d, m, iScale, log=T))
+      log.prior = m3(m) 
+      log.post = log.lik + log.prior
+      return(log.post)
+    }
+    
+    mMixs = sapply(seq_along(iCor), function(x){
+      data = iCor[x]
+      fit_m1 = laplace(lp1, start, data)
+      fit_m2 = laplace(lp2, start, data)
+      fit_m3 = laplace(lp3, start, data)
+      mix.post = mix.prior
+      mix.post[1] = exp(fit_m1$int) * mix.prior[1] / (exp(fit_m1$int) * mix.prior[1] + exp(fit_m2$int) * mix.prior[2]
+                                                      + exp(fit_m3$int) * mix.prior[3])
+      
+      mix.post[2] = exp(fit_m2$int) * mix.prior[2] / (exp(fit_m1$int) * mix.prior[1] + exp(fit_m2$int) * mix.prior[2]
+                                                      + exp(fit_m3$int) * mix.prior[3])
+      
+      mix.post[3] = exp(fit_m3$int) * mix.prior[3] / (exp(fit_m1$int) * mix.prior[1] + exp(fit_m2$int) * mix.prior[2]
+                                                      + exp(fit_m3$int) * mix.prior[3])
+      return(mix.post)
+    })
+    return(mMixs)
+  }
+  
+  # Name: CGraph.project
+  # Desc: Does 2 things,
+  #       1: assigns a level of interestingness/leverage or observed to expected ratio to 
+  #       each edge after graph projection on the vertex of first kind i.e. type = TRUE 
+  #       Observed frequency = weight of edge / (total number of vertices of second type)
+  #       i.e. how many shared vertices of type 2 are between the 2 type 1 vertices
+  #       Expected frequency = how many times we expect to see them based on their 
+  #       joint probability under assumption of independence. 
+  #       (marginal.prob of V1 * marginal.prob of V2)
+  #       2: assigns an importance score to each edge based on the model scores
+  #       the score for each model is calculated using a mixture of normal models with cauchy prior for mean
+  #       and variance is fixed
+  # Args: called internally no need to do it externally, 
+  #       will project on vertex with TYPE=TRUE
+  CGraph.project = function(obj){
+    # project the graph in one dimension and assign weights
+    g.p = bipartite.projection(obj@ig, which = 'TRUE')
+    # get the matrix with rows representing each edge
+    m = get.edgelist(g.p)
+    w = E(g.p)$weight
+    if (bFilterWeakLinks) {
+      # remove low weight edges i.e. if two type 1 vertices share only one type 2 vertex
+      f = which(w < 2)
+      g.p = delete.edges(g.p, edges=f)
+      w = E(g.p)$weight
+      m = get.edgelist(g.p)
+    }
+    ## assign weights and categories to weights
+    # calculate observed ratio
+    # weight / r
+    ob = w / obj@r
+    # calculate expected 
+    mExp = cbind(V(g.p)[m[,1]]$prob_marginal, V(g.p)[m[,2]]$prob_marginal)
+    ex = mExp[,1] * mExp[,2]
+    E(g.p)$observed = ob
+    E(g.p)$expected = ex
+    E(g.p)$ob_to_ex = log(ob / ex)
+    mWeights = generate.weights(E(g.p)$ob_to_ex)
+    i = apply(mWeights, 2, which.max)
+    cat = c('green', 'yellow', 'red')[i]
+    num = ivWeights[i]
+    E(g.p)$weight_cat = cat
+    E(g.p)$weight_projection = E(g.p)$weight
+    E(g.p)$weight = num
+    E(g.p)$green = mWeights[1,] # numeric prob for green model
+    E(g.p)$yellow = mWeights[2,] # numeric prob for yellow model
+    E(g.p)$red = mWeights[3,]# numeric prob for red model
+    obj@ig.p = g.p
+    return(obj)
+  }
+  
+  # assign probabilities to vertex of first kind
+  # Name: CGraph.assign.marginal.probabilities
+  # Desc: assigns probabilities to each vertex of the first kind (TRUE) 
+  #       based on how many times it is connected to the vertex of the 
+  #       second kind i.e. degree(V1) / (total number of V-type2)
+  # Args: internal function - object of CGraph class
+  CGraph.assign.marginal.probabilities = function(obj){
+    # vertex of the first kind will be assigned probabilities
+    # based on their relations with the vertices of the second kind
+    # flag to identify vertex types
+    f = V(obj@ig)$type
+    d = degree(obj@ig)
+    d = d[f]
+    # r is the total numbers of vertices of the second kind
+    r = sum(!f)
+    p = d/r
+    V(obj@ig)[f]$prob_marginal = p
+    obj@r = r
+    obj@f = f
+    return(obj)
+  }
+  ######## end internal functions called by constructor
+  # create the object
+  g = new('CGraph', ig=oIGbp, r = 0, f= F, ig.p=NULL)
+  # assign marginal probabilities
+  g = CGraph.assign.marginal.probabilities(g)
+  # assign weights on one mode projection
+  g = CGraph.project(g)
+  return(g)
+}
+
+
 
 # object constructor 2 for correlation matrix
 CGraph.cor = function(ig.template=NULL, mCor, ivWeights=c(1, 0, -1), mix.prior = c(m1=3/9 ,m2= 3/9 ,m3= 3/9)){
