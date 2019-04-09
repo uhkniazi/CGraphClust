@@ -55,6 +55,85 @@ plot(oIG.proj, vertex.size=10, edge.label=round(E(oIG.proj)$ob_to_ex, 2), edge.l
 
 iWeight = sort(E(oIG.proj)$ob_to_ex)
 
+############# weighting functions
+generate.weights = function(iCor){
+  # scale value for log posterior function
+  iScale = sd(iCor)
+  # starting value for search - initial value
+  start = c('mu'=mean(iCor))
+  
+  ## break the weight vector into 3 quantiles
+  q1 = quantile(iCor, 0.975)
+  
+  q2 = quantile(iCor, 0.75)
+  
+  q3 = quantile(iCor, 0.5)
+  
+  
+  ## define 3 functions with a prior for each of the quantiles
+  ## model m1 - green
+  m1 = function(th) dcauchy(th, q1, log = T)
+  
+  ## model m2 - yellow
+  m2 = function(th) dcauchy(th, q2, log = T)
+  
+  ## model m3 - red
+  m3 = function(th) dcauchy(th, q3, log = T)
+  
+  ## define an array that represents number of models in our parameter space
+  ## each index has a prior weight/probability of being selected
+  ## this can be thought of coming from a categorical distribution 
+  ## moved to the arguments section of the constructor
+  ##mix.prior = c(m1=3/9 ,m2= 3/9 ,m3= 3/9)
+  library(LearnBayes)
+  library(car)
+  
+  lp1 = function(theta, data){
+    m = theta['mu']
+    d = data # data observed
+    log.lik = sum(dnorm(d, m, iScale, log=T))
+    log.prior = m1(m)
+    log.post = log.lik + log.prior
+    return(log.post)
+  }
+  
+  lp2 = function(theta, data){
+    m = theta['mu']
+    d = data # data observed
+    log.lik = sum(dnorm(d, m, iScale, log=T))
+    log.prior = m2(m) 
+    log.post = log.lik + log.prior
+    return(log.post)
+  }
+  
+  lp3 = function(theta, data){
+    m = theta['mu']
+    d = data # data observed
+    log.lik = sum(dnorm(d, m, iScale, log=T))
+    log.prior = m3(m) 
+    log.post = log.lik + log.prior
+    return(log.post)
+  }
+  
+  mMixs = sapply(seq_along(iCor), function(x){
+    data = iCor[x]
+    fit_m1 = laplace(lp1, start, data)
+    fit_m2 = laplace(lp2, start, data)
+    fit_m3 = laplace(lp3, start, data)
+    mix.post = mix.prior
+    mix.post[1] = exp(fit_m1$int) * mix.prior[1] / (exp(fit_m1$int) * mix.prior[1] + exp(fit_m2$int) * mix.prior[2]
+                                                    + exp(fit_m3$int) * mix.prior[3])
+    
+    mix.post[2] = exp(fit_m2$int) * mix.prior[2] / (exp(fit_m1$int) * mix.prior[1] + exp(fit_m2$int) * mix.prior[2]
+                                                    + exp(fit_m3$int) * mix.prior[3])
+    
+    mix.post[3] = exp(fit_m3$int) * mix.prior[3] / (exp(fit_m1$int) * mix.prior[1] + exp(fit_m2$int) * mix.prior[2]
+                                                    + exp(fit_m3$int) * mix.prior[3])
+    return(mix.post)
+  })
+  return(mMixs)
+}
+mix.prior = c(m1=3/9 ,m2= 3/9 ,m3= 3/9)
 mPost = generate.weights(iWeight)
 i = apply(mPost, 2, which.max)
 cat = c('green', 'yellow', 'red')[i]
@@ -99,23 +178,30 @@ m3.d = m3.d / max(m3.d)
 lines(iGrid, m3.d, col='red')
 lines(d$x, d$y)
 
+## polygons for red
 d = density(iWeight)
 d$y = d$y/max(d$y)
 
-dx = which(d$x <= max(dfPost$iWeight[dfPost$cat == 'red']))
+#dx = which(d$x <= max(dfPost$iWeight[dfPost$cat == 'red']))
+dx = which(d$x <= 0.15)
 py = c(d$y[dx], c(rep(0, length(d$x[dx]))))
 px = c(d$x[dx], rev(d$x[dx]))
 polygon(px, py, col='red')
 
+## polygons for yellow
 # dx = which(d$x > max(dfPost$iWeight[dfPost$cat == 'red']) & 
 #                        d$x <= max(dfPost$iWeight[dfPost$cat == 'yellow']))
-dx = which(d$x > max(dfPost$iWeight[dfPost$cat == 'red']) & 
+# dx = which(d$x > max(dfPost$iWeight[dfPost$cat == 'red']) & 
+#              d$x <= 1)
+dx = which(d$x > 0.15 & 
              d$x <= 1)
+
 
 py = c(d$y[dx], c(rep(0, length(d$x[dx]))))
 px = c(d$x[dx], rev(d$x[dx]))
 polygon(px, py, col='yellow2')
 
+## polygon for green
 # dx = which(d$x >= max(dfPost$iWeight[dfPost$cat == 'green']))
 dx = which(d$x > 1)
 py = c(d$y[dx], c(rep(0, length(d$x[dx]))))
