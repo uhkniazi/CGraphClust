@@ -578,6 +578,27 @@ setMethod('plot.projected.graph', signature = 'CGraph', definition = function(ob
   par(p.old)
 })
 
+# simple plotting function for the graph to highlight cliques
+setGeneric('plot.graph.clique', function(obj, cDropEdges=c('red', 'yellow'), bDropOrphans=T)standardGeneric('plot.graph.clique'))
+setMethod('plot.graph.clique', signature = 'CGraph', definition = function(obj, cDropEdges=c('red', 'yellow'), bDropOrphans=T){
+  ig = getProjectedGraph(obj)
+  i = which(E(ig)$weight_cat %in% cDropEdges)
+  if (length(i) > 0) ig = delete.edges(ig, i)
+  if (bDropOrphans) {
+    c = which(degree(ig) == 0)
+    ig = delete.vertices(ig, c)
+  }
+  cl = largest_cliques(ig)
+  c = rainbow(length(cl)+1)
+  V(ig)$color = c[length(c)]
+  # cliques are a list, so choose colours based on number of cliques
+  for (i in 1:length(cl)) V(ig)[cl[[i]]]$color = c[i]
+  p.old = par(mar=c(1,1,1,1)+0.1)
+  plot(ig, vertex.label=NA, vertex.size=2, layout=layout_with_fr(ig, weights = E(ig)$green), vertex.frame.color=NA)
+  par(p.old)
+})
+
+
 # function to perform unions of the graph objects
 CGraph.union = function(g1, g2, ...){
   u = graph.union(g1, g2, ...)

@@ -77,23 +77,37 @@ plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2,
      edge.color='darkgrey', edge.width=0.5,
      layout=layout_with_fr(ig, weights = E(ig)$green))
 
+pdf('temp/omicsGraphs.pdf')
+par(mar=c(1,1,1,1)+0.1)#, mfrow=c(2,2))
+fGroups = lData.train$grouping
+ig.plot = f_igCalculateVertexSizesAndColors(ig, t(mCounts.train), fGroups, bColor = T, iSize = 10)
 set.seed(123)
-plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
-     vertex.frame.color=NA, 
-     edge.color='darkgrey', edge.width=0.5,
-     layout=layout_with_fr(ig, weights = E(ig)$weight))
+plot(ig.plot, vertex.label.cex=0.2, layout=layout_with_fr(ig.plot, weights=E(ig.plot)$green),
+     vertex.frame.color='darkgrey', edge.color='lightgrey', 
+     main=paste(levels(fGroups)[nlevels(fGroups)], 'vs', levels(fGroups)[1]))
+legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+dev.off(dev.cur())
 
 set.seed(123)
-plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
-     vertex.frame.color=NA, 
-     edge.color='darkgrey', edge.width=0.5,
-     layout=layout_with_fr(ig, weights = E(ig)$red))
-
-set.seed(123)
-plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
-     vertex.frame.color=NA, 
-     edge.color='darkgrey', edge.width=0.5,
-     layout=layout_with_fr(ig, weights = E(ig)$yellow))
+plot.graph.clique(oCGbp.reactome)
+# 
+# set.seed(123)
+# plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
+#      vertex.frame.color=NA, 
+#      edge.color='darkgrey', edge.width=0.5,
+#      layout=layout_with_fr(ig, weights = E(ig)$weight))
+# 
+# set.seed(123)
+# plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
+#      vertex.frame.color=NA, 
+#      edge.color='darkgrey', edge.width=0.5,
+#      layout=layout_with_fr(ig, weights = E(ig)$red))
+# 
+# set.seed(123)
+# plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
+#      vertex.frame.color=NA, 
+#      edge.color='darkgrey', edge.width=0.5,
+#      layout=layout_with_fr(ig, weights = E(ig)$yellow))
 
 
 ## save the graph object in graphml format to use in cytoscape
@@ -119,17 +133,17 @@ legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('ligh
 
 # community detection
 ecount(ig)
-#com.y = edge.betweenness.community(ig, weights=E(ig)$yellow)
-com.g = cluster_louvain(ig, weights=E(ig)$green)
+#com.r = edge.betweenness.community(ig, weights=E(ig)$yellow)
+com.g = cluster_(ig, weights=E(ig)$green)
 
 table(com.g$membership)
 mCom = mCompressMatrixByRow(t(mCounts.train), ig, com.g)
 
-set.seed(123)
-plot(com.y, ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
-     vertex.frame.color=NA, 
-     edge.color='darkgrey', edge.width=0.5,
-     layout=layout_with_fr(ig, weights = E(ig)$yellow))
+# set.seed(123)
+# plot(com.y, ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
+#      vertex.frame.color=NA, 
+#      edge.color='darkgrey', edge.width=0.5,
+#      layout=layout_with_fr(ig, weights = E(ig)$yellow))
 
 set.seed(123)
 plot(com.g, ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
