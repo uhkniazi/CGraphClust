@@ -88,8 +88,33 @@ plot(ig.plot, vertex.label.cex=0.2, layout=layout_with_fr(ig.plot, weights=E(ig.
 legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
 dev.off(dev.cur())
 
+## location of the largest clique
 set.seed(123)
 plot.graph.clique(oCGbp.reactome)
+
+## plot subgraph of largest clique
+pdf('temp/omicsGraphs_clique.pdf')
+ig.plot = induced_subgraph(ig, unlist(largest_cliques(ig)))
+ecount(ig.plot)
+vcount(ig.plot)
+par(mar=c(1,1,1,1)+0.1)#, mfrow=c(2,2))
+ig.plot = f_igCalculateVertexSizesAndColors(ig.plot, t(mCounts.train), fGroups, bColor = T, iSize = 20)
+set.seed(123)
+plot(ig.plot, vertex.label.cex=0.5, layout=layout_with_fr(ig.plot, weights=E(ig.plot)$green),
+     vertex.frame.color='darkgrey', edge.color='lightgrey', 
+     main=paste(levels(fGroups)[nlevels(fGroups)], 'vs', levels(fGroups)[1]))
+legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+dev.off(dev.cur())
+library(lattice)
+df = data.frame(mCounts.train[,V(ig.plot)$name])
+df = stack(df)
+df$fGroups = fGroups
+df$hiv = lData.train$adjust
+
+xyplot( values ~ fGroups | ind, groups=hiv, data=df, type='p', pch=20, scales=list(relation='free'))
+bwplot( values ~ fGroups | ind, data=df[df$hiv == 'HIV-',], type='p', pch=20, scales=list(relation='free'))
+
+
 # 
 # set.seed(123)
 # plot(ig, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
