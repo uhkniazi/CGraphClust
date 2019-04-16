@@ -210,11 +210,49 @@ dev.off(dev.cur())
 
 ########## end sepsis data set
 
+########### test 1 - GO Stats
 
+goTest = function(cvSeed, univ = keys(org.Hs.eg.db, 'ENTREZID')){
+  library(GOstats)
+  ## set up universe background
+  dfUniv = AnnotationDbi::select(org.Hs.eg.db, keys = univ, columns = c('GO'), keytype = 'ENTREZID')
+  dfUniv = na.omit(dfUniv)
+  univ = unique(dfUniv$ENTREZID)
+  
+  ## perform test
+  df = AnnotationDbi::select(org.Hs.eg.db, keys=cvSeed, keytype = 'SYMBOL', columns =  'ENTREZID')
+  
+  ## make hypergeometric test object for each type, CC, BP and MF
+  params = new('GOHyperGParams', geneIds=unique(df$ENTREZID),
+               annotation='org.Hs.eg.db',
+               universeGeneIds=univ,
+               ontology='BP',
+               pvalueCutoff= 0.01,
+               conditional=FALSE,
+               testDirection='over')
+  
+  oGOStat = hyperGTest(params) 
+  # get pvalues
+  ivPGO = pvalues(oGOStat)
+  # fdr
+  ivPGO.adj = p.adjust(ivPGO, 'BH')
+  
+  # clean up
+  detach("package:GOstats", unload=T)
+  detach("package:igraph", unload=T)
+  library(igraph)
+  return(table(ivPGO.adj < 0.01))
+}
 
+## tb graph at cutoffs
+ig.tb= getProjectedGraph(oCGbp.tb)
+table(E(ig.tb)$weight)
 
+# drop all the red edges
+ig.tb= delete.edges(ig.tb, which(E(ig.tb)$weight < 2))
+ig.tb= delete.vertices(ig.tb, which(degree(ig.tb) == 0))
 
-
+goTest(names(unlist(largest_cliques(ig.tb))))
 
 
 
