@@ -2,6 +2,9 @@
 # Desc: used for testing and rough work
 
 # https://github.com/uhkniazi/Scratch/blob/0bc2dffc459aa621adebc1076f2f2608ac81dd99/goTermsForJens.R
+my_scale = function(x){
+  return((x-min(x))/(max(x)-min(x)))
+}
 
 plot(ig, vertex.label=NA, vertex.size=2, 
      layout=layout_with_fr, vertex.frame.color=NA)
@@ -304,7 +307,7 @@ table(E(ig)$weight)
 
 
 
-ig = delete.edges(ig, which(E(ig)$weight < 2))
+ig = delete.edges(ig, which(E(ig)$weight < 3))
 vcount(ig)
 ig = delete.vertices(ig, which(degree(ig) == 0))
 vcount(ig)
