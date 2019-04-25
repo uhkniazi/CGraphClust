@@ -210,6 +210,130 @@ dev.off(dev.cur())
 
 ########## end sepsis data set
 
+## coreness test tb dataset
+# extract the igraph object
+ig.tb= getProjectedGraph(oCGbp.tb)
+table(E(ig.tb)$weight)
+
+# create sub graphs after edge pruning
+ig.tb.y = delete.edges(ig.tb, which(E(ig.tb)$weight < 1))
+ig.tb.y = delete.vertices(ig.tb.y, which(degree(ig.tb.y) == 0))
+
+ig.tb.g = delete.edges(ig.tb, which(E(ig.tb)$weight < 2))
+ig.tb.g = delete.vertices(ig.tb.g, which(degree(ig.tb.g) == 0))
+
+vcount(ig.tb); vcount(ig.tb.y); vcount(ig.tb.g)
+
+mtb = sapply(c(degree, coreness), function(x){
+  return(x(ig.tb))
+})
+
+mtb.y = sapply(c(degree, coreness), function(x){
+  return(x(ig.tb.y))
+})
+
+mtb.g = sapply(c(degree, coreness), function(x){
+  return(x(ig.tb.g))
+})
+
+plot(mtb, pch=20); cor(mtb)
+plot(mtb.y, pch=20); cor(mtb.y)
+plot(mtb.g, pch=20); cor(mtb.g)
+
+itb.deg = c(max(mtb[,2]), max(mtb.y[,2]), max(mtb.g[,2]))
+itb.tri = c(sum(count_triangles(ig.tb)), sum(count_triangles(ig.tb.y)), sum(count_triangles(ig.tb.g)))
+
+plot(log(itb.tri), log(itb.deg), pch=20)
+fit.tb = lm(log(itb.deg) ~ log(itb.tri))
+abline(fit.tb)
+
+## coreness test sepsis dataset
+# extract the igraph object
+ig.sepsis= getProjectedGraph(oCGbp.sepsis)
+table(E(ig.sepsis)$weight)
+
+# create sub graphs after edge pruning
+ig.sepsis.y = delete.edges(ig.sepsis, which(E(ig.sepsis)$weight < 1))
+ig.sepsis.y = delete.vertices(ig.sepsis.y, which(degree(ig.sepsis.y) == 0))
+
+ig.sepsis.g = delete.edges(ig.sepsis, which(E(ig.sepsis)$weight < 2))
+ig.sepsis.g = delete.vertices(ig.sepsis.g, which(degree(ig.sepsis.g) == 0))
+
+vcount(ig.sepsis); vcount(ig.sepsis.y); vcount(ig.sepsis.g)
+
+msepsis = sapply(c(degree, coreness), function(x){
+  return(x(ig.sepsis))
+})
+
+msepsis.y = sapply(c(degree, coreness), function(x){
+  return(x(ig.sepsis.y))
+})
+
+msepsis.g = sapply(c(degree, coreness), function(x){
+  return(x(ig.sepsis.g))
+})
+
+plot(msepsis, pch=20); cor(msepsis)
+plot(msepsis.y, pch=20); cor(msepsis.y)
+plot(msepsis.g, pch=20); cor(msepsis.g)
+
+isepsis.deg = c(max(msepsis[,2]), max(msepsis.y[,2]), max(msepsis.g[,2]))
+isepsis.tri = c(sum(count_triangles(ig.sepsis)), sum(count_triangles(ig.sepsis.y)), sum(count_triangles(ig.sepsis.g)))
+
+plot(log(isepsis.tri), log(isepsis.deg), pch=20)
+fit.sepsis = lm(log(isepsis.deg) ~ log(isepsis.tri))
+abline(fit.sepsis)
+
+### combine the data for triangles and degeneracy
+iDegeneracy = c(itb.deg, isepsis.deg)
+iTriangles = c(itb.tri, isepsis.tri)
+
+plot(log(iTriangles), log(iDegeneracy), pch=20, xlim=c(0, 20), ylim=c(0,6))
+fit.joined = lm(log(iDegeneracy) ~ log(iTriangles) - 1)
+summary(fit.joined)
+abline(fit.joined)
+abline(0, 0.3, col=2)
+
+### generate some random graphs
+mRandom = matrix(NA, nrow = 20, ncol=2)
+colnames(mRandom) = c('tri', 'dege')
+for (i in 1:20){
+  ig.r1 = erdos.renyi.game(vcount(ig.tb), p.or.m = ecount(ig.tb), type='gnm')
+  # count coreness
+  mr1 = sapply(c(degree, coreness), function(x){
+    return(x(ig.r1))
+  })
+  mRandom[i,] = c(log(sum(count_triangles(ig.r1))), log(max(mr1[,2])))
+}
+points(mRandom, pch=20, col=2)
+
+mRandom = matrix(NA, nrow = 20, ncol=2)
+colnames(mRandom) = c('tri', 'dege')
+for (i in 1:20){
+  ig.r1 = erdos.renyi.game(vcount(ig.tb.y), p.or.m = ecount(ig.tb.y), type='gnm')
+  # count coreness
+  mr1 = sapply(c(degree, coreness), function(x){
+    return(x(ig.r1))
+  })
+  mRandom[i,] = c(log(sum(count_triangles(ig.r1))), log(max(mr1[,2])))
+}
+points(mRandom, pch=20, col=2)
+
+mRandom = matrix(NA, nrow = 20, ncol=2)
+colnames(mRandom) = c('tri', 'dege')
+for (i in 1:20){
+  ig.r1 = erdos.renyi.game(vcount(ig.tb.g), p.or.m = ecount(ig.tb.g), type='gnm')
+  # count coreness
+  mr1 = sapply(c(degree, coreness), function(x){
+    return(x(ig.r1))
+  })
+  mRandom[i,] = c(log(sum(count_triangles(ig.r1))), log(max(mr1[,2])))
+}
+points(mRandom, pch=20, col=2)
+
+
+
+
 ########### test 1 - GO Stats
 
 goTest = function(cvSeed, univ = keys(org.Hs.eg.db, 'ENTREZID')){
