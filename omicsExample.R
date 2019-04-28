@@ -244,7 +244,7 @@ itb.deg = c(max(mtb[,2]), max(mtb.y[,2]), max(mtb.g[,2]))
 itb.tri = c(sum(count_triangles(ig.tb)), sum(count_triangles(ig.tb.y)), sum(count_triangles(ig.tb.g)))
 
 plot(log(itb.tri), log(itb.deg), pch=20)
-fit.tb = lm(log(itb.deg) ~ log(itb.tri))
+fit.tb = lm(log(itb.deg) ~ log(itb.tri) - 1)
 abline(fit.tb)
 
 ## coreness test sepsis dataset
@@ -281,7 +281,7 @@ isepsis.deg = c(max(msepsis[,2]), max(msepsis.y[,2]), max(msepsis.g[,2]))
 isepsis.tri = c(sum(count_triangles(ig.sepsis)), sum(count_triangles(ig.sepsis.y)), sum(count_triangles(ig.sepsis.g)))
 
 plot(log(isepsis.tri), log(isepsis.deg), pch=20)
-fit.sepsis = lm(log(isepsis.deg) ~ log(isepsis.tri))
+fit.sepsis = lm(log(isepsis.deg) ~ log(isepsis.tri) - 1)
 abline(fit.sepsis)
 
 ### combine the data for triangles and degeneracy
@@ -295,17 +295,67 @@ abline(fit.joined)
 abline(0, 0.3, col=2)
 
 ### generate some random graphs
-mRandom = matrix(NA, nrow = 20, ncol=2)
-colnames(mRandom) = c('tri', 'dege')
-for (i in 1:20){
-  ig.r1 = erdos.renyi.game(vcount(ig.tb), p.or.m = ecount(ig.tb), type='gnm')
-  # count coreness
-  mr1 = sapply(c(degree, coreness), function(x){
-    return(x(ig.r1))
-  })
-  mRandom[i,] = c(log(sum(count_triangles(ig.r1))), log(max(mr1[,2])))
+mGenerateRandomGraph = function(v){
+  mRandom = matrix(NA, nrow = 20, ncol=2)
+  colnames(mRandom) = c('tri', 'dege')
+  p = runif(20, 0.01, 0.2)
+  for (i in 1:20){
+    ig.r1 = erdos.renyi.game(v, p.or.m = p[i], type='gnp')
+    # count coreness
+    mr1 = sapply(c(degree, coreness), function(x){
+      return(x(ig.r1))
+    })
+    mRandom[i,] = c(log(sum(count_triangles(ig.r1))), log(max(mr1[,2])))
+  }
+  return(mRandom)
 }
-points(mRandom, pch=20, col=2)
+
+mRan.ig.tb = mGenerateRandomGraph(vcount(ig.tb))
+points(mRan.ig.tb, pch=20, col=2)
+
+mRan.ig.tb.y = mGenerateRandomGraph(vcount(ig.tb.y))
+points(mRan.ig.tb.y, pch=20, col=2)
+
+mRan.ig.tb.g = mGenerateRandomGraph(vcount(ig.tb.g))
+points(mRan.ig.tb.g, pch=20, col=3)
+
+mRan.ig.sepsis = mGenerateRandomGraph(vcount(ig.sepsis))
+points(mRan.ig.sepsis, pch=20, col=2)
+
+mRan.ig.sepsis.y = mGenerateRandomGraph(vcount(ig.sepsis.y))
+points(mRan.ig.sepsis.y, pch=20, col=2)
+
+mRan.ig.sepsis.g = mGenerateRandomGraph(vcount(ig.sepsis.g))
+points(mRan.ig.sepsis.g, pch=20, col=4)
+
+iTriangles.ran = c((mRan.ig.tb[,'tri']),
+                   (mRan.ig.tb.y[,'tri']),
+                   (mRan.ig.tb.g[,'tri']),
+                   (mRan.ig.sepsis[,'tri']),
+                   (mRan.ig.sepsis.y[,'tri']),
+                   (mRan.ig.sepsis.g[,'tri']))
+
+iDegeneracy.ran = c((mRan.ig.tb[,'dege']),
+                   (mRan.ig.tb.y[,'dege']),
+                   (mRan.ig.tb.g[,'dege']),
+                   (mRan.ig.sepsis[,'dege']),
+                   (mRan.ig.sepsis.y[,'dege']),
+                   (mRan.ig.sepsis.g[,'dege']))
+iTriangles = log(iTriangles)
+iDegeneracy = log(iDegeneracy)
+
+plot(iTriangles, iDegeneracy, pch=20, 
+     xlim=c(min(c(iTriangles.ran, iTriangles)), max(c(iTriangles.ran, iTriangles))),
+     ylim=c(min(c(iDegeneracy.ran, iDegeneracy)),max(c(iDegeneracy.ran, iDegeneracy))))
+fit.joined = lm(iDegeneracy ~ iTriangles - 1)
+summary(fit.joined)
+abline(fit.joined)
+abline(0, 0.3, col=1, lty=2)
+
+fit.ran = lm(iDegeneracy.ran ~ iTriangles.ran - 1)
+summary(fit.ran)
+points(iTriangles.ran, iDegeneracy.ran, pch=20, col=2)
+abline(fit.ran, col=2)
 
 mRandom = matrix(NA, nrow = 20, ncol=2)
 colnames(mRandom) = c('tri', 'dege')
