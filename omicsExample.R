@@ -236,10 +236,55 @@ mtb.g = sapply(c(degree, coreness), function(x){
   return(x(ig.tb.g))
 })
 
-plot(mtb, pch=20); cor(mtb)
-plot(mtb.y, pch=20); cor(mtb.y)
-plot(mtb.g, pch=20); cor(mtb.g)
+plot(mtb, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Red'); cor(mtb)
+plot(mtb.y, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Yellow'); cor(mtb.y)
+plot(mtb.g, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Green'); cor(mtb.g)
 
+### atypical patterns
+## largest cliques location
+i = names(unlist(largest_cliques(ig.tb)))
+i2 = which(rownames(mtb) %in% i)
+plot(mtb, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Red')
+points(mtb[i2,], pch=20, col=2)
+
+i = names(unlist(largest_cliques(ig.tb.y)))
+i2 = which(rownames(mtb.y) %in% i)
+plot(mtb.y, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Yellow')
+points(mtb.y[i2,], pch=20, col=2)
+
+i = names(unlist(largest_cliques(ig.tb.g)))
+i2 = which(rownames(mtb.g) %in% i)
+plot(mtb.g, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Green', cex=0.7, col='grey')
+points(mtb.g[i2,], pch=20, col='green')
+
+i = names(unlist(largest_cliques(ig.tb)))
+i2 = which(rownames(mtb) %in% i)
+plot(mtb, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Red', cex=0.7, col='grey')
+points(mtb[i2,], pch=20, col=2)
+i = names(unlist(largest_cliques(ig.tb.y)))
+i2 = which(rownames(mtb) %in% i)
+points(mtb[i2,], pch=20, col='yellow')
+i = names(unlist(largest_cliques(ig.tb.g)))
+i2 = which(rownames(mtb) %in% i)
+points(mtb[i2,], pch=20, col='green')
+
+## extract the graph at top cores
+par(mar=c(1,1,1,1)+0.1, mfrow=c(2,2))
+sort(unique(mtb.g[,2]))
+iCut = 44
+i = names(which(mtb.g[,2] == iCut))
+ig.plot.tb = induced_subgraph(ig.tb.g, i)
+ecount(ig.plot.tb)
+vcount(ig.plot.tb)
+
+ig.plot.tb = f_igCalculateVertexSizesAndColors(ig.plot.tb, t(mCounts.tb), fGroups.tb, bColor = T, iSize = 20)
+set.seed(123)
+plot(ig.plot.tb, vertex.label=NA, layout=layout_with_fr(ig.plot.tb, weights=E(ig.plot.tb)$green),
+     vertex.frame.color='grey', edge.color='grey',edge.width=0.3, 
+     main=paste(iCut, levels(fGroups.tb)[nlevels(fGroups.tb)], 'vs', levels(fGroups.tb)[1]))
+#legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+
+## degeneracy and triangles
 itb.deg = c(max(mtb[,2]), max(mtb.y[,2]), max(mtb.g[,2]))
 itb.tri = c(sum(count_triangles(ig.tb)), sum(count_triangles(ig.tb.y)), sum(count_triangles(ig.tb.g)))
 
@@ -277,6 +322,35 @@ plot(msepsis, pch=20); cor(msepsis)
 plot(msepsis.y, pch=20); cor(msepsis.y)
 plot(msepsis.g, pch=20); cor(msepsis.g)
 
+### atypical patterns
+## largest cliques location
+i = names(unlist(largest_cliques(ig.sepsis)))
+i2 = which(rownames(msepsis) %in% i)
+plot(msepsis, pch=20, xlab='Degree', ylab='Coreness', main='Sepsis data - Red')
+points(msepsis[i2,], pch=20, col=2)
+
+i = names(unlist(largest_cliques(ig.sepsis.y)))
+i2 = which(rownames(msepsis.y) %in% i)
+plot(msepsis.y, pch=20, xlab='Degree', ylab='Coreness', main='Sepsis data - Yellow')
+points(msepsis.y[i2,], pch=20, col=2)
+
+i = names(unlist(largest_cliques(ig.sepsis.g)))
+i2 = which(rownames(msepsis.g) %in% i)
+plot(msepsis.g, pch=20, xlab='Degree', ylab='Coreness', main='Sepsis data - Green')
+points(msepsis.g[i2,], pch=20, col=2)
+
+i = names(unlist(largest_cliques(ig.sepsis)))
+i2 = which(rownames(msepsis) %in% i)
+plot(msepsis, pch=20, xlab='Degree', ylab='Coreness', main='Sepsis data - Red')
+points(msepsis[i2,], pch=20, col=2)
+i = names(unlist(largest_cliques(ig.sepsis.y)))
+i2 = which(rownames(msepsis) %in% i)
+points(msepsis[i2,], pch=20, col='yellow')
+i = names(unlist(largest_cliques(ig.sepsis.g)))
+i2 = which(rownames(msepsis) %in% i)
+points(msepsis[i2,], pch=20, col='green')
+
+## degeneracy and triangles
 isepsis.deg = c(max(msepsis[,2]), max(msepsis.y[,2]), max(msepsis.g[,2]))
 isepsis.tri = c(sum(count_triangles(ig.sepsis)), sum(count_triangles(ig.sepsis.y)), sum(count_triangles(ig.sepsis.g)))
 
@@ -311,10 +385,10 @@ mGenerateRandomGraph = function(v){
 }
 
 mRan.ig.tb = mGenerateRandomGraph(vcount(ig.tb))
-points(mRan.ig.tb, pch=20, col=2)
+points(mRan.ig.tb, pch=20, col=3)
 
 mRan.ig.tb.y = mGenerateRandomGraph(vcount(ig.tb.y))
-points(mRan.ig.tb.y, pch=20, col=2)
+points(mRan.ig.tb.y, pch=20, col=3)
 
 mRan.ig.tb.g = mGenerateRandomGraph(vcount(ig.tb.g))
 points(mRan.ig.tb.g, pch=20, col=3)
@@ -323,10 +397,10 @@ mRan.ig.sepsis = mGenerateRandomGraph(vcount(ig.sepsis))
 points(mRan.ig.sepsis, pch=20, col=2)
 
 mRan.ig.sepsis.y = mGenerateRandomGraph(vcount(ig.sepsis.y))
-points(mRan.ig.sepsis.y, pch=20, col=2)
+points(mRan.ig.sepsis.y, pch=20, col=3)
 
 mRan.ig.sepsis.g = mGenerateRandomGraph(vcount(ig.sepsis.g))
-points(mRan.ig.sepsis.g, pch=20, col=4)
+points(mRan.ig.sepsis.g, pch=20, col=3)
 
 iTriangles.ran = c((mRan.ig.tb[,'tri']),
                    (mRan.ig.tb.y[,'tri']),
@@ -356,6 +430,13 @@ fit.ran = lm(iDegeneracy.ran ~ iTriangles.ran - 1)
 summary(fit.ran)
 points(iTriangles.ran, iDegeneracy.ran, pch=20, col=2)
 abline(fit.ran, col=2)
+
+
+
+
+
+
+
 
 mRandom = matrix(NA, nrow = 20, ncol=2)
 colnames(mRandom) = c('tri', 'dege')
