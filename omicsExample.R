@@ -284,6 +284,37 @@ plot(ig.plot.tb, vertex.label=NA, layout=layout_with_fr(ig.plot.tb, weights=E(ig
      main=paste(iCut, levels(fGroups.tb)[nlevels(fGroups.tb)], 'vs', levels(fGroups.tb)[1]))
 #legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
 
+## centrality measures
+ig.tb= getProjectedGraph(oCGbp.tb)
+table(E(ig.tb)$weight)
+
+# create sub graphs after edge pruning
+ig.tb.y = delete.edges(ig.tb, which(E(ig.tb)$weight < 1))
+ig.tb.g = delete.edges(ig.tb, which(E(ig.tb)$weight < 2))
+vcount(ig.tb); vcount(ig.tb.y); vcount(ig.tb.g)
+
+# extract edge betweenness
+# mBet = lapply(list(ig.tb, ig.tb.y, ig.tb.g), function(x) { 
+#   x = delete_edge_attr(x, 'weight')
+#   betweenness(x, directed = F, weights = NULL)})
+# 
+# mBet = do.call(cbind, mBet)
+
+lBet = lapply(list(ig.tb, ig.tb.y, ig.tb.g), function(x) { 
+  x = delete_edge_attr(x, 'weight')
+  edge_betweenness(x, directed = F, weights = NULL)})
+
+i = sapply(lBet, which.max)
+E(ig.tb)[i[1]]
+E(ig.tb.y)[i[2]]
+E(ig.tb.g)[i[3]]
+
+lBet[[1]][get.edge.ids(ig.tb, c('BCL6', 'BATF'))]
+lBet[[3]][get.edge.ids(ig.tb.g, c('EPHA1', 'FOXP1'))]
+head(sort(lBet[[3]], decreasing = T), 10)
+i = which(lBet[[3]] >= 8468)
+E(ig.tb.g)[i]
+
 ## degeneracy and triangles
 itb.deg = c(max(mtb[,2]), max(mtb.y[,2]), max(mtb.g[,2]))
 itb.tri = c(sum(count_triangles(ig.tb)), sum(count_triangles(ig.tb.y)), sum(count_triangles(ig.tb.g)))

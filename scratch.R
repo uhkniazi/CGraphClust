@@ -36,6 +36,28 @@ ig.p = delete.edges(ig.p, c(30, 31))
 
 write.graph(ig, file= 'temp/mansoor.graphml', format='graphml')
 
+
+el = as.matrix(get.edgelist(ig.tb.g))
+head(el)
+el = el[i,]
+el
+E(ig.tb.g)[i]
+apply(el, 1, function(x) get.edge.ids(ig.tb.g, x))
+i
+i2 = apply(el, 1, function(x) get.edge.ids(ig.tb, x))
+i2
+lBet[[1]][i2]
+lBet[[3]][i]
+xg = lBet[[3]][i]
+x = lBet[[1]][i2]
+x-xg
+log(x)-log(xg)
+log(xg)-log(x)
+plot(log(xg)-log(x))
+i
+E(ig.tb.g)[7059]
+
+
 #################### go
 library(GOstats)
 # get the universe of genes with go terms
