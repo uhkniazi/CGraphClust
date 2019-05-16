@@ -6,6 +6,57 @@ my_scale = function(x){
   return((x-min(x))/(max(x)-min(x)))
 }
 
+
+############ poisson model
+## utility functions
+# calculates the gamma prior parameters for a poisson sampling distribution
+# see page 5 in notes here: https://www.evernote.com/shard/s288/res/659dc700-ccb9-457e-aea6-aa54bc3abbb9
+# and for an example see page 154, chapter on Hierarchical Modeling Bayesian Computation with R.
+## DESC: using the poisson sampling model, the data vector is used to count values of alpha (shape), beta (rate)
+## parameters for the gamma prior
+getalphabeta.poisson = function(lambda){
+  m = mean(lambda)
+  v = var(lambda)
+  alpha = (m^2)/v
+  beta = alpha/m
+  return(c(alpha=alpha, beta=beta))
+}
+
+simGammaPost = function(data, prior){
+  alpha = prior['alpha']+sum(data)
+  beta = prior['beta']+length(data)
+  return(rgamma(1000, shape = alpha, rate = beta))
+}
+
+simPostPredictPoisson = function(post, len, nc=20){
+  mDraws = matrix(NA, nrow = len, ncol=nc)
+  for (i in 1:nc){
+    p = sample(post, size = 1)
+    mDraws[,i] = rpois(len, p)
+  }
+  return(mDraws)
+}
+
+pr.tb = getalphabeta.poisson(mtb[,1])
+mPost.tb = sapply(mtb[,1], function(x) simGammaPost(x, pr.tb))
+post.tb = colMeans(mPost.tb)
+
+simPostPredictPoisson2 = function(post, len, nc=20){
+  mDraws = matrix(NA, nrow = len, ncol=nc)
+  for (i in 1:nc){
+    p = sample(1:nrow(post), size = 1)
+    mDraws[,i] = rpois(len, post[p,])
+  }
+  return(mDraws)
+}
+
+
+
+
+
+
+
+
 plot(ig, vertex.label=NA, vertex.size=2, 
      layout=layout_with_fr, vertex.frame.color=NA)
 
