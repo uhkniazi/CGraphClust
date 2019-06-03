@@ -447,6 +447,15 @@ apply(mSim.pp.red, 2, function(x) lines(density(x), lwd=0.8, col='grey'))
 hist(mSim.pp.green[,1], xlim=c(0, 90), xaxt='n', prob=T, xlab='', main='Partial Pooling Model - Green')
 axis(1, c(0, 20, 40, 60, 80, 90), labels = c(0, 20, 40, 60, 80, 90))
 apply(mSim.pp.green, 2, function(x) lines(density(x), lwd=0.8, col='grey'))
+
+## maximal cliques 
+iCliques.green = sapply(max_cliques(ig.tb.g, 3, length(largest_cliques(ig.tb.g)[[1]])), length)
+iCliques.red = sapply(max_cliques(ig.tb, 3, length(largest_cliques(ig.tb)[[1]])), length)
+iCliques.ran = sapply(max_cliques(ig.ran, 3, 20), length)
+par(mfrow=c(1,3))
+hist(iCliques.green, prob=T); hist(iCliques.red, prob=T); hist(iCliques.ran, prob=T)
+
+iCliques.all.green = cliques(ig.tb.g, 3, 7)
 ## centrality measures
 # ig.tb= getProjectedGraph(oCGbp.tb)
 # table(E(ig.tb)$weight)
