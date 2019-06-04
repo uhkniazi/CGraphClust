@@ -370,6 +370,18 @@ fit.lme = glmer(y ~ 1 + (1 | gene), offset=log(dfData$e), data=dfData, family=po
 ## compare lme4 and stan
 summary(fit.lme)
 
+## extract the coefficients and fitted values of interest
+mCoef = extract(fit.stan)$betas
+d = data.frame(cols=1:ncol(mCoef), mods=levels(dfData$gene))
+colnames(mCoef) =  as.character(d$mods)
+mCoef.green = mCoef; rm(mCoef)
+
+s = extract(fit.stan)$sigmaRan
+mCoef.green = sweep(mCoef.green, 1, s, FUN = '*')
+
+p = extract(fit.stan)$populationMean
+mCoef.green = sweep(mCoef.green, 1, p, '+')
+
 mFitted.pp.green = extract(fit.stan)$mu
 dim(mFitted.pp.green)
 mFitted = mFitted.pp.green[sample(1:nrow(mFitted.pp.green), 100, replace = F),]
@@ -424,6 +436,19 @@ fit.lme = glmer(y ~ 1 + (1 | gene), offset=log(dfData$e), data=dfData, family=po
 ## compare lme4 and stan
 summary(fit.lme)
 
+## extract the coefficients and fitted values of interest
+mCoef = extract(fit.stan)$betas
+dim(mCoef)
+d = data.frame(cols=1:ncol(mCoef), mods=levels(dfData$gene))
+colnames(mCoef) =  as.character(d$mods)
+mCoef.red = mCoef; rm(mCoef)
+
+s = extract(fit.stan)$sigmaRan
+mCoef.red = sweep(mCoef.red, 1, s, FUN = '*')
+
+p = extract(fit.stan)$populationMean
+mCoef.red = sweep(mCoef.red, 1, p, '+')
+
 mFitted.pp.red = extract(fit.stan)$mu
 dim(mFitted.pp.red)
 mFitted = mFitted.pp.red[sample(1:nrow(mFitted.pp.red), 100, replace = F),]
@@ -448,6 +473,52 @@ hist(mSim.pp.green[,1], xlim=c(0, 90), xaxt='n', prob=T, xlab='', main='Partial 
 axis(1, c(0, 20, 40, 60, 80, 90), labels = c(0, 20, 40, 60, 80, 90))
 apply(mSim.pp.green, 2, function(x) lines(density(x), lwd=0.8, col='grey'))
 
+##### comparisons of the extracted coefficients
+g = colMeans(mCoef.green)
+r = colMeans(mCoef.red)
+# 
+# i = match(names(g), names(r))
+# r = r[i]
+# identical(names(g), names(r))
+# plot(g, r, pch=20)
+
+# #### clustering of networks to assign groupings to genes
+# com.r = cluster_louvain(ig.tb, weights=NULL)
+# table(com.r$membership)
+# head(com.r$membership)
+# rc = com.r$membership
+# names(rc) = com.r$names
+# i = match(names(r), names(rc))
+# rc = rc[i]
+# identical(names(r), names(rc))
+# head(r); head(rc)
+# rc = factor(rc)
+# i = which(table(rc) > 10)
+# table(rc)[i]
+# df = data.frame(r, rc)
+# df = df[df$rc %in% i, ]
+# library(lattice)
+# bwplot(r ~ rc, data=df)
+# 
+# ## green
+# com.g = cluster_louvain(ig.tb.g, weights=NULL)
+# gc = com.g$membership
+# names(gc) = com.g$names
+# i = match(names(g), names(gc))
+# gc = gc[i]
+# identical(names(g), names(gc))
+# gc = factor(gc)
+# i = which(table(gc) > 10)
+# table(gc)[i]
+# df = data.frame(g, gc)
+# df = df[df$gc %in% i, ]
+# bwplot(g ~ gc, data=df)
+# summary(lm(g ~ gc, data=df))
+
+
+
+
+
 ## maximal cliques 
 iCliques.green = sapply(max_cliques(ig.tb.g, 3, length(largest_cliques(ig.tb.g)[[1]])), length)
 iCliques.red = sapply(max_cliques(ig.tb, 3, length(largest_cliques(ig.tb)[[1]])), length)
@@ -455,7 +526,7 @@ iCliques.ran = sapply(max_cliques(ig.ran, 3, 20), length)
 par(mfrow=c(1,3))
 hist(iCliques.green, prob=T); hist(iCliques.red, prob=T); hist(iCliques.ran, prob=T)
 
-iCliques.all.green = cliques(ig.tb.g, 3, 7)
+#iCliques.all.green = cliques(ig.tb.g, 3, 7)
 ## centrality measures
 # ig.tb= getProjectedGraph(oCGbp.tb)
 # table(E(ig.tb)$weight)
