@@ -523,77 +523,6 @@ r = colMeans(mCoef.red)
 ## this should be able to identify/predict clusters if the go terms are concentrated in clusters
 ## repeat this section multiple times manually to select optimal cluster sizes to compare
 library(lme4)
-# weights in the graph
-iIndex = c(0, 2)
-iErrorRate = rep(NA, times=length(iIndex))
-names(iErrorRate) = c('Red', 'Green')
-iAIC = rep(NA, times=length(iIndex))
-names(iAIC) = names(iErrorRate)
-length(iIndex)
-## weight cutoff index
-cutoff = 2
-## different cutoffs
-ecount(ig.tb)
-table(E(ig.tb)$weight)
-ig.p = delete.edges(ig.tb, which(E(ig.tb)$weight < iIndex[cutoff]))
-ecount(ig.p)
-ig.p = delete.vertices(ig.p, which(degree(ig.p) == 0))
-vcount(ig.p)
-com = cluster_louvain(ig.p, weight=NULL)
-## map the cluster id to the gene name
-dfCom = data.frame(gene=com$names, com=com$membership)
-# get the frequency/size of the clusters
-i = sort(table(dfCom$com), decreasing = T)
-i
-# choose clusters of comparable sizes
-i = names(i)[c(1,2)]
-# subset the data to the 2 largest clusters
-dfCom = dfCom[dfCom$com %in% i,]
-dfCom$cluster = factor(dfCom$com)
-table(dfCom$cluster)
-str(dfCom)
-# assign go terms to the genes in the clusters, which means go terms are assigned to clusters
-df = AnnotationDbi::select(org.Hs.eg.db, keys=as.character(dfCom$gene), keytype='SYMBOL', columns='GO')
-df = df[df$ONTOLOGY == 'BP', ]
-#df = df[df$EVIDENCE != 'TAS', ]
-df = na.omit(df)
-i = match(df$SYMBOL, as.character(dfCom$gene))
-dfCom = dfCom[i,]
-identical(as.character(dfCom$gene), df$SYMBOL)
-dfCom$GO = factor(df$GO)
-## reduce the number of go terms i.e. drop rare terms or rare factor levels
-# choose more frequent go terms regardless of which cluster they belong to
-i = sort(table(dfCom$GO), decreasing = T)
-quantile(i, 0:10/10)
-# choose the most frequent
-i = i[i >= quantile(i, 0.90)]
-dfCom = dfCom[dfCom$GO %in% names(i), ]
-dfCom = droplevels.data.frame(dfCom)
-str(dfCom)
-# fit the model and calculate AIC
-fit.cluster = glmer(cluster ~ 1 + (1|GO), data=dfCom, family='binomial')
-summary(fit.cluster)
-p = predict(fit.cluster, type='response')
-l = levels(dfCom$cluster)
-pred = ifelse(p > 0.5, l[2], l[1])
-table(pred, actual=dfCom$cluster)
-mean(pred != dfCom$cluster)
-iErrorRate[cutoff] = mean(pred != dfCom$cluster)
-iAIC[cutoff] = AIC(fit.cluster)
-
-df = data.frame(y=c(iErrorRate, iAIC), z=factor(c(1,1,2,2), labels=c('Prediction Error Rate', 'AIC')),
-                x=factor(c(1,2,1,2), labels=c('Red', 'Green')))
-barchart(y ~ x | z, data=df, scales=list(relation='free'), ylab='Model Predictive Score', main='GO Term Purity')
-
-#### repeat with random sizes of edges to delete
-mEdges = get.edgelist(ig.tb)
-table(E(ig.tb)$weight)
-dim(mEdges)
-
-iRange = round(seq(5000, 70000, length.out = 20),0)
-# create 20 subsets of these random graphs
-lSub = lapply(iRange, function(x) sample(1:nrow(mEdges), x))
-#lSub = lapply(lSub, function(x) apply(mEdges[x,], 1, function(y) get.edge.ids(ig.tb, y)))
 
 getScore = function(ids){
   ig.p = delete.edges(ig.tb, ids)
@@ -634,6 +563,83 @@ getScore = function(ids){
   return(c(aic=AIC(fit.cluster), edges=ecount(ig.p), vertices=vcount(ig.p)))
 }
 
+table(E(ig.tb)$weight)
+iAIC = rep(NA, times=2)
+names(iAIC) = c('Red', 'Green')
+iAIC['Red'] = getScore(which(E(ig.tb)$weight > 2))['aic']
+iAIC['Green'] = getScore(which(E(ig.tb)$weight < 2))['aic']
+
+# 
+# # weights in the graph
+# iIndex = c(0, 2)
+# iErrorRate = rep(NA, times=length(iIndex))
+# names(iErrorRate) = c('Red', 'Green')
+# iAIC = rep(NA, times=length(iIndex))
+# names(iAIC) = names(iErrorRate)
+# length(iIndex)
+# ## weight cutoff index
+# cutoff = 2
+# ## different cutoffs
+# ecount(ig.tb)
+# table(E(ig.tb)$weight)
+# ig.p = delete.edges(ig.tb, which(E(ig.tb)$weight < iIndex[cutoff]))
+# ecount(ig.p)
+# ig.p = delete.vertices(ig.p, which(degree(ig.p) == 0))
+# vcount(ig.p)
+# com = cluster_louvain(ig.p, weight=NULL)
+# ## map the cluster id to the gene name
+# dfCom = data.frame(gene=com$names, com=com$membership)
+# # get the frequency/size of the clusters
+# i = sort(table(dfCom$com), decreasing = T)
+# i
+# # choose clusters of comparable sizes
+# i = names(i)[c(1,2)]
+# # subset the data to the 2 largest clusters
+# dfCom = dfCom[dfCom$com %in% i,]
+# dfCom$cluster = factor(dfCom$com)
+# table(dfCom$cluster)
+# str(dfCom)
+# # assign go terms to the genes in the clusters, which means go terms are assigned to clusters
+# df = AnnotationDbi::select(org.Hs.eg.db, keys=as.character(dfCom$gene), keytype='SYMBOL', columns='GO')
+# df = df[df$ONTOLOGY == 'BP', ]
+# #df = df[df$EVIDENCE != 'TAS', ]
+# df = na.omit(df)
+# i = match(df$SYMBOL, as.character(dfCom$gene))
+# dfCom = dfCom[i,]
+# identical(as.character(dfCom$gene), df$SYMBOL)
+# dfCom$GO = factor(df$GO)
+# ## reduce the number of go terms i.e. drop rare terms or rare factor levels
+# # choose more frequent go terms regardless of which cluster they belong to
+# i = sort(table(dfCom$GO), decreasing = T)
+# quantile(i, 0:10/10)
+# # choose the most frequent
+# i = i[i >= quantile(i, 0.90)]
+# dfCom = dfCom[dfCom$GO %in% names(i), ]
+# dfCom = droplevels.data.frame(dfCom)
+# str(dfCom)
+# # fit the model and calculate AIC
+# fit.cluster = glmer(cluster ~ 1 + (1|GO), data=dfCom, family='binomial')
+# summary(fit.cluster)
+# p = predict(fit.cluster, type='response')
+# l = levels(dfCom$cluster)
+# pred = ifelse(p > 0.5, l[2], l[1])
+# table(pred, actual=dfCom$cluster)
+# mean(pred != dfCom$cluster)
+# iErrorRate[cutoff] = mean(pred != dfCom$cluster)
+# iAIC[cutoff] = AIC(fit.cluster)
+# 
+# df = data.frame(y=c(iErrorRate, iAIC), z=factor(c(1,1,2,2), labels=c('Prediction Error Rate', 'AIC')),
+#                 x=factor(c(1,2,1,2), labels=c('Red', 'Green')))
+# barchart(y ~ x | z, data=df, scales=list(relation='free'), ylab='Model Predictive Score', main='GO Term Purity')
+
+#### repeat with random sizes of edges to delete
+mEdges = get.edgelist(ig.tb)
+table(E(ig.tb)$weight)
+dim(mEdges)
+
+iRange = round(seq(5000, 70000, length.out = 20),0)
+# create 20 subsets of these random graphs
+lSub = lapply(iRange, function(x) sample(1:nrow(mEdges), x))
 mScores = sapply(lSub, getScore)
 
 plot(c(mScores['edges',], 8000, 75000), c(mScores['aic',], iAIC), type='n',
@@ -644,12 +650,63 @@ points(ecount(ig.tb), iAIC['Red'], pch=20, cex=2, col='red')
 points(ecount(ig.tb.g), iAIC['Green'], pch=20, cex=2, col='green')
 
 ## maximal cliques 
-iCliques.green = sapply(max_cliques(ig.tb.g, 3, length(largest_cliques(ig.tb.g)[[1]])), length)
-iCliques.red = sapply(max_cliques(ig.tb, 3, length(largest_cliques(ig.tb)[[1]])), length)
-iCliques.ran = sapply(max_cliques(ig.ran, 3, 20), length)
-par(mfrow=c(1,3))
-hist(iCliques.green, prob=T); hist(iCliques.red, prob=T); hist(iCliques.ran, prob=T)
+# iCliques.green = sapply(max_cliques(ig.tb.g, 3, length(largest_cliques(ig.tb.g)[[1]])), length)
+# iCliques.red = sapply(max_cliques(ig.tb, 3, length(largest_cliques(ig.tb)[[1]])), length)
 
+getCliques = function(ids){
+  ig.p = delete.edges(ig.tb, ids)
+  ig.p = delete.vertices(ig.p, which(degree(ig.p) == 0))
+  return(sapply(max_cliques(ig.p, 3, length(largest_cliques(ig.p)[[1]])), length))
+}
+iCliques.green = getCliques(which(E(ig.tb)$weight < 2))
+iCliques.yellow = getCliques(which(E(ig.tb)$weight < 1))
+iCliques.red = getCliques(which(E(ig.tb)$weight > 2))
+iCliques.ran = getCliques(lSub[[20]])
+iCliques.ran.2 = getCliques(lSub[[19]])
+iCliques.ran.3 = getCliques(lSub[[18]])
+iCliques.ran.4 = getCliques(lSub[[11]])
+iCliques.ran.5 = getCliques(lSub[[15]])
+iCliques.ran.6 = getCliques(lSub[[13]])
+par(mfrow=c(3,3))
+plot(density(iCliques.green), xlab='Cliques', main=paste0('Green E-count ', ecount(ig.tb.g)), ylab='')
+plot(density(iCliques.yellow), xlab='Cliques', main=paste0('Yellow E-count ', ecount(ig.tb.y)), ylab='')
+plot(density(iCliques.red), xlab='Cliques', main=paste0('Red E-count ', ecount(ig.tb)), ylab='')
+plot(density(iCliques.ran), xlab='Cliques', main=paste0('Random E-count ', ecount(ig.tb) - length(lSub[[20]])), ylab='')
+plot(density(iCliques.ran.2), xlab='Cliques', main=paste0('Random E-count ', ecount(ig.tb) - length(lSub[[19]])), ylab='')
+plot(density(iCliques.ran.3), xlab='Cliques', main=paste0('Random E-count ', ecount(ig.tb) - length(lSub[[18]])), ylab='')
+plot(density(iCliques.ran.5), xlab='Cliques', main=paste0('Random E-count ', ecount(ig.tb) - length(lSub[[15]])), ylab='')
+plot(density(iCliques.ran.6), xlab='Cliques', main=paste0('Random E-count ', ecount(ig.tb) - length(lSub[[13]])), ylab='')
+plot(density(iCliques.ran.4), xlab='Cliques', main=paste0('Random E-count ', ecount(ig.tb) - length(lSub[[11]])), ylab='')
+
+## create a random graph for comparison and checking of the model 
+ig.ran = erdos.renyi.game(vcount(ig.tb), p.or.m = ecount(ig.tb), type='gnm')
+ig.ran.y = erdos.renyi.game(vcount(ig.tb.y), p.or.m = ecount(ig.tb.y), type='gnm')
+ig.ran.g = erdos.renyi.game(vcount(ig.tb.g), p.or.m = ecount(ig.tb.g), type='gnm')
+ER.1 = sapply(max_cliques(ig.ran, 3, length(largest_cliques(ig.ran)[[1]])), length)
+ER.2 = sapply(max_cliques(ig.ran.y, 3, length(largest_cliques(ig.ran.y)[[1]])), length)
+ER.3 = sapply(max_cliques(ig.ran.g, 3, length(largest_cliques(ig.ran.g)[[1]])), length)
+
+
+
+plot(density(iCliques.green[iCliques.green <= 20]), xlab='Cliques', main=paste0('Green E-count ', ecount(ig.tb.g)), ylab='')
+plot(density(iCliques.yellow[iCliques.yellow <= 20]), xlab='Cliques', main=paste0('Yellow E-count ', ecount(ig.tb.y)), ylab='')
+plot(density(iCliques.red[iCliques.red <= 20]), xlab='Cliques', main=paste0('Red E-count ', ecount(ig.tb)), ylab='')
+plot(density(ER.1), xlab='Cliques', main=paste0('ER E-count ', ecount(ig.ran)), ylab='')
+plot(density(ER.2), xlab='Cliques', main=paste0('ER E-count ', ecount(ig.ran.y)), ylab='')
+plot(density(ER.3), xlab='Cliques', main=paste0('ER E-count ', ecount(ig.ran.g)), ylab='')
+
+
+plot(density(iCliques.green), xlab='Cliques', main=paste0('Green E-count ', ecount(ig.tb.g)), ylab='')
+plot(density(iCliques.yellow), xlab='Cliques', main=paste0('Yellow E-count ', ecount(ig.tb.y)), ylab='')
+plot(density(iCliques.red), xlab='Cliques', main=paste0('Red E-count ', ecount(ig.tb)), ylab='')
+
+
+# iRange = rep(ecount(ig.tb) - 8037, times=30)
+# lSub = lapply(iRange, function(x) sample(1:nrow(mEdges), x))
+# 
+# lCliques.ran = lapply(lSub, getCliques)
+
+hist(iCliques.green, prob=T); hist(iCliques.red, prob=T); hist(iCliques.ran, prob=T)
 #iCliques.all.green = cliques(ig.tb.g, 3, 7)
 ## centrality measures
 # ig.tb= getProjectedGraph(oCGbp.tb)
