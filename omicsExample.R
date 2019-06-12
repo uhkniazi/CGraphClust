@@ -127,26 +127,26 @@ dev.off(dev.cur())
 ### sepsis data set
 ###################################################################
 ## separate the pathways and do one database at a time
-# dfGraph = dfPathways[dfPathways$Database == 'Reactome',c('Gene', 'Pathway')]
-# dfGraph$Gene = as.character(dfGraph$Gene)
-# dfGraph$Pathway = as.character(dfGraph$Pathway)
-# str(dfGraph)
-# 
-# # convert gene ids to symbols
-# library(org.Hs.eg.db)
-# df = AnnotationDbi::select(org.Hs.eg.db, keys=dfGraph$Gene, keytype = 'ENTREZID', columns =  'SYMBOL')
-# dfGraph$Gene = df$SYMBOL
-# # select subset of genes from our data set
-# dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts.sepsis), ]
-# dfGraph = na.omit(dfGraph)
-# dim(dfGraph)
-# length(unique(dfGraph$Gene))
-# # 1148 genes have annotations
-# 
-# oCGbp.sepsis = CGraph.bipartite2(dfGraph, ivWeights = c(2, 1, 0))
-# table(E(getProjectedGraph(oCGbp.sepsis))$weight)
-# # 0     1     2 
-# # 55433 23291  9428
+dfGraph = dfPathways[dfPathways$Database == 'Reactome',c('Gene', 'Pathway')]
+dfGraph$Gene = as.character(dfGraph$Gene)
+dfGraph$Pathway = as.character(dfGraph$Pathway)
+str(dfGraph)
+
+# convert gene ids to symbols
+library(org.Hs.eg.db)
+df = AnnotationDbi::select(org.Hs.eg.db, keys=dfGraph$Gene, keytype = 'ENTREZID', columns =  'SYMBOL')
+dfGraph$Gene = df$SYMBOL
+# select subset of genes from our data set
+dfGraph = dfGraph[dfGraph$Gene %in% colnames(mCounts.sepsis), ]
+dfGraph = na.omit(dfGraph)
+dim(dfGraph)
+length(unique(dfGraph$Gene))
+# 1148 genes have annotations
+
+oCGbp.sepsis = CGraph.bipartite2(dfGraph, ivWeights = c(2, 1, 0))
+table(E(getProjectedGraph(oCGbp.sepsis))$weight)
+# 0     1     2
+# 55433 23291  9428
 # 
 # # some figures
 # plot.projected.graph(oCGbp.sepsis, cDropEdges = c(''), bDropOrphans = T)
@@ -695,10 +695,62 @@ plot(density(ER.1), xlab='Cliques', main=paste0('ER E-count ', ecount(ig.ran)), 
 plot(density(ER.2), xlab='Cliques', main=paste0('ER E-count ', ecount(ig.ran.y)), ylab='')
 plot(density(ER.3), xlab='Cliques', main=paste0('ER E-count ', ecount(ig.ran.g)), ylab='')
 
+#########################################################
+####### Graph union of tb and sepsis
+#########################################################
+ig.tb = getProjectedGraph(oCGbp.tb)
+ig.sepsis = getProjectedGraph(oCGbp.sepsis)
+ig.tb.g = delete.edges(ig.tb, which(E(ig.tb)$weight < 2))
+ig.tb.g = delete.vertices(ig.tb.g, which(degree(ig.tb.g) == 0))
+ig.sepsis.g = delete.edges(ig.sepsis, which(E(ig.sepsis)$weight < 2))
+ig.sepsis.g = delete.vertices(ig.sepsis.g, which(degree(ig.sepsis.g) == 0))
+table(E(ig.sepsis.g)$weight); table(E(ig.tb.g)$weight)
+vcount(ig.sepsis.g); vcount(ig.tb.g)
 
-plot(density(iCliques.green), xlab='Cliques', main=paste0('Green E-count ', ecount(ig.tb.g)), ylab='')
-plot(density(iCliques.yellow), xlab='Cliques', main=paste0('Yellow E-count ', ecount(ig.tb.y)), ylab='')
-plot(density(iCliques.red), xlab='Cliques', main=paste0('Red E-count ', ecount(ig.tb)), ylab='')
+ig.un = CGraph.union(ig.tb.g, ig.sepsis.g)
+table(E(ig.un)$weight)
+## find genes only present in TB and sepsis
+cTb = V(ig.tb.g)$name
+cSepsis = V(ig.sepsis.g)$name
+table(cTb %in% cSepsis)
+V(ig.un)$color = 'lightgrey'
+V(ig.un)[cTb]$color = 'lightgreen' # tb color
+V(ig.un)[cSepsis]$color = 'moccasin'
+## find common genes
+cCommon = V(ig.un)$name
+f = (cCommon %in% cTb) & (cCommon %in% cSepsis)
+table(f)
+cCommon = cCommon[f]
+head(cCommon)
+V(ig.un)[cCommon]$color = 'lightskyblue1'
+# keep only the largest connected component
+c = components(ig.un)
+cComponent = names(c$membership[c$membership != 1])
+length(cComponent)
+ig.un = delete.vertices(ig.un, cComponent)
+## find largest cliques in tb and sepsis
+c = names(unlist(largest_cliques(ig.tb.g)[[1]]))
+V(ig.un)[c]$color = 'pink'
+c = names(unlist(largest_cliques(ig.sepsis.g)[[1]]))
+V(ig.un)[c]$color = 'yellow'
+
+
+set.seed(123)
+par(mar=c(1,1,1,1)+0.1)
+plot(ig.un, vertex.label.cex=0.2, layout=layout_with_fr(ig.un, weights=rep(1, times=ecount(ig.un))),
+     vertex.frame.color='darkgrey', edge.color='lightgrey', vertex.size=5)
+legend('topright', legend = c('TB', 'Sepsis', 'Common'), fill = c('lightgreen', 'moccasin', 'lightskyblue1'))
+## save the graph object in graphml format to use in cytoscape
+write.graph(ig.un, file= 'temp/union.graphml', format='graphml')
+
+
+
+
+
+# 
+# plot(density(iCliques.green), xlab='Cliques', main=paste0('Green E-count ', ecount(ig.tb.g)), ylab='')
+# plot(density(iCliques.yellow), xlab='Cliques', main=paste0('Yellow E-count ', ecount(ig.tb.y)), ylab='')
+# plot(density(iCliques.red), xlab='Cliques', main=paste0('Red E-count ', ecount(ig.tb)), ylab='')
 
 
 # iRange = rep(ecount(ig.tb) - 8037, times=30)
@@ -706,7 +758,7 @@ plot(density(iCliques.red), xlab='Cliques', main=paste0('Red E-count ', ecount(i
 # 
 # lCliques.ran = lapply(lSub, getCliques)
 
-hist(iCliques.green, prob=T); hist(iCliques.red, prob=T); hist(iCliques.ran, prob=T)
+# hist(iCliques.green, prob=T); hist(iCliques.red, prob=T); hist(iCliques.ran, prob=T)
 #iCliques.all.green = cliques(ig.tb.g, 3, 7)
 ## centrality measures
 # ig.tb= getProjectedGraph(oCGbp.tb)
