@@ -57,71 +57,62 @@ table(E(getProjectedGraph(oCGbp.tb))$weight)
 # 0     1     2 
 # 46445 19059  8037 
 
+######################## comment out extra figures sections
+########################
 # some figures
-plot.projected.graph(oCGbp.tb, cDropEdges = c(''), bDropOrphans = T)
-plot.projected.graph(oCGbp.tb, cDropEdges = c('red'), bDropOrphans = T)
-set.seed(123)
-plot.projected.graph(oCGbp.tb, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
-
-# extract the igraph object
-ig.tb= getProjectedGraph(oCGbp.tb)
-table(E(ig.tb)$weight)
-
-# drop all the red edges
-ig.tb= delete.edges(ig.tb, which(E(ig.tb)$weight < 2))
-vcount(ig.tb)
-ecount(ig.tb)
-ig.tb= delete.vertices(ig.tb, which(degree(ig.tb) == 0))
-vcount(ig.tb)
-# 761 genes left
-
-# some plots
-set.seed(123)
-plot(ig.tb, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
-     vertex.frame.color=NA, 
-     edge.color='darkgrey', edge.width=0.5,
-     layout=layout_with_fr(ig.tb, weights = E(ig.tb)$green))
-
-pdf('temp/omicsGraphs_tb.pdf')
-par(mar=c(1,1,1,1)+0.1)#, mfrow=c(2,2))
-fGroups.tb = lData.tb$grouping
-ig.plot.tb = f_igCalculateVertexSizesAndColors(ig.tb, t(mCounts.tb), fGroups.tb, bColor = T, iSize = 10)
-set.seed(123)
-plot(ig.plot.tb, vertex.label.cex=0.2, layout=layout_with_fr(ig.plot.tb, weights=E(ig.plot.tb)$green),
-     vertex.frame.color='darkgrey', edge.color='lightgrey', 
-     main=paste(levels(fGroups.tb)[nlevels(fGroups.tb)], 'vs', levels(fGroups.tb)[1]))
-legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
-dev.off(dev.cur())
-
-## location of the largest clique
-set.seed(123)
-plot.graph.clique(oCGbp.tb)
-
-## plot subgraph of largest clique
-pdf('temp/omicsGraphs_clique_tb.pdf')
-ig.plot.tb = induced_subgraph(ig.tb, unlist(largest_cliques(ig.tb)))
-ecount(ig.plot.tb)
-vcount(ig.plot.tb)
-par(mar=c(1,1,1,1)+0.1)#, mfrow=c(2,2))
-ig.plot.tb = f_igCalculateVertexSizesAndColors(ig.plot.tb, t(mCounts.tb), fGroups.tb, bColor = T, iSize = 20)
-set.seed(123)
-plot(ig.plot.tb, vertex.label.cex=0.5, layout=layout_with_fr(ig.plot.tb, weights=E(ig.plot.tb)$green),
-     vertex.frame.color='darkgrey', edge.color='lightgrey', 
-     main=paste(levels(fGroups.tb)[nlevels(fGroups.tb)], 'vs', levels(fGroups.tb)[1]))
-legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
-dev.off(dev.cur())
-
-# library(lattice)
-# df = data.frame(mCounts.tb[,V(ig.plot)$name])
-# cSel = c('GBP5', 'GBP6', 'IFI30', 'OAS2', 'FCGR1B', 'RSAD2', 'MT2A')
-# df = stack(df[,cSel])
-# df$fGroups = fGroups
-# df$hiv = lData.tb$adjust
+# plot.projected.graph(oCGbp.tb, cDropEdges = c(''), bDropOrphans = T)
+# plot.projected.graph(oCGbp.tb, cDropEdges = c('red'), bDropOrphans = T)
+# set.seed(123)
+# plot.projected.graph(oCGbp.tb, cDropEdges = c('red', 'yellow'), bDropOrphans = T)
 # 
-# xyplot( values ~ fGroups | ind, groups=hiv, data=df, type='p', pch=20, scales=list(relation='free'))
-# bwplot( values ~ fGroups | ind, data=df[df$hiv == 'HIV-',], type='p', pch=20, scales=list(relation='free'))
-# bwplot( values ~ fGroups | ind, data=df[df$hiv == 'HIV+',], type='p', pch=20, scales=list(relation='free'))
-
+# # extract the igraph object
+# ig.tb= getProjectedGraph(oCGbp.tb)
+# table(E(ig.tb)$weight)
+# 
+# # drop all the red edges
+# ig.tb= delete.edges(ig.tb, which(E(ig.tb)$weight < 2))
+# vcount(ig.tb)
+# ecount(ig.tb)
+# ig.tb= delete.vertices(ig.tb, which(degree(ig.tb) == 0))
+# vcount(ig.tb)
+# # 761 genes left
+# 
+# # some plots
+# set.seed(123)
+# plot(ig.tb, vertex.label=NA, vertex.label.cex=0.1, vertex.size=2, 
+#      vertex.frame.color=NA, 
+#      edge.color='darkgrey', edge.width=0.5,
+#      layout=layout_with_fr(ig.tb, weights = E(ig.tb)$green))
+# 
+# pdf('temp/omicsGraphs_tb.pdf')
+# par(mar=c(1,1,1,1)+0.1)#, mfrow=c(2,2))
+# fGroups.tb = lData.tb$grouping
+# ig.plot.tb = f_igCalculateVertexSizesAndColors(ig.tb, t(mCounts.tb), fGroups.tb, bColor = T, iSize = 10)
+# set.seed(123)
+# plot(ig.plot.tb, vertex.label.cex=0.2, layout=layout_with_fr(ig.plot.tb, weights=E(ig.plot.tb)$green),
+#      vertex.frame.color='darkgrey', edge.color='lightgrey', 
+#      main=paste(levels(fGroups.tb)[nlevels(fGroups.tb)], 'vs', levels(fGroups.tb)[1]))
+# legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+# dev.off(dev.cur())
+# 
+# ## location of the largest clique
+# set.seed(123)
+# plot.graph.clique(oCGbp.tb)
+# 
+# ## plot subgraph of largest clique
+# pdf('temp/omicsGraphs_clique_tb.pdf')
+# ig.plot.tb = induced_subgraph(ig.tb, unlist(largest_cliques(ig.tb)))
+# ecount(ig.plot.tb)
+# vcount(ig.plot.tb)
+# par(mar=c(1,1,1,1)+0.1)#, mfrow=c(2,2))
+# ig.plot.tb = f_igCalculateVertexSizesAndColors(ig.plot.tb, t(mCounts.tb), fGroups.tb, bColor = T, iSize = 20)
+# set.seed(123)
+# plot(ig.plot.tb, vertex.label.cex=0.5, layout=layout_with_fr(ig.plot.tb, weights=E(ig.plot.tb)$green),
+#      vertex.frame.color='darkgrey', edge.color='lightgrey', 
+#      main=paste(levels(fGroups.tb)[nlevels(fGroups.tb)], 'vs', levels(fGroups.tb)[1]))
+# legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+# dev.off(dev.cur())
+#############################
 
 ###################################################################
 ### sepsis data set
@@ -185,56 +176,56 @@ mtb.g = sapply(c(degree, coreness), function(x){
 })
 
 # visualise results
-plot(mtb, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Red'); cor(mtb)
-plot(mtb.y, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Yellow'); cor(mtb.y)
-plot(mtb.g, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Green'); cor(mtb.g)
+# plot(mtb, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Red'); cor(mtb)
+# plot(mtb.y, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Yellow'); cor(mtb.y)
+plot(mtb.g, pch=20, xlab='Degree', ylab='Coreness', main='Coreness vs Degree'); cor(mtb.g)
 #############
 
 ################### atypical patterns in coreness vs degree plots
 ###################
 ## largest cliques location
 # red graph
-i = names(unlist(largest_cliques(ig.tb)))
-i2 = which(rownames(mtb) %in% i)
-plot(mtb, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Red')
-points(mtb[i2,], pch=20, col=2)
-# yellow graph
-i = names(unlist(largest_cliques(ig.tb.y)))
-i2 = which(rownames(mtb.y) %in% i)
-plot(mtb.y, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Yellow')
-points(mtb.y[i2,], pch=20, col=2)
-# green graph
-i = names(unlist(largest_cliques(ig.tb.g)))
-i2 = which(rownames(mtb.g) %in% i)
-plot(mtb.g, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Green', cex=0.7, col='grey')
-points(mtb.g[i2,], pch=20, col='green')
-# 3 graphs together
-i = names(unlist(largest_cliques(ig.tb)))
-i2 = which(rownames(mtb) %in% i)
-plot(mtb, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Red', cex=0.7, col='grey')
-points(mtb[i2,], pch=20, col=2)
-i = names(unlist(largest_cliques(ig.tb.y)))
-i2 = which(rownames(mtb) %in% i)
-points(mtb[i2,], pch=20, col='yellow')
-i = names(unlist(largest_cliques(ig.tb.g)))
-i2 = which(rownames(mtb) %in% i)
-points(mtb[i2,], pch=20, col='green')
-
-## extract the green graph at top and selected core cutoffs to make figures
-par(mar=c(1,1,1,1)+0.1, mfrow=c(2,2))
-sort(unique(mtb.g[,2]))
-# repeat with appropriate choices of cutoffs
-iCut = 44
-i = names(which(mtb.g[,2] == iCut))
-ig.plot.tb = induced_subgraph(ig.tb.g, i)
-ecount(ig.plot.tb)
-vcount(ig.plot.tb)
-# plot the graph
-ig.plot.tb = f_igCalculateVertexSizesAndColors(ig.plot.tb, t(mCounts.tb), fGroups.tb, bColor = T, iSize = 20)
-set.seed(123)
-plot(ig.plot.tb, vertex.label=NA, layout=layout_with_fr(ig.plot.tb, weights=E(ig.plot.tb)$green),
-     vertex.frame.color='grey', edge.color='grey',edge.width=0.3, 
-     main=paste(iCut, levels(fGroups.tb)[nlevels(fGroups.tb)], 'vs', levels(fGroups.tb)[1]))
+# i = names(unlist(largest_cliques(ig.tb)))
+# i2 = which(rownames(mtb) %in% i)
+# plot(mtb, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Red')
+# points(mtb[i2,], pch=20, col=2)
+# # yellow graph
+# i = names(unlist(largest_cliques(ig.tb.y)))
+# i2 = which(rownames(mtb.y) %in% i)
+# plot(mtb.y, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Yellow')
+# points(mtb.y[i2,], pch=20, col=2)
+# # green graph
+# i = names(unlist(largest_cliques(ig.tb.g)))
+# i2 = which(rownames(mtb.g) %in% i)
+# plot(mtb.g, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Green', cex=0.7, col='grey')
+# points(mtb.g[i2,], pch=20, col='green')
+# # 3 graphs together
+# i = names(unlist(largest_cliques(ig.tb)))
+# i2 = which(rownames(mtb) %in% i)
+# plot(mtb, pch=20, xlab='Degree', ylab='Coreness', main='TB data - Red', cex=0.7, col='grey')
+# points(mtb[i2,], pch=20, col=2)
+# i = names(unlist(largest_cliques(ig.tb.y)))
+# i2 = which(rownames(mtb) %in% i)
+# points(mtb[i2,], pch=20, col='yellow')
+# i = names(unlist(largest_cliques(ig.tb.g)))
+# i2 = which(rownames(mtb) %in% i)
+# points(mtb[i2,], pch=20, col='green')
+# 
+# ## extract the green graph at top and selected core cutoffs to make figures
+# par(mar=c(1,1,1,1)+0.1, mfrow=c(2,2))
+# sort(unique(mtb.g[,2]))
+# # repeat with appropriate choices of cutoffs
+# iCut = 44
+# i = names(which(mtb.g[,2] == iCut))
+# ig.plot.tb = induced_subgraph(ig.tb.g, i)
+# ecount(ig.plot.tb)
+# vcount(ig.plot.tb)
+# # plot the graph
+# ig.plot.tb = f_igCalculateVertexSizesAndColors(ig.plot.tb, t(mCounts.tb), fGroups.tb, bColor = T, iSize = 20)
+# set.seed(123)
+# plot(ig.plot.tb, vertex.label=NA, layout=layout_with_fr(ig.plot.tb, weights=E(ig.plot.tb)$green),
+#      vertex.frame.color='grey', edge.color='grey',edge.width=0.3, 
+#      main=paste(iCut, levels(fGroups.tb)[nlevels(fGroups.tb)], 'vs', levels(fGroups.tb)[1]))
 #legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
 ###################
 
@@ -243,9 +234,9 @@ plot(ig.plot.tb, vertex.label=NA, layout=layout_with_fr(ig.plot.tb, weights=E(ig
 ## degree distribution and poisson models
 iDeg = degree(ig.tb.g)
 
-## create a random graph for comparison and checking of the model 
-ig.ran = erdos.renyi.game(vcount(ig.tb.g), p.or.m = ecount(ig.tb.g), type='gnm')
-iDeg.ran = degree(ig.ran)
+# ## create a random graph for comparison and checking of the model 
+# ig.ran = erdos.renyi.game(vcount(ig.tb.g), p.or.m = ecount(ig.tb.g), type='gnm')
+# iDeg.ran = degree(ig.ran)
 
 ## stan does not like this package so unload annotation packages
 detach("package:org.Hs.eg.db", unload=T)
@@ -286,10 +277,10 @@ fit.stan = sampling(stanDso.2, data=lStanData, iter=1000, chains=4, pars=c('popu
                     cores=4)
 print(fit.stan, c('populationMean', 'sigmaRan'), digits=3)
 
-pairs(fit.stan, pars = c("sigmaRan", "populationMean", "lp__"))
-# some diagnostics for stan
-traceplot(fit.stan, c('sigmaRan'), ncol=1, inc_warmup=F)
-traceplot(fit.stan, c('populationMean'), ncol=1, inc_warmup=F)
+# pairs(fit.stan, pars = c("sigmaRan", "populationMean", "lp__"))
+# # some diagnostics for stan
+# traceplot(fit.stan, c('sigmaRan'), ncol=1, inc_warmup=F)
+# traceplot(fit.stan, c('populationMean'), ncol=1, inc_warmup=F)
 
 ## quick comparison with lme4 results
 library(lme4)
@@ -383,20 +374,20 @@ rm(mFitted)
 # rm(mFitted)
 
 #### figures with data and posterior predictive simulations
-par(mfrow=c(3,2))
-hist(degree(ig.tb), xlim=c(0, 700), prob=T, xlab='', main='Observed Degree Distribution - Red')
-hist(degree(ig.tb.g), xlim=c(0, 90), xaxt='n', prob=T, xlab='', main='Observed Degree Distribution - Green')
+# par(mfrow=c(3,2))
+# hist(degree(ig.tb), xlim=c(0, 700), prob=T, xlab='', main='Observed Degree Distribution - Red')
+hist(degree(ig.tb.g), xlim=c(0, 90), xaxt='n', prob=T, xlab='Degree', main='Observed Degree Distribution')
 axis(1, c(0, 20, 40, 60, 80, 90), labels = c(0, 20, 40, 60, 80, 90))
-hist(mSim.er.red[,1], xlim=c(0, 700), prob=T, xlab='', main='Erdos-Renyi Model - Red')
-apply(mSim.er.red, 2, function(x) lines(density(x), lwd=0.8, col='grey'))
-hist(mSim.er.green[,1], xlim=c(0, 90), xaxt='n', prob=T, xlab='', main='Erdos-Renyi Model - Green')
-axis(1, c(0, 20, 40, 60, 80, 90), labels = c(0, 20, 40, 60, 80, 90))
-apply(mSim.er.green, 2, function(x) lines(density(x), lwd=0.8, col='grey'))
-hist(mSim.pp.red[,1], xlim=c(0, 700), prob=T, xlab='', main='Partial Pooling Model - Red')
-apply(mSim.pp.red, 2, function(x) lines(density(x), lwd=0.8, col='grey'))
-hist(mSim.pp.green[,1], xlim=c(0, 90), xaxt='n', prob=T, xlab='', main='Partial Pooling Model - Green')
-axis(1, c(0, 20, 40, 60, 80, 90), labels = c(0, 20, 40, 60, 80, 90))
-apply(mSim.pp.green, 2, function(x) lines(density(x), lwd=0.8, col='green'))
+# hist(mSim.er.red[,1], xlim=c(0, 700), prob=T, xlab='', main='Erdos-Renyi Model - Red')
+# apply(mSim.er.red, 2, function(x) lines(density(x), lwd=0.8, col='grey'))
+# hist(mSim.er.green[,1], xlim=c(0, 90), xaxt='n', prob=T, xlab='', main='Erdos-Renyi Model - Green')
+# axis(1, c(0, 20, 40, 60, 80, 90), labels = c(0, 20, 40, 60, 80, 90))
+# apply(mSim.er.green, 2, function(x) lines(density(x), lwd=0.8, col='grey'))
+# hist(mSim.pp.red[,1], xlim=c(0, 700), prob=T, xlab='', main='Partial Pooling Model - Red')
+# apply(mSim.pp.red, 2, function(x) lines(density(x), lwd=0.8, col='grey'))
+# hist(mSim.pp.green[,1], xlim=c(0, 90), xaxt='n', prob=T, xlab='', main='Partial Pooling Model - Green')
+# axis(1, c(0, 20, 40, 60, 80, 90), labels = c(0, 20, 40, 60, 80, 90))
+apply(mSim.pp.green, 2, function(x) lines(density(x), lwd=0.8, col='grey'))
 #####################
 
 ############# checking for cluster purity
@@ -465,7 +456,7 @@ lSub = lapply(iRange, function(x) sample(1:nrow(mEdges), x))
 mScores = sapply(lSub, getScore)
 
 plot(c(mScores['edges',], 8000, 75000), c(mScores['aic',], iAIC), type='n',
-     xlab='No. of Edges', ylab='AIC', cex.axis=0.8)
+     xlab='No. of Edges', ylab='AIC', cex.axis=0.8, main='Cluster Purity')
 
 lines(mScores['edges',], mScores['aic',])
 points(ecount(ig.tb), iAIC['Red'], pch=20, cex=2, col='red')
@@ -511,7 +502,7 @@ iCliques.red = getCliques(which(E(ig.tb)$weight > 2))
 # ER.1 = sapply(max_cliques(ig.ran, 3, length(largest_cliques(ig.ran)[[1]])), length)
 # ER.2 = sapply(max_cliques(ig.ran.y, 3, length(largest_cliques(ig.ran.y)[[1]])), length)
 # ER.3 = sapply(max_cliques(ig.ran.g, 3, length(largest_cliques(ig.ran.g)[[1]])), length)
-par(mfrow=c(2,3))
+# par(mfrow=c(2,3))
 # plot(density(iCliques.green[iCliques.green <= 20]), xlab='Cliques', main=paste0('Green E-count ', ecount(ig.tb.g)), ylab='')
 # plot(density(iCliques.yellow[iCliques.yellow <= 20]), xlab='Cliques', main=paste0('Yellow E-count ', ecount(ig.tb.y)), ylab='')
 # plot(density(iCliques.red[iCliques.red <= 20]), xlab='Cliques', main=paste0('Red E-count ', ecount(ig.tb)), ylab='')
@@ -524,9 +515,13 @@ par(mfrow=c(2,3))
 # hist(iCliques.red[iCliques.red <= 20], xlab='Cliques', main=paste0('Red E-count ', ecount(ig.tb)), ylab='', breaks=10)
 
 s = seq(2.5, 10.5, by=1)
-hist(iCliques.green, xlab='Cliques', main=paste0('Green E-count ', ecount(ig.tb.g)), ylab='', breaks=s)
-hist(iCliques.yellow, xlab='Cliques', main=paste0('Yellow E-count ', ecount(ig.tb.y)), ylab='', breaks=s)
-hist(iCliques.red, xlab='Cliques', main=paste0('Red E-count ', ecount(ig.tb)), ylab='', breaks=s)
+hist(iCliques.green, xlab='Maximal Clique Size', main=paste0('Green Graph'), breaks=s,
+     ylab='Frequency', xaxt='n')
+axis(1, at = 3:10, labels=3:10 )
+#hist(iCliques.yellow, xlab='Cliques', main=paste0('Yellow E-count ', ecount(ig.tb.y)), ylab='', breaks=s)
+hist(iCliques.red, xlab='Maximal Clique Size', main=paste0('Red Graph'), breaks=s,
+     ylab='Frequency', xaxt='n')
+axis(1, at = 3:10, labels=3:10 )
 ##############
 
 #########################################################
@@ -563,17 +558,19 @@ cComponent = names(c$membership[c$membership != 1])
 length(cComponent)
 ig.un = delete.vertices(ig.un, cComponent)
 ## find largest cliques in tb and sepsis
+V(ig.un)$size = 3
 c = names(unlist(largest_cliques(ig.tb.g)[[1]]))
 V(ig.un)[c]$color = 'red'
+V(ig.un)[c]$size = 5
 c = names(unlist(largest_cliques(ig.sepsis.g)[[1]]))
 V(ig.un)[c]$color = 'yellow'
-
+V(ig.un)[c]$size = 5
 
 set.seed(123)
 par(mar=c(1,1,1,1)+0.1)
 plot(ig.un, vertex.label.cex=0.2, layout=layout_with_fr(ig.un, weights=rep(1, times=ecount(ig.un))),
-     vertex.frame.color='darkgrey', edge.color='lightgrey', vertex.size=5, vertex.label=NA)
-legend('topright', legend = c('TB', 'Sepsis', 'Common'), fill = c('lightgreen', 'moccasin', 'lightskyblue1'))
+     vertex.frame.color='lightgrey', edge.color='lightgrey', vertex.label=NA, edge.width=0.2)
+legend('left', legend = c('TB', 'Sepsis', 'Common'), fill = c('lightgreen', 'moccasin', 'lightskyblue1'), cex=0.8)
 ## save the graph object in graphml format to use in cytoscape
 write.graph(ig.un, file= 'temp/union.graphml', format='graphml')
 #########################################################
